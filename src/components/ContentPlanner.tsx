@@ -16,6 +16,8 @@ interface ContentPlannerProps {
   onUpdatePlan: (plan: ContentPlan) => void;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   currentUser?: string;
+  searchQuery?: string;
+  uiMode?: 'human' | 'ai';
 }
 
 const MONTHS = [
@@ -112,7 +114,9 @@ export default function ContentPlanner({
   onDeletePlan,
   onUpdatePlan,
   addLog,
-  currentUser = 'each'
+  currentUser = 'each',
+  searchQuery = '',
+  uiMode = 'ai'
 }: ContentPlannerProps) {
   const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'assigner' | 'instagram-interface'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
@@ -990,21 +994,51 @@ export default function ContentPlanner({
     return acc;
   }, {} as Record<string, number>);
 
-  const filteredPlans = plans.filter(p => p.month === selectedMonth);
+  const filteredPlans = visiblePlans.filter(p => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const titleMatch = p.title.toLowerCase().includes(query);
+      const platformMatch = p.platform.toLowerCase().includes(query);
+      const statusMatch = p.status.toLowerCase().includes(query);
+      const typeMatch = p.type.toLowerCase().includes(query);
+      const descMatch = p.description?.toLowerCase().includes(query) || false;
+      return titleMatch || platformMatch || statusMatch || typeMatch || descMatch;
+    }
+    return p.month === selectedMonth;
+  });
 
   return (
-    <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col h-full justify-between">
+    <div className={`backdrop-blur-md border rounded-2xl p-6 shadow-xl flex flex-col h-full justify-between transition-all duration-500 ${
+      uiMode === 'ai' 
+        ? 'bg-slate-900/60 border-slate-800/80' 
+        : 'bg-slate-900/40 border-slate-800/60 shadow-md'
+    }`}>
       <div>
         
         {/* Title Block */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/60 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
-              <Film className="w-6 h-6" />
+            <div className={`p-2.5 rounded-xl border transition-all ${
+              uiMode === 'ai' 
+                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}>
+              {uiMode === 'ai' ? (
+                <Sparkles className="w-6 h-6 text-indigo-400 animate-pulse" />
+              ) : (
+                <Film className="w-6 h-6 text-slate-300" />
+              )}
             </div>
             <div>
-              <h3 className="text-lg font-bold font-display text-white">SWANAYA Custom Content Engine</h3>
-              <p className="text-slate-400 text-xs">Direct media content scheduler & file pipelines</p>
+              <h3 className="text-lg font-bold font-display text-white">
+                {uiMode === 'ai' ? 'SWANIQUE AI Content Engine' : 'SWANIQUE Content Registry'}
+              </h3>
+              <p className="text-slate-400 text-xs">
+                {uiMode === 'ai' 
+                  ? 'Predictive media scheduler, SEO tag recommendations & cloud pipelines' 
+                  : 'Manual media content scheduler & verified team registers'
+                }
+              </p>
             </div>
           </div>
 
@@ -1137,16 +1171,18 @@ export default function ContentPlanner({
                         className="bg-slate-950/30 border border-slate-800/50 rounded-xl p-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2"
                       >
                         <Calendar className="w-8 h-8 text-slate-700" />
-                        <p>No content scheduled for {selectedMonth} yet.</p>
-                        <button
-                          onClick={() => {
-                            setFormMonth(selectedMonth);
-                            setActiveTab('entity-manager');
-                          }}
-                          className="mt-2 text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-                        >
-                          + Click here to schedule one
-                        </button>
+                        <p>{searchQuery ? `No content plans match the query "${searchQuery}".` : `No content scheduled for ${selectedMonth} yet.`}</p>
+                        {!searchQuery && (
+                          <button
+                            onClick={() => {
+                              setFormMonth(selectedMonth);
+                              setActiveTab('entity-manager');
+                            }}
+                            className="mt-2 text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                          >
+                            + Click here to schedule one
+                          </button>
+                        )}
                       </motion.div>
                     ) : (
                       filteredPlans.map((plan, index) => (
@@ -1163,7 +1199,7 @@ export default function ContentPlanner({
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div className="flex flex-wrap gap-1.5 items-center">
                                 <span className="font-mono text-[10px] font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded-full">
-                                  Day {plan.day} • {plan.platform}
+                                  {searchQuery ? `${plan.month} ` : ''}Day {plan.day} • {plan.platform}
                                 </span>
                                 <span className="font-mono text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 px-2 py-0.5 rounded-full flex items-center gap-1" title="Assigned Target Date">
                                   <Calendar className="w-2.5 h-2.5 shrink-0" />

@@ -1,0 +1,80 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile synced from Firebase Auth",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "Email address" },
+        "fullName": { "type": "string" },
+        "bio": { "type": "string" },
+        "designation": { "type": "string" },
+        "profileImage": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "ContentPlan": {
+      "title": "ContentPlan",
+      "description": "A scheduled media production content plan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["Video", "Image", "Article", "Campaign", "Story"] },
+        "description": { "type": "string" },
+        "month": { "type": "string" },
+        "day": { "type": "integer" },
+        "year": { "type": "integer" },
+        "assignedDate": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "videoName": { "type": "string" },
+        "videoSize": { "type": "string" },
+        "status": { "type": "string", "enum": ["Planned", "In Progress", "Completed", "Review"] },
+        "platform": { "type": "string", "enum": ["YouTube", "Instagram", "TikTok", "LinkedIn", "Facebook"] },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["title", "type", "description", "status", "platform"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "An attendance clock-in/out record for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "day": { "type": "integer" },
+        "type": { "type": "string", "enum": ["check_in", "check_out"] },
+        "timestamp": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "notes": { "type": "string" },
+        "username": { "type": "string" }
+      },
+      "required": ["day", "type", "timestamp", "dateTime", "username"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "System activity logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "action", "upload"] }
+      },
+      "required": ["text", "timestamp", "type"]
+    },
+    "AiTodoItem": {
+      "title": "AiTodoItem",
+      "description": "AI-generated strategic To-Do item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "platform": { "type": "string" },
+        "priority": { "type": "string" },
+        "completed": { "type": "boolean" }
+      },
+      "required": ["text", "platform", "priority", "completed"]
+    }
+  }
+}

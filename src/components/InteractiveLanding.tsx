@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   Sparkles, Flame, BarChart3, TrendingUp, Search, Calendar, Shield,
   ArrowRight, MessageSquare, Zap, Target, Database, Terminal, Cpu,
-  ChevronDown, ChevronUp, ExternalLink, Mail, Globe, Laptop, HelpCircle
+  ChevronDown, ChevronUp, ExternalLink, Mail, Globe, Laptop, HelpCircle,
+  Play, Users, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -14,6 +15,7 @@ interface InteractiveLandingProps {
 export default function InteractiveLanding({ onEnterPortal, registeredUsersCount }: InteractiveLandingProps) {
   const [activeDemo, setActiveDemo] = useState<'roi' | 'seo' | 'status'>('roi');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [showDemoModal, setShowDemoModal] = useState(false);
   
   // ROI Forecaster state
   const [postsPerWeek, setPostsPerWeek] = useState(4);
@@ -94,58 +96,134 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
   return (
     <div className="w-full flex flex-col gap-10 py-8 text-slate-100 max-w-5xl mx-auto">
       
-      {/* 1. Header Banner & Intro */}
-      <div className="text-center space-y-4 max-w-3xl mx-auto">
+      {/* 1. Swanique AI Premium SaaS/Enterprise Header */}
+      <div className="text-center space-y-6 max-w-4xl mx-auto px-4">
+        
+        {/* Animated Badge */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/10 to-emerald-500/10 border border-indigo-500/30 text-indigo-400 font-mono text-xs font-semibold uppercase tracking-wider"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-emerald-500/10 border border-indigo-500/30 text-indigo-400 font-mono text-xs font-semibold uppercase tracking-wider shadow-inner"
         >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-          Swanaya Media Enterprises • Interactive Preview Node
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse shrink-0" />
+          <span>Swanique AI Enterprise Platform</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className="text-[10px] text-slate-400">v2.10 PRO</span>
         </motion.div>
 
-        <motion.h1 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-4xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-indigo-300 uppercase leading-none font-display"
-        >
-          A Content Planner <br className="hidden md:inline" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400">Powerhouse</span>
-        </motion.h1>
+        {/* Hero Brand & Main Title */}
+        <div className="space-y-3">
+          <motion.h1 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-5xl md:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-100 to-indigo-300 uppercase leading-none font-display"
+          >
+            Swanique AI
+          </motion.h1>
+          
+          <motion.h2 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="text-xl md:text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-emerald-300 font-sans"
+          >
+            AI-Powered Content Planning & Marketing Intelligence Platform
+          </motion.h2>
 
-        <motion.p 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-slate-400 text-sm md:text-base max-w-xl mx-auto leading-relaxed"
-        >
-          Explore interactive optimization sandboxes, schedule models, and track employee check-ins in one unified high-fidelity dashboard. Log in or create a profile to persist your custom calendar nodes.
-        </motion.p>
+          <motion.p 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-slate-300 text-sm md:text-base max-w-2xl mx-auto leading-relaxed"
+          >
+            Plan, create, schedule, and manage high-performing content with AI-powered workflows, marketing calendars, campaign management, and analytics—all from one secure, enterprise-ready dashboard.
+          </motion.p>
+        </div>
 
-        {/* Action Button */}
+        {/* CTA Buttons Block */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="pt-2"
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="flex flex-wrap items-center justify-center gap-3.5 pt-2"
         >
           <button 
             onClick={onEnterPortal}
-            className="group px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm tracking-wide uppercase transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/35 hover:scale-[1.02] flex items-center gap-2 mx-auto cursor-pointer"
+            className="group px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-bold text-sm tracking-wide uppercase transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.02] flex items-center gap-2 cursor-pointer"
           >
-            Authenticate Profile & Enter Portal
+            <span>🚀 Start Planning</span>
             <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </button>
-          
-          <div className="flex items-center justify-center gap-6 mt-4 text-[10px] text-slate-500 font-mono uppercase">
-            <span>📡 ACTIVE NODE: PORTAL v2.8</span>
-            <span>👥 REGISTERED PROFILES: {registeredUsersCount}</span>
-            <span>🟢 INFRASTRUCTURE: ONLINE</span>
-          </div>
+
+          <button 
+            onClick={() => setShowDemoModal(true)}
+            className="group px-5 py-3.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 text-slate-200 hover:text-white font-bold text-sm tracking-wide uppercase transition-all flex items-center gap-2 cursor-pointer shadow-md"
+          >
+            <Play className="w-4 h-4 text-indigo-400 fill-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Watch Demo</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              setActiveDemo('roi');
+              const el = document.getElementById('sandbox-header');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="px-5 py-3.5 rounded-xl bg-slate-950/60 border border-slate-900 hover:border-indigo-500/30 text-slate-400 hover:text-indigo-400 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+          >
+            Explore Features
+          </button>
         </motion.div>
+
+        {/* Hero Tagline */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.35 }}
+          className="text-sm md:text-base font-semibold tracking-wide text-indigo-300 font-mono italic"
+        >
+          "Think Smarter. Create Faster. Grow Together."
+        </motion.div>
+
+        {/* Hero Metrics Matrix - 6 Columns Grid */}
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+          className="grid grid-cols-2 md:grid-cols-6 gap-3 pt-4 text-left max-w-4xl mx-auto"
+        >
+          {[
+            { label: 'Smart Calendar', desc: 'Campaign Nodes', icon: Calendar, color: 'text-indigo-400' },
+            { label: 'AI Assistant', desc: 'Gemini Integrations', icon: Sparkles, color: 'text-yellow-400 animate-pulse' },
+            { label: 'Marketing Analytics', desc: 'Engagement ROI', icon: BarChart3, color: 'text-emerald-400' },
+            { label: 'Team Collaboration', desc: 'Secure Handshakes', icon: Users, color: 'text-blue-400' },
+            { label: 'Workflow Automation', desc: 'Automated Pipelines', icon: Zap, color: 'text-purple-400' },
+            { label: 'Multi-Platform Pub', desc: 'Direct Publishing', icon: Globe, color: 'text-teal-400' },
+          ].map((item, idx) => {
+            const IconComp = item.icon;
+            return (
+              <div 
+                key={idx}
+                className="bg-slate-950/40 border border-slate-900 hover:border-slate-800 p-3 rounded-xl space-y-1 transition-all duration-300 hover:bg-slate-950/60 shadow"
+              >
+                <div className="flex items-center gap-1.5">
+                  <IconComp className={`w-4 h-4 ${item.color} shrink-0`} />
+                  <span className="text-[11px] font-black tracking-tight text-white font-sans">{item.label}</span>
+                </div>
+                <p className="text-[9px] font-mono text-slate-500 uppercase leading-none">{item.desc}</p>
+              </div>
+            );
+          })}
+        </motion.div>
+
+        {/* Active Metadata / Profiles Node Row */}
+        <div className="flex items-center justify-center gap-6 mt-4 text-[10px] text-slate-500 font-mono uppercase border-t border-slate-900/60 pt-4">
+          <span>📡 ACTIVE NODE: PORTAL v2.10</span>
+          <span>👥 REGISTERED PROFILES: {registeredUsersCount}</span>
+          <span>🟢 INFRASTRUCTURE: ONLINE</span>
+        </div>
       </div>
 
       {/* 2. Interactive Interactive Sandbox Section */}
@@ -736,6 +814,121 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
           <p className="text-[9px]">DESIGNED AND MONITORED BY THE DIRECTOR & HOD OF MARKETINGS AND PRODUCTIONS AADITHYAN M MENON.</p>
         </div>
       </div>
+
+      {/* Watch Demo Modal */}
+      <AnimatePresence>
+        {showDemoModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-left relative overflow-hidden"
+            >
+              {/* Decorative accent background glows */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <Play className="w-5 h-5 text-indigo-400 fill-indigo-400" />
+                  <h3 className="text-sm font-bold font-display uppercase tracking-wider text-white">Swanique AI Interactive Walkthrough</h3>
+                </div>
+                <button 
+                  onClick={() => setShowDemoModal(false)}
+                  className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Walkthrough content */}
+              <div className="space-y-4">
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Experience the powerful marketing workflows built directly inside the Swanique AI command console. Once authenticated, operators gain full control over campaign nodes and multi-platform publishing pipelines.
+                </p>
+
+                {/* Simulated Feature Flow */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-850 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <span className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-[10px] font-mono">1</span>
+                      <span>Plan & Stage</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Map out your campaigns by month, day, and platform using our dynamic scheduling grids.</p>
+                  </div>
+
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-850 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <span className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-[10px] font-mono">2</span>
+                      <span>AI Copilot Magic</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Use built-in server-side Gemini prompts to generate tags, click-through hooks, and timelines.</p>
+                  </div>
+
+                  <div className="bg-slate-950 p-3 rounded-lg border border-slate-850 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <span className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-[10px] font-mono">3</span>
+                      <span>Publish & Track</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Upload content, monitor secure employee check-ins, and export PDF deployment manifests.</p>
+                  </div>
+                </div>
+
+                {/* Simulated Live Analytics Graph or Telemetry */}
+                <div className="bg-slate-950 p-4 rounded-xl border border-indigo-950/50 space-y-2 font-mono">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>⚡ WORKFLOW COMPILER ENGINE</span>
+                    <span className="text-emerald-400 font-bold">READY</span>
+                  </div>
+                  <div className="space-y-1.5 text-[9px] text-slate-500 leading-none">
+                    <div className="flex justify-between">
+                      <span>• Content Model Indexing Speed:</span>
+                      <span className="text-slate-300 font-bold">0.82s / draft</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>• Gemini Model Token Efficiency:</span>
+                      <span className="text-indigo-400 font-bold">99.4% (Zero-shot)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>• Secure Sync Validation:</span>
+                      <span className="text-emerald-400 font-bold">ACTIVE (TLS 1.3)</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-900 flex justify-between items-center">
+                    <span className="text-[10px] text-indigo-300 font-bold">Estimated Conversion Lift</span>
+                    <span className="text-xs text-white font-bold bg-indigo-600/20 border border-indigo-500/30 px-2 py-0.5 rounded">+42% Organic Growth</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close CTAs */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button 
+                  onClick={() => setShowDemoModal(false)}
+                  className="px-4 py-2 bg-slate-950 border border-slate-850 hover:bg-slate-850 text-slate-300 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowDemoModal(false);
+                    onEnterPortal();
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all hover:scale-[1.02] cursor-pointer shadow-lg shadow-indigo-500/20"
+                >
+                  Access Portal Now
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

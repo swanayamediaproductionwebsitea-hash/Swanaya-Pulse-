@@ -15,6 +15,7 @@ interface HomeProps {
   setActiveMainTab: (tab: any) => void;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   currentUser: string;
+  uiMode?: 'human' | 'ai';
 }
 
 interface PlatformConfig {
@@ -225,7 +226,7 @@ const SITE_MODULES: ModuleNode[] = [
   }
 ];
 
-export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, currentUser }: HomeProps) {
+export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, currentUser, uiMode = 'ai' }: HomeProps) {
   // Google Auth Simulation State
   const [googleConnected, setGoogleConnected] = useState<boolean>(() => {
     return localStorage.getItem('swanaya_google_oauth_linked') === 'true';
@@ -354,24 +355,53 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
     <div className="space-y-6">
 
       {/* Hero Welcome banner */}
-      <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950/45 to-slate-900 border border-slate-800 rounded-2xl p-6 overflow-hidden shadow-2xl">
+      <div className={`relative border rounded-2xl p-6 overflow-hidden shadow-2xl transition-all duration-500 ${
+        uiMode === 'ai' 
+          ? 'bg-gradient-to-r from-slate-900 via-indigo-950/45 to-slate-900 border-slate-800'
+          : 'bg-slate-900/80 border-slate-800'
+      }`}>
         <div className="absolute top-0 right-0 p-8 opacity-5">
-          <HomeIcon className="w-64 h-64 text-indigo-400" />
+          {uiMode === 'ai' ? (
+            <Sparkles className="w-64 h-64 text-indigo-400 animate-pulse" />
+          ) : (
+            <HomeIcon className="w-64 h-64 text-slate-500" />
+          )}
         </div>
         
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2.5">
-              <span className="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full">
-                Live Operator Control Center
-              </span>
-              <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-ping" />
+              {uiMode === 'ai' ? (
+                <>
+                  <span className="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+                    AI Integrated Autopilot Mode
+                  </span>
+                  <span className="h-1.5 w-1.5 bg-indigo-400 rounded-full animate-ping" />
+                </>
+              ) : (
+                <>
+                  <span className="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                    <HomeIcon className="w-3 h-3 text-slate-400" />
+                    Standard Human Operator Mode
+                  </span>
+                  <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                </>
+              )}
             </div>
             <h2 className="text-2xl md:text-3xl font-extrabold font-display text-white tracking-tight leading-none uppercase">
-              Swanaya Command Node
+              {uiMode === 'ai' ? 'Swanique AI Command Node' : 'Swanique Operator Workspace'}
             </h2>
             <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-              Welcome back, <strong className="text-indigo-300 font-bold">Aadithyan M. Menon</strong>. Ready to coordinate media distributions and manage corporate client assets.
+              {uiMode === 'ai' ? (
+                <>
+                  Welcome back, <strong className="text-indigo-300 font-bold">Aadithyan M. Menon</strong>. Predictive social suggestions, co-pilots, and server-side Gemini intelligence models are fully integrated.
+                </>
+              ) : (
+                <>
+                  Welcome back, <strong className="text-slate-300 font-bold">Aadithyan M. Menon</strong>. Ready to coordinate strict manual campaign schedules, log crew attendance, and track secure operations.
+                </>
+              )}
             </p>
           </div>
 
@@ -382,12 +412,21 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
             >
               <Calendar className="w-4 h-4" /> Open Scheduler
             </button>
-            <button
-              onClick={() => setActiveMainTab('assistant')}
-              className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" /> Ask AI
-            </button>
+            {uiMode === 'ai' ? (
+              <button
+                onClick={() => setActiveMainTab('assistant')}
+                className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" /> Ask AI
+              </button>
+            ) : (
+              <button
+                onClick={() => setActiveMainTab('security')}
+                className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Shield className="w-4 h-4 text-emerald-400" /> View Security Logs
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -536,6 +575,7 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
             setActiveMainTab={setActiveMainTab} 
             addLog={addLog} 
             currentUser={currentUser} 
+            uiMode={uiMode}
           />
         </div>
 

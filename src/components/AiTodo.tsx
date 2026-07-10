@@ -10,9 +10,10 @@ interface AiTodoProps {
   setActiveMainTab: (tab: any) => void;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   currentUser: string;
+  uiMode?: 'human' | 'ai';
 }
 
-export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUser }: AiTodoProps) {
+export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUser, uiMode = 'ai' }: AiTodoProps) {
   const [todos, setTodos] = useState<AiTodoItem[]>([]);
   const [newTodoText, setNewTodoText] = useState('');
   const [newTodoPlatform, setNewTodoPlatform] = useState<any>('Instagram');
@@ -29,60 +30,73 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
   const [deployDate, setDeployDate] = useState('2026-07-15');
   const [deployType, setDeployType] = useState<'Video' | 'Image' | 'Article' | 'Campaign' | 'Story'>('Video');
 
-  // Load and save To-Dos from localStorage
+  // Load and save To-Dos with database synchronization and localStorage fallback
   useEffect(() => {
-    const saved = localStorage.getItem('swanaya_ai_todos');
-    if (saved) {
+    const fetchTodos = async () => {
       try {
-        setTodos(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse swanaya_ai_todos', e);
-      }
-    } else {
-      // Set initial high-fidelity seed To-Dos
-      const initialSeed: AiTodoItem[] = [
-        {
-          id: 'todo_seed_1',
-          text: 'Analyze YouTube Reels CTR trends for tech reviews and adjust hook subtitles',
-          platform: 'YouTube',
-          priority: 'High',
-          completed: false,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'todo_seed_2',
-          text: 'Draft 5 carousel slide assets for corporate branding tips on LinkedIn',
-          platform: 'LinkedIn',
-          priority: 'Medium',
-          completed: true,
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'todo_seed_3',
-          text: 'Generate 3 caption copy hooks for Instagram ad campaigns using custom discount codes',
-          platform: 'Instagram',
-          priority: 'High',
-          completed: false,
-          createdAt: new Date().toISOString()
+        const response = await fetch('/api/todos');
+        if (response.ok) {
+          const data = await response.json();
+          const formatted = data.map((t: any) => ({ ...t, id: String(t.id) }));
+          setTodos(formatted);
+          localStorage.setItem('swanaya_ai_todos', JSON.stringify(formatted));
+          return;
         }
-      ];
-      setTodos(initialSeed);
-      localStorage.setItem('swanaya_ai_todos', JSON.stringify(initialSeed));
-    }
+      } catch (err) {
+        console.warn('Database offline, loading cached To-Dos:', err);
+      }
+
+      const saved = localStorage.getItem('swanaya_ai_todos');
+      if (saved) {
+        try {
+          setTodos(JSON.parse(saved));
+        } catch (e) {
+          console.error('Failed to parse swanaya_ai_todos', e);
+        }
+      } else {
+        // Set initial high-fidelity seed To-Dos
+        const initialSeed: AiTodoItem[] = [
+          {
+            id: 'todo_seed_1',
+            text: 'Analyze YouTube Reels CTR trends for tech reviews and adjust hook subtitles',
+            platform: 'YouTube',
+            priority: 'High',
+            completed: false,
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'todo_seed_2',
+            text: 'Draft 5 carousel slide assets for corporate branding tips on LinkedIn',
+            platform: 'LinkedIn',
+            priority: 'Medium',
+            completed: true,
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: 'todo_seed_3',
+            text: 'Generate 3 caption copy hooks for Instagram ad campaigns using custom discount codes',
+            platform: 'Instagram',
+            priority: 'High',
+            completed: false,
+            createdAt: new Date().toISOString()
+          }
+        ];
+        setTodos(initialSeed);
+        localStorage.setItem('swanaya_ai_todos', JSON.stringify(initialSeed));
+      }
+    };
+
+    fetchTodos();
   }, []);
 
-  const saveTodos = (updated: AiTodoItem[]) => {
-    setTodos(updated);
-    localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
-  };
-
-  // Manual Add To-Do
-  const handleAddTodo = (e: React.FormEvent) => {
+  // Manual Add To-Do with DB synchronization
+  const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTodoText.trim()) return;
 
+    const tempId = `todo_${Date.now()}`;
     const newItem: AiTodoItem = {
-      id: `todo_${Date.now()}`,
+      id: tempId,
       text: newTodoText.trim(),
       platform: newTodoPlatform,
       priority: newTodoPriority,
@@ -90,37 +104,90 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
       createdAt: new Date().toISOString()
     };
 
-    const updated = [newItem, ...todos];
-    saveTodos(updated);
+    setTodos((prev) => {
+      const updated = [newItem, ...prev];
+      localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
+      return updated;
+    });
     setNewTodoText('');
     addLog(`To-Do Engine: Created manual item "${newItem.text.substring(0, 30)}..."`, 'success');
-  };
 
-  // Toggle To-Do complete status
-  const handleToggleComplete = (id: string) => {
-    const updated = todos.map(todo => {
-      if (todo.id === id) {
-        const nextState = !todo.completed;
-        addLog(`To-Do Engine: Marked task as ${nextState ? 'Completed' : 'Active'}`, 'info');
-        return { ...todo, completed: nextState };
+    try {
+      const response = await fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: newItem.text,
+          platform: newItem.platform,
+          priority: newItem.priority,
+          completed: false,
+          uid: currentUser
+        })
+      });
+      if (response.ok) {
+        const dbTodo = await response.json();
+        setTodos((prev) => 
+          prev.map((t) => t.id === tempId ? { ...t, id: String(dbTodo.id) } : t)
+        );
       }
-      return todo;
-    });
-    saveTodos(updated);
-  };
-
-  // Delete To-Do
-  const handleDeleteTodo = (id: string) => {
-    const deletedItem = todos.find(t => t.id === id);
-    const updated = todos.filter(todo => todo.id !== id);
-    saveTodos(updated);
-    if (deployTaskId === id) setDeployTaskId(null);
-    if (deletedItem) {
-      addLog(`To-Do Engine: Deleted task "${deletedItem.text.substring(0, 30)}..."`, 'warning');
+    } catch (err) {
+      console.error('Failed to sync todo to DB:', err);
     }
   };
 
-  // AI Generate To-Dos call to server
+  // Toggle To-Do complete status with DB synchronization
+  const handleToggleComplete = async (id: string) => {
+    let targetTodo: AiTodoItem | undefined;
+    setTodos((prev) => {
+      const updated = prev.map(todo => {
+        if (todo.id === id) {
+          targetTodo = { ...todo, completed: !todo.completed };
+          addLog(`To-Do Engine: Marked task as ${targetTodo.completed ? 'Completed' : 'Active'}`, 'info');
+          return targetTodo;
+        }
+        return todo;
+      });
+      localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (targetTodo && !id.startsWith('todo_')) {
+      try {
+        await fetch(`/api/todos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: targetTodo.completed })
+        });
+      } catch (err) {
+        console.error('Failed to update todo status in DB:', err);
+      }
+    }
+  };
+
+  // Delete To-Do with DB synchronization
+  const handleDeleteTodo = async (id: string) => {
+    const deletedItem = todos.find(t => t.id === id);
+    setTodos((prev) => {
+      const updated = prev.filter(todo => todo.id !== id);
+      localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
+      return updated;
+    });
+    
+    if (deployTaskId === id) setDeployTaskId(null);
+    if (deletedItem) {
+      addLog(`To-Do Engine: Deleted task "${deletedItem.text.substring(0, 30)}..."`, 'warning');
+      
+      if (!id.startsWith('todo_')) {
+        try {
+          await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+        } catch (err) {
+          console.error('Failed to delete todo from DB:', err);
+        }
+      }
+    }
+  };
+
+  // AI Generate To-Dos call to server with automatic DB save
   const handleAIGenerate = async () => {
     setAiLoading(true);
     setAiError('');
@@ -137,19 +204,47 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
 
       const data = await response.json();
       if (data && Array.isArray(data.todos)) {
-        const newItems: AiTodoItem[] = data.todos.map((t: any, index: number) => ({
-          id: `todo_ai_${Date.now()}_${index}`,
-          text: t.text,
-          platform: t.platform || 'Instagram',
-          priority: t.priority || 'Medium',
-          completed: false,
-          createdAt: new Date().toISOString()
-        }));
-
-        const updated = [...newItems, ...todos];
-        saveTodos(updated);
-        setAiTopic('');
         addLog(`AI Core: Generated 4 high-conversion strategic To-Dos for Swanaya Media`, 'success');
+
+        const savedItems: AiTodoItem[] = [];
+        for (let index = 0; index < data.todos.length; index++) {
+          const t = data.todos[index];
+          try {
+            const saveRes = await fetch('/api/todos', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: t.text,
+                platform: t.platform || 'Instagram',
+                priority: t.priority || 'Medium',
+                completed: false,
+                uid: currentUser
+              })
+            });
+            if (saveRes.ok) {
+              const dbTodo = await saveRes.json();
+              savedItems.push({
+                id: String(dbTodo.id),
+                text: dbTodo.text,
+                platform: dbTodo.platform,
+                priority: dbTodo.priority,
+                completed: dbTodo.completed,
+                createdAt: dbTodo.createdAt || new Date().toISOString()
+              });
+            }
+          } catch (err) {
+            console.error('Failed to auto-save AI todo to DB:', err);
+          }
+        }
+
+        if (savedItems.length > 0) {
+          setTodos((prev) => {
+            const updated = [...savedItems, ...prev];
+            localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
+            return updated;
+          });
+        }
+        setAiTopic('');
       } else {
         throw new Error('Invalid response structure');
       }
@@ -162,8 +257,8 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
     }
   };
 
-  // Deploy task to planner schedule
-  const handleDeployToPlanner = (todo: AiTodoItem) => {
+  // Deploy task to planner schedule with DB completion status update
+  const handleDeployToPlanner = async (todo: AiTodoItem) => {
     const d = new Date(deployDate);
     const monthsArray = [
       'January', 'February', 'March', 'April', 'May', 'June', 
@@ -195,14 +290,28 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
     addLog(`AI Core: Deployed and scheduled plan "${todo.text.substring(0, 35)}..." into calendar`, 'success');
     
     // Mark as completed when scheduled
-    const updated = todos.map(t => {
-      if (t.id === todo.id) return { ...t, completed: true };
-      return t;
+    setTodos((prev) => {
+      const updated = prev.map(t => {
+        if (t.id === todo.id) return { ...t, completed: true };
+        return t;
+      });
+      localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
+      return updated;
     });
-    saveTodos(updated);
+
+    if (!todo.id.startsWith('todo_')) {
+      try {
+        await fetch(`/api/todos/${todo.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: true })
+        });
+      } catch (err) {
+        console.error('Failed to complete todo after deploy in DB:', err);
+      }
+    }
+
     setDeployTaskId(null);
-    
-    // Quick jump to planner
     setActiveMainTab('planner');
   };
 
@@ -213,21 +322,41 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
   const highPriorityCount = todos.filter(t => !t.completed && t.priority === 'High').length;
 
   return (
-    <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-2xl p-5 flex flex-col justify-between h-full min-h-[580px] shadow-2xl">
+    <div className={`backdrop-blur-md border rounded-2xl p-5 flex flex-col justify-between h-full min-h-[580px] shadow-2xl transition-all duration-500 ${
+      uiMode === 'ai' 
+        ? 'bg-slate-900/60 border-slate-800' 
+        : 'bg-slate-900/45 border-slate-800/80 shadow-md'
+    }`}>
       <div>
         {/* Header Title */}
         <div className="flex items-center justify-between pb-3.5 border-b border-slate-800/60 mb-4">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/25">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+            <div className={`p-2 rounded-xl border transition-all ${
+              uiMode === 'ai' 
+                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/25' 
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}>
+              {uiMode === 'ai' ? (
+                <Sparkles className="w-5 h-5 animate-pulse text-indigo-400" />
+              ) : (
+                <CheckSquare className="w-5 h-5 text-slate-300" />
+              )}
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-display">AI Task Planner</h3>
-              <p className="text-[10px] text-slate-400">Swanaya Content Strategist & Interactive Action Center</p>
+              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-display">
+                {uiMode === 'ai' ? 'AI Task Planner' : 'Crew Task Registrar'}
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                {uiMode === 'ai' ? 'Swanique AI Content Strategist & Predictive Actions' : 'Swanique Manual Crew Action Items & Task Auditing'}
+              </p>
             </div>
           </div>
-          <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border border-indigo-500/20 bg-indigo-950/40 text-indigo-400">
-            Node: Live
+          <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+            uiMode === 'ai' 
+              ? 'border-indigo-500/20 bg-indigo-950/40 text-indigo-400' 
+              : 'border-slate-700 bg-slate-950 text-slate-400'
+          }`}>
+            {uiMode === 'ai' ? 'Node: AI Online' : 'Node: Operator manual'}
           </span>
         </div>
 
@@ -252,75 +381,79 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
         </div>
 
         {/* AI Task Generator Panel */}
-        <div className="bg-gradient-to-r from-slate-950/60 via-slate-900/50 to-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 mb-5 space-y-3">
-          <div className="flex items-center gap-1.5 pb-2 border-b border-slate-850">
-            <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-            <h4 className="text-[11px] font-bold text-white uppercase tracking-wider font-mono">Swanaya Gemini Task Generator</h4>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
-            <div className="md:col-span-2">
-              <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Campaign Theme / Content Topic
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., Summer Brand Refresh, SEO hooks, tech reviews..."
-                value={aiTopic}
-                onChange={(e) => setAiTopic(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-700 outline-none transition-all font-sans"
-              />
+        {uiMode === 'ai' && (
+          <div className="bg-gradient-to-r from-slate-950/60 via-slate-900/50 to-indigo-950/20 border border-indigo-500/20 rounded-2xl p-4 mb-5 space-y-3">
+            <div className="flex items-center gap-1.5 pb-2 border-b border-slate-850">
+              <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
+              <h4 className="text-[11px] font-bold text-white uppercase tracking-wider font-mono">Swanique Gemini Task Generator</h4>
             </div>
 
-            <div>
-              <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Target Platform
-              </label>
-              <select
-                value={aiPlatform}
-                onChange={(e) => setAiPlatform(e.target.value)}
-                className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-300 outline-none cursor-pointer"
-              >
-                <option value="All">All Channels</option>
-                <option value="Instagram">Instagram</option>
-                <option value="YouTube">YouTube</option>
-                <option value="LinkedIn">LinkedIn</option>
-                <option value="TikTok">TikTok</option>
-                <option value="Meta Ads">Meta Ads</option>
-                <option value="Google Ads">Google Ads</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
+              <div className="md:col-span-2">
+                <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Campaign Theme / Content Topic
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Summer Brand Refresh, SEO hooks, tech reviews..."
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-700 outline-none transition-all font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Target Platform
+                </label>
+                <select
+                  value={aiPlatform}
+                  onChange={(e) => setAiPlatform(e.target.value)}
+                  className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-300 outline-none cursor-pointer"
+                >
+                  <option value="All">All Channels</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="YouTube">YouTube</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="TikTok">TikTok</option>
+                  <option value="Meta Ads">Meta Ads</option>
+                  <option value="Google Ads">Google Ads</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          {aiError && (
-            <p className="text-[10px] text-rose-400 bg-rose-950/20 border border-rose-900/20 p-2 rounded-lg font-mono">
-              ⚠️ {aiError}
-            </p>
-          )}
-
-          <button
-            onClick={handleAIGenerate}
-            disabled={aiLoading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10.5px] py-2 rounded-lg cursor-pointer transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {aiLoading ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>AI Analyzing Market Trends & Generating bespoke tasks...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                <span>AI Auto-Generate Strategic Content Tasks</span>
-              </>
+            {aiError && (
+              <p className="text-[10px] text-rose-400 bg-rose-950/20 border border-rose-900/20 p-2 rounded-lg font-mono">
+                ⚠️ {aiError}
+              </p>
             )}
-          </button>
-        </div>
+
+            <button
+              onClick={handleAIGenerate}
+              disabled={aiLoading}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10.5px] py-2 rounded-lg cursor-pointer transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {aiLoading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>AI Analyzing Market Trends & Generating bespoke tasks...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                  <span>AI Auto-Generate Strategic Content Tasks</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* To-Do List Content Block */}
         <div className="space-y-2">
           <div className="flex items-center justify-between pb-1">
-            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Active Checklists</h4>
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+              {uiMode === 'ai' ? 'Active Checklists' : 'Operational Checklist Log'}
+            </h4>
             <span className="text-[9px] text-slate-500 font-mono">Click checkboxes to mark progress</span>
           </div>
 

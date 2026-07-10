@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
-  Home as HomeIcon, User
+  Home as HomeIcon, User, Search, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan, AttendanceRecord, ActivityLog } from './types';
@@ -28,6 +28,15 @@ export default function App() {
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
   const [userProfileTitle, setUserProfileTitle] = useState<string>('Content Creator');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
+    return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
+  });
+
+  const handleSetUiMode = (mode: 'human' | 'ai') => {
+    setUiMode(mode);
+    localStorage.setItem('swanaya_ui_mode', mode);
+  };
 
   // Load current user's profile image & title
   const loadCurrentUserProfile = () => {
@@ -45,6 +54,14 @@ export default function App() {
   useEffect(() => {
     loadCurrentUserProfile();
   }, [currentUser]);
+
+  // Auto-switch main tab to 'planner' when a search is entered so results can be seen
+  useEffect(() => {
+    if (searchQuery && activeMainTab !== 'planner') {
+      setActiveMainTab('planner');
+      addLog(`Search query active: Switched main workspace to content planner view to list matching entries`, 'action');
+    }
+  }, [searchQuery]);
 
   // Load count of registered users for showcase metrics
   useEffect(() => {
@@ -72,7 +89,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // 2. Initialize and load states from localStorage
+  // 2. Initialize and load states from database with localStorage fallback
   useEffect(() => {
     // Check if user has active session
     const activeSession = localStorage.getItem('swanaya_current_user');
@@ -80,75 +97,124 @@ export default function App() {
       setCurrentUser(activeSession);
     }
 
-    // Load plans from localStorage or load beautiful initial seed data
-    const savedPlans = localStorage.getItem('swanaya_content_plans');
-    if (savedPlans) {
-       try {
-         setPlans(JSON.parse(savedPlans));
-       } catch (e) {
-         console.error('Error parsing content plans', e);
-       }
-    } else {
-       const seedPlans: ContentPlan[] = [];
-       setPlans(seedPlans);
-       localStorage.setItem('swanaya_content_plans', JSON.stringify(seedPlans));
-    }
-
-    // Load attendance records or load initial seed records
-    const savedAttendance = localStorage.getItem('swanaya_attendance');
-    if (savedAttendance) {
-       try {
-         setAttendanceRecords(JSON.parse(savedAttendance));
-       } catch (e) {
-         console.error('Error parsing attendance', e);
-       }
-    } else {
-       const seedAttendance: AttendanceRecord[] = [];
-       setAttendanceRecords(seedAttendance);
-       localStorage.setItem('swanaya_attendance', JSON.stringify(seedAttendance));
-    }
-
-    // Load activity logs or set initial logs
-    const savedLogs = localStorage.getItem('swanaya_activity_logs');
-    if (savedLogs) {
-       try {
-         setLogs(JSON.parse(savedLogs));
-       } catch (e) {
-         console.error('Error parsing activity logs', e);
-       }
-    } else {
-       const seedLogs: ActivityLog[] = [
-         {
-           id: 'l1',
-           text: 'System: Initialized Swanaya Media Enterprises database pipelines',
-           timestamp: '07:38:15',
-           type: 'info'
-         },
-         {
-           id: 'l2',
-           text: 'Security: Credentials initialized for root administrator "each"',
-           timestamp: '07:38:20',
-           type: 'success'
+    // Load plans
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('/api/plans');
+        if (response.ok) {
+          const data = await response.json();
+          const formatted = data.map((item: any) => ({ ...item, id: String(item.id) }));
+          setPlans(formatted);
+          localStorage.setItem('swanaya_content_plans', JSON.stringify(formatted));
+          return;
+        }
+      } catch (err) {
+        console.warn('Database offline, using cached plans:', err);
+      }
+      
+      const savedPlans = localStorage.getItem('swanaya_content_plans');
+      if (savedPlans) {
+         try {
+           setPlans(JSON.parse(savedPlans));
+         } catch (e) {
+           console.error('Error parsing content plans', e);
          }
-       ];
-       setLogs(seedLogs);
-       localStorage.setItem('swanaya_activity_logs', JSON.stringify(seedLogs));
-    }
+      }
+    };
+
+    // Load attendance records
+    const fetchAttendance = async () => {
+      try {
+        const response = await fetch('/api/attendance');
+        if (response.ok) {
+          const data = await response.json();
+          const formatted = data.map((item: any) => ({ ...item, id: String(item.id) }));
+          setAttendanceRecords(formatted);
+          localStorage.setItem('swanaya_attendance', JSON.stringify(formatted));
+          return;
+        }
+      } catch (err) {
+        console.warn('Database offline, using cached attendance:', err);
+      }
+
+      const savedAttendance = localStorage.getItem('swanaya_attendance');
+      if (savedAttendance) {
+         try {
+           setAttendanceRecords(JSON.parse(savedAttendance));
+         } catch (e) {
+           console.error('Error parsing attendance', e);
+         }
+      }
+    };
+
+    // Load activity logs
+    const fetchLogs = async () => {
+      try {
+        const response = await fetch('/api/logs');
+        if (response.ok) {
+          const data = await response.json();
+          const formatted = data.map((item: any) => ({ ...item, id: String(item.id) }));
+          setLogs(formatted);
+          localStorage.setItem('swanaya_activity_logs', JSON.stringify(formatted));
+          return;
+        }
+      } catch (err) {
+        console.warn('Database offline, using cached logs:', err);
+      }
+
+      const savedLogs = localStorage.getItem('swanaya_activity_logs');
+      if (savedLogs) {
+         try {
+           setLogs(JSON.parse(savedLogs));
+         } catch (e) {
+           console.error('Error parsing activity logs', e);
+         }
+      } else {
+         const seedLogs: ActivityLog[] = [
+           {
+             id: 'l1',
+             text: 'System: Initialized Swanaya Media Enterprises database pipelines',
+             timestamp: '07:38:15',
+             type: 'info'
+           },
+           {
+             id: 'l2',
+             text: 'Security: Credentials initialized for root administrator "each"',
+             timestamp: '07:38:20',
+             type: 'success'
+           }
+         ];
+         setLogs(seedLogs);
+         localStorage.setItem('swanaya_activity_logs', JSON.stringify(seedLogs));
+      }
+    };
+
+    fetchPlans();
+    fetchAttendance();
+    fetchLogs();
   }, []);
 
-  // 3. Logger utility
-  const addLog = (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => {
-    const newLog: ActivityLog = {
-      id: `l_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      text,
-      timestamp: new Date().toLocaleTimeString(),
-      type
-    };
+  // 3. Logger utility with DB sync
+  const addLog = async (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => {
+    const timestamp = new Date().toLocaleTimeString();
+    const tempId = `l_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const newLog: ActivityLog = { id: tempId, text, timestamp, type };
+
     setLogs((prev) => {
-      const updated = [newLog, ...prev].slice(0, 100); // keep last 100 logs
+      const updated = [newLog, ...prev].slice(0, 100);
       localStorage.setItem('swanaya_activity_logs', JSON.stringify(updated));
       return updated;
     });
+
+    try {
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, timestamp, type, uid: currentUser })
+      });
+    } catch (err) {
+      console.warn('Failed to sync log to database:', err);
+    }
   };
 
   // 4. Authentication success handler
@@ -169,13 +235,14 @@ export default function App() {
     setLandingView('landing');
   };
 
-  // 6. Attendance handlers
-  const handleAddAttendance = (day: number, type: 'check_in' | 'check_out', notes: string) => {
+  // 6. Attendance handlers with DB sync
+  const handleAddAttendance = async (day: number, type: 'check_in' | 'check_out', notes: string) => {
     const timestamp = new Date().toLocaleTimeString();
     const dateTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const tempId = `a_${Date.now()}`;
 
     const newRec: AttendanceRecord = {
-      id: `a_${Date.now()}`,
+      id: tempId,
       day,
       type,
       timestamp,
@@ -184,66 +251,155 @@ export default function App() {
       username: currentUser || 'Unknown Operator'
     };
 
-    const updated = [...attendanceRecords, newRec];
-    setAttendanceRecords(updated);
-    localStorage.setItem('swanaya_attendance', JSON.stringify(updated));
-    
+    setAttendanceRecords((prev) => {
+      const updated = [...prev, newRec];
+      localStorage.setItem('swanaya_attendance', JSON.stringify(updated));
+      return updated;
+    });
+
     addLog(`User Action: ${currentUser} registered ${type.toUpperCase()} log for Calendar Day ${day}`, 'action');
+
+    try {
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ day, type, timestamp, dateTime, notes, username: currentUser })
+      });
+      if (response.ok) {
+        const dbRec = await response.json();
+        setAttendanceRecords((prev) => 
+          prev.map((r) => r.id === tempId ? { ...r, id: String(dbRec.id) } : r)
+        );
+      }
+    } catch (err) {
+      console.error('Failed to sync attendance to database:', err);
+    }
   };
 
-  const handleClearAttendance = () => {
+  const handleClearAttendance = async () => {
     if (window.confirm('Are you sure you want to reset the entire attendance logs?')) {
       setAttendanceRecords([]);
       localStorage.removeItem('swanaya_attendance');
       addLog('System Database: Reset attendance node logs successfully', 'warning');
+
+      try {
+        await fetch('/api/attendance', { method: 'DELETE' });
+      } catch (err) {
+        console.error('Failed to clear database attendance:', err);
+      }
     }
   };
 
-  // 7. Planner handlers
-  const handleAddPlan = (newPlan: Omit<ContentPlan, 'id' | 'createdAt'>) => {
+  // 7. Planner handlers with DB sync
+  const handleAddPlan = async (newPlan: Omit<ContentPlan, 'id' | 'createdAt'>) => {
+    const tempId = `p_${Date.now()}`;
     const plan: ContentPlan = {
       ...newPlan,
       createdBy: newPlan.createdBy || currentUser || 'each',
-      id: `p_${Date.now()}`,
+      id: tempId,
       createdAt: new Date().toISOString()
     };
 
-    const updated = [plan, ...plans];
-    setPlans(updated);
-    localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
-    addLog(`User Action: Scheduled new campaign plan "${plan.title}" under ${plan.month} Day ${plan.day}`, 'action');
-  };
-
-  const handleUpdatePlanStatus = (id: string, status: ContentPlan['status']) => {
-    const updated = plans.map(p => {
-      if (p.id === id) {
-        addLog(`User Action: Updated plan "${p.title}" state matrix to [${status}]`, 'info');
-        return { ...p, status };
-      }
-      return p;
+    setPlans((prev) => {
+      const updated = [plan, ...prev];
+      localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
+      return updated;
     });
-    setPlans(updated);
-    localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
-  };
 
-  const handleUpdatePlan = (updatedPlan: ContentPlan) => {
-    const updated = plans.map(p => p.id === updatedPlan.id ? updatedPlan : p);
-    setPlans(updated);
-    localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
-    addLog(`User Action: Updated Campaign Details for plan "${updatedPlan.title}"`, 'info');
-  };
+    addLog(`User Action: Scheduled new campaign plan "${plan.title}" under ${plan.month} Day ${plan.day}`, 'action');
 
-  const handleDeletePlan = (id: string) => {
-    const matched = plans.find(p => p.id === id);
-    const updated = plans.filter(p => p.id !== id);
-    setPlans(updated);
-    localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
-    if (matched) {
-      addLog(`User Action: Deleted content plan "${matched.title}" from registry`, 'warning');
+    try {
+      const response = await fetch('/api/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(plan)
+      });
+      if (response.ok) {
+        const dbPlan = await response.json();
+        setPlans((prev) =>
+          prev.map((p) => p.id === tempId ? { ...p, id: String(dbPlan.id) } : p)
+        );
+      }
+    } catch (err) {
+      console.error('Failed to save plan to database:', err);
     }
   };
 
-  const handleClearLogs = () => {
+  const handleUpdatePlanStatus = async (id: string, status: ContentPlan['status']) => {
+    let matchedPlan: ContentPlan | undefined;
+    setPlans((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === id) {
+          matchedPlan = { ...p, status };
+          return matchedPlan;
+        }
+        return p;
+      });
+      localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (matchedPlan) {
+      addLog(`User Action: Updated plan "${matchedPlan.title}" state matrix to [${status}]`, 'info');
+      
+      if (!id.startsWith('p_')) {
+        try {
+          await fetch(`/api/plans/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+          });
+        } catch (err) {
+          console.error('Failed to update plan status in DB:', err);
+        }
+      }
+    }
+  };
+
+  const handleUpdatePlan = async (updatedPlan: ContentPlan) => {
+    setPlans((prev) => {
+      const updated = prev.map(p => p.id === updatedPlan.id ? updatedPlan : p);
+      localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
+      return updated;
+    });
+
+    addLog(`User Action: Updated Campaign Details for plan "${updatedPlan.title}"`, 'info');
+
+    if (!updatedPlan.id.startsWith('p_')) {
+      try {
+        await fetch(`/api/plans/${updatedPlan.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedPlan)
+        });
+      } catch (err) {
+        console.error('Failed to update plan in DB:', err);
+      }
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    const matched = plans.find(p => p.id === id);
+    setPlans((prev) => {
+      const updated = prev.filter(p => p.id !== id);
+      localStorage.setItem('swanaya_content_plans', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (matched) {
+      addLog(`User Action: Deleted content plan "${matched.title}" from registry`, 'warning');
+      
+      if (!id.startsWith('p_')) {
+        try {
+          await fetch(`/api/plans/${id}`, { method: 'DELETE' });
+        } catch (err) {
+          console.error('Failed to delete plan from DB:', err);
+        }
+      }
+    }
+  };
+
+  const handleClearLogs = async () => {
     const cleared = [
       {
         id: `l_${Date.now()}`,
@@ -254,6 +410,12 @@ export default function App() {
     ];
     setLogs(cleared);
     localStorage.setItem('swanaya_activity_logs', JSON.stringify(cleared));
+
+    try {
+      await fetch('/api/logs', { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to clear database logs:', err);
+    }
   };
 
   return (
@@ -316,22 +478,78 @@ export default function App() {
               
               {/* Branding and status */}
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg shadow-indigo-500/20 text-lg">
+                <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg shadow-indigo-500/20 text-lg font-display animate-pulse" style={{ animationDuration: uiMode === 'ai' ? '3s' : '0s' }}>
                   S
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-2">
                     <h1 className="text-sm font-bold uppercase tracking-tight text-white font-display">
-                      Swanaya Media Enterprises
+                      {uiMode === 'ai' ? 'Swanique AI' : 'Swanique Standard'}
                     </h1>
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className={`h-2 w-2 rounded-full animate-pulse ${uiMode === 'ai' ? 'bg-indigo-400' : 'bg-emerald-500'}`} />
                   </div>
-                  <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">CUSTOM CONTENT PLANNER PRO</p>
+                  <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+                    {uiMode === 'ai' ? 'AI Integrated Autopilot' : 'Human Operator Command'}
+                  </p>
                 </div>
               </div>
 
+              {/* Mode Switcher Segmented Control */}
+              <div className="bg-slate-950/80 border border-slate-800/80 p-1.5 rounded-xl flex items-center gap-1.5 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSetUiMode('human');
+                    addLog('UI Mode Switch: Active [Human Operator Mode]. Focused on manual editing & standard structures.', 'info');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    uiMode === 'human'
+                      ? 'bg-slate-800 border-indigo-500/20 text-indigo-400 font-black shadow-sm'
+                      : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Human UI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSetUiMode('ai');
+                    addLog('UI Mode Switch: Active [AI-Integrated Workspace]. Enabled predictive co-pilots, tags & automated scripts.', 'success');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    uiMode === 'ai'
+                      ? 'bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-black shadow-lg shadow-indigo-500/5'
+                      : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse shrink-0" />
+                  <span>AI Integrated</span>
+                </button>
+              </div>
+
+              {/* Global Search Bar */}
+              <div className="relative w-full md:w-60">
+                <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter content (title, tag, status)..."
+                  className="w-full pl-10 pr-9 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white cursor-pointer transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
               {/* Center status and time */}
-              <div className="hidden lg:flex items-center gap-6 text-xs font-mono">
+              <div className="hidden xl:flex items-center gap-6 text-xs font-mono">
                 <div className="flex items-center gap-2 border-r border-slate-800 pr-5">
                   <Clock className="w-4 h-4 text-indigo-400" />
                   <span className="text-slate-300 font-bold">{liveTime || 'LOADING...'}</span>
@@ -551,6 +769,7 @@ export default function App() {
                       setActiveMainTab={setActiveMainTab}
                       addLog={addLog}
                       currentUser={currentUser || "aadithyan"}
+                      uiMode={uiMode}
                     />
                   </motion.div>
                 )}
@@ -572,6 +791,8 @@ export default function App() {
                       currentUser={currentUser || "aadithyan"}
                       onDeletePlan={handleDeletePlan} 
                       addLog={addLog} 
+                      searchQuery={searchQuery}
+                      uiMode={uiMode}
                     />
                   </motion.div>
                 )}
