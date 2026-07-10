@@ -91,12 +91,15 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     const cleanUser = directUsername.trim();
     const cleanPass = directPassword;
 
-    // Check direct user (AADITHYAN / AADITHYAN)
-    if (cleanUser.toUpperCase() === 'AADITHYAN' && cleanPass.toUpperCase() === 'AADITHYAN') {
+    // Check direct user (each / each or aadithyan / aadithyan)
+    if (
+      (cleanUser.toLowerCase() === 'each' && cleanPass === 'each') ||
+      (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan')
+    ) {
       addLog(`Auth: Direct login authorized for administrator ${cleanUser}`, 'success');
       localStorage.setItem('swanaya_has_logged_in', 'true');
       setShowAutofill(true);
-      onLoginSuccess('AADITHYAN');
+      onLoginSuccess(cleanUser.toLowerCase());
       return;
     }
 
@@ -112,7 +115,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       onLoginSuccess(matched.username);
     } else {
       addLog(`Auth: Failed login attempt for "${cleanUser}"`, 'warning');
-      setErrorMessage('Invalid credentials. Use Username/Password: AADITHYAN, or register a new profile.');
+      setErrorMessage('Invalid credentials. Use Username/Password: each, or register a new profile.');
     }
   };
 
@@ -127,8 +130,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    if (cleanUser.toUpperCase() === 'AADITHYAN') {
-      setErrorMessage('Username "AADITHYAN" is reserved for Administrator direct login.');
+    if (cleanUser.toLowerCase() === 'each') {
+      setErrorMessage('Username "each" is reserved for Administrator direct login.');
       return;
     }
 
@@ -195,8 +198,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   };
 
   const handleAutofillAdmin = () => {
-    setDirectUsername('AADITHYAN');
-    setDirectPassword('AADITHYAN');
+    setDirectUsername('each');
+    setDirectPassword('each');
     addLog('System: Pre-filled administrator credentials', 'info');
   };
 
@@ -237,7 +240,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     required
                     value={directUsername}
                     onChange={(e) => setDirectUsername(e.target.value)}
-                    placeholder="e.g. AADITHYAN"
+                    placeholder="e.g. each"
                     className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all"
                   />
                 </div>
@@ -291,18 +294,35 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      setDirectUsername('AADITHYAN');
-                      setDirectPassword('AADITHYAN');
-                      addLog('System Autofill: Populated Administrator "AADITHYAN" credentials', 'info');
+                      setDirectUsername('each');
+                      setDirectPassword('each');
+                      addLog('System Autofill: Populated Administrator "each" credentials', 'info');
                     }}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
-                      directUsername.toUpperCase() === 'AADITHYAN'
+                      directUsername.toLowerCase() === 'each'
                         ? 'bg-indigo-950 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10'
                         : 'bg-slate-950/80 border-slate-900 text-slate-400 hover:border-slate-800'
                     }`}
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                    <span>AADITHYAN (Admin)</span>
+                    <span>each (Admin)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectUsername('aadithyan');
+                      setDirectPassword('aadithyan');
+                      addLog('System Autofill: Populated Administrator "aadithyan" credentials', 'info');
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                      directUsername.toLowerCase() === 'aadithyan'
+                        ? 'bg-indigo-950 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10'
+                        : 'bg-slate-950/80 border-slate-900 text-slate-400 hover:border-slate-800'
+                    }`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                    <span>aadithyan (Admin)</span>
                   </button>
 
                   {/* Other Registered users */}

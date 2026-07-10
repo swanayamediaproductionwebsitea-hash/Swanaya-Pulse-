@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Plus, Calendar, Film, Image, FileText, CheckCircle, Clock, Trash2, 
   Video, Eye, Play, X, UploadCloud, ChevronRight, BarChart3, AlertCircle, Sparkles, Filter, Edit2,
-  ClipboardList, Paperclip
+  ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
+import { launchGooglePicker } from '../lib/googlePicker';
 
 interface ContentPlannerProps {
   plans: ContentPlan[];
@@ -91,6 +92,7 @@ interface AssignedTask {
   status: 'Pending' | 'Completed';
   fileName?: string;
   fileSize?: string;
+  fileUrl?: string;
   period: 'Monthly' | 'Yearly';
   role?: string;
   priority?: 'High' | 'Medium' | 'Low';
@@ -100,6 +102,7 @@ interface AssignedTask {
   aiSeoKeywords?: string[];
   aiSeoDescription?: string;
   tags?: string;
+  createdBy?: string;
 }
 
 export default function ContentPlanner({ 
@@ -109,10 +112,27 @@ export default function ContentPlanner({
   onDeletePlan,
   onUpdatePlan,
   addLog,
-  currentUser = 'AADITHYAN'
+  currentUser = 'each'
 }: ContentPlannerProps) {
-  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'preloaded-entities' | 'assigner'>('monthly');
+  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'assigner' | 'instagram-interface'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
+
+  const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each';
+  const visiblePlans = isSystemAdmin ? plans : plans.filter(p => !p.createdBy || p.createdBy.toLowerCase() === currentUser.toLowerCase());
+
+  // Instagram Hub Live Simulator states
+  const [instaLikes, setInstaLikes] = useState(148);
+  const [instaHasLiked, setInstaHasLiked] = useState(false);
+  const [instaBookmarks, setInstaBookmarks] = useState(24);
+  const [instaHasBookmarked, setInstaHasBookmarked] = useState(false);
+  const [instaCaption, setInstaCaption] = useState('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
+  const [newInstaComment, setNewInstaComment] = useState('');
+  const [instaComments, setInstaComments] = useState<{ id: string; user: string; text: string; time: string }[]>([
+    { id: 'c-1', user: 'creative_director', text: 'This dashboard makes post planning so much easier! 👏🔥', time: '12m' },
+    { id: 'c-2', user: 'swanaya_editor', text: 'Instagram interface simulation looking flawless. 🤩', time: '1h' },
+    { id: 'c-3', user: 'marketing_maven', text: 'Ready to deploy these campaigns into production. 🚀📈', time: '3h' }
+  ]);
+  const [hashtagCategory, setHashtagCategory] = useState('Media');
 
   // Content Assigning System states
   const [assignerPeriod, setAssignerPeriod] = useState<'Monthly' | 'Yearly'>('Monthly');
@@ -146,47 +166,14 @@ export default function ContentPlanner({
         // Fallback
       }
     }
-    return [
-      {
-        id: 'task-1',
-        name: 'Draft Q3 YouTube Brand Video Script',
-        dueDate: '2026-07-15',
-        status: 'Pending',
-        period: 'Monthly',
-        fileName: 'storyboard_draft.pdf',
-        fileSize: '4.2 MB',
-        role: 'Content Writer',
-        priority: 'High',
-        googleSynced: true
-      },
-      {
-        id: 'task-2',
-        name: 'Optimize Instagram Design Assets',
-        dueDate: '2026-07-20',
-        status: 'Completed',
-        period: 'Monthly',
-        fileName: 'brand_pack_v2.zip',
-        fileSize: '18.5 MB',
-        role: 'Designer',
-        priority: 'Medium',
-        googleSynced: false
-      },
-      {
-        id: 'task-3',
-        name: 'LinkedIn Enterprise Playbook Review',
-        dueDate: '2026-08-05',
-        status: 'Pending',
-        period: 'Yearly',
-        role: 'Marketing Executive',
-        priority: 'Low',
-        googleSynced: true
-      }
-    ];
+    return [];
   });
 
   useEffect(() => {
     localStorage.setItem('swanaya_assigned_tasks', JSON.stringify(assignedTasks));
   }, [assignedTasks]);
+
+  const visibleAssignedTasks = isSystemAdmin ? assignedTasks : assignedTasks.filter(t => !t.createdBy || t.createdBy.toLowerCase() === currentUser.toLowerCase());
 
   const handleAiAutofill = async () => {
     if (!assignerTaskName.trim()) {
@@ -311,6 +298,7 @@ export default function ContentPlanner({
       aiSeoKeywords: aiSuggestions?.seoKeywords,
       aiSeoDescription: aiSuggestions?.seoDescription,
       tags: assignerTags.trim(),
+      createdBy: currentUser || 'each'
     };
 
     setAssignedTasks(prev => [newTask, ...prev]);
@@ -340,13 +328,67 @@ export default function ContentPlanner({
         return {
           ...t,
           fileName: file.name,
-          fileSize: sizeStr
+          fileSize: sizeStr,
+          fileUrl: undefined // Clear drive link if replaced by local
         };
       }
       return t;
     }));
 
     addLog(`File Pipeline: Uploaded "${file.name}" (${sizeStr}) to task registry`, 'upload');
+  };
+
+  const handleTaskGooglePicker = (taskId: string) => {
+    addLog('Google Picker: Initializing secure Drive file loader...', 'info');
+    launchGooglePicker(
+      (file) => {
+        const sizeInMB = (file.sizeBytes / (1024 * 1024)).toFixed(1);
+        const sizeStr = file.sizeBytes > 0 ? `${sizeInMB} MB` : 'Google Drive Resource';
+        setAssignedTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              fileName: `GDrive: ${file.name}`,
+              fileSize: sizeStr,
+              fileUrl: file.url
+            };
+          }
+          return t;
+        }));
+        addLog(`Google Picker: Successfully attached "${file.name}" to task registry`, 'upload');
+      },
+      () => {
+        addLog('Google Picker: User canceled file selection', 'info');
+      },
+      (err) => {
+        addLog(`Google Picker Error: ${err.message || err}`, 'warning');
+      }
+    );
+  };
+
+  const handleVideoGooglePicker = () => {
+    addLog('Google Picker: Initializing secure Drive video selector...', 'info');
+    launchGooglePicker(
+      (file) => {
+        const sizeInMB = (file.sizeBytes / (1024 * 1024)).toFixed(2);
+        const sizeStr = file.sizeBytes > 0 ? `${sizeInMB} MB` : 'Google Drive Video';
+        
+        setUploadedVideo({
+          url: file.url,
+          name: `GDrive: ${file.name}`,
+          size: sizeStr,
+          isGoogleDrive: true
+        });
+
+        addLog(`Media: Video file "${file.name}" linked from Google Drive successfully`, 'upload');
+      },
+      () => {
+        addLog('Google Picker: User canceled video selection', 'info');
+      },
+      (err) => {
+        addLog(`Google Picker Error: ${err.message || err}`, 'warning');
+      }
+    );
   };
 
   const toggleTaskStatus = (taskId: string) => {
@@ -508,7 +550,7 @@ export default function ContentPlanner({
   };
 
   // Video upload states
-  const [uploadedVideo, setUploadedVideo] = useState<{ url: string; name: string; size: string } | null>(null);
+  const [uploadedVideo, setUploadedVideo] = useState<{ url: string; name: string; size: string; isGoogleDrive?: boolean } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -569,7 +611,8 @@ export default function ContentPlanner({
       status: formStatus,
       videoUrl: uploadedVideo?.url,
       videoName: uploadedVideo?.name,
-      videoSize: uploadedVideo?.size
+      videoSize: uploadedVideo?.size,
+      createdBy: currentUser || 'each'
     });
 
     // Reset Form
@@ -598,10 +641,10 @@ export default function ContentPlanner({
       return;
     }
 
-    const completedCount = plans.filter(p => p.status === 'Completed').length;
-    const progressCount = plans.filter(p => p.status === 'In Progress').length;
-    const reviewCount = plans.filter(p => p.status === 'Review').length;
-    const plannedCount = plans.filter(p => p.status === 'Planned').length;
+    const completedCount = visiblePlans.filter(p => p.status === 'Completed').length;
+    const progressCount = visiblePlans.filter(p => p.status === 'In Progress').length;
+    const reviewCount = visiblePlans.filter(p => p.status === 'Review').length;
+    const plannedCount = visiblePlans.filter(p => p.status === 'Planned').length;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -877,13 +920,13 @@ export default function ContentPlanner({
               </tr>
             </thead>
             <tbody>
-              ${plans.filter(p => p.month === selectedMonth).length === 0 ? `
+              ${visiblePlans.filter(p => p.month === selectedMonth).length === 0 ? `
                 <tr>
                   <td colspan="6" style="text-align: center; color: #94a3b8; font-style: italic; padding: 30px;">
                     No content plans scheduled for ${selectedMonth} under active registry.
                   </td>
                 </tr>
-              ` : plans.filter(p => p.month === selectedMonth).map(plan => `
+              ` : visiblePlans.filter(p => p.month === selectedMonth).map(plan => `
                 <tr>
                   <td class="plan-day">Day ${plan.day}</td>
                   <td><span class="badge badge-platform">${plan.platform}</span></td>
@@ -998,16 +1041,6 @@ export default function ContentPlanner({
               <Plus className="w-3.5 h-3.5 animate-pulse" /> Add Registry Item
             </button>
             <button
-              onClick={() => setActiveTab('preloaded-entities')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'preloaded-entities'
-                  ? 'bg-indigo-600 text-white shadow font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" /> Preloaded Entities
-            </button>
-            <button
               onClick={() => setActiveTab('assigner')}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'assigner'
@@ -1016,6 +1049,19 @@ export default function ContentPlanner({
               }`}
             >
               <ClipboardList className="w-3.5 h-3.5 text-emerald-400 animate-pulse" /> Assigning System
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('instagram-interface');
+                addLog('System Navigation: Loaded live Instagram Hub interactive simulator', 'info');
+              }}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'instagram-interface'
+                  ? 'bg-indigo-600 text-white shadow font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Instagram className="w-3.5 h-3.5 text-pink-400 animate-pulse" /> Instagram Hub
             </button>
           </div>
         </div>
@@ -1050,7 +1096,7 @@ export default function ContentPlanner({
                 >
                   {m.substring(0, 3).toUpperCase()}
                   <span className="ml-1 text-[10px] opacity-60 font-normal">
-                    ({plans.filter(p => p.month === m).length})
+                    ({visiblePlans.filter(p => p.month === m).length})
                   </span>
                 </button>
               ))}
@@ -1516,15 +1562,31 @@ export default function ContentPlanner({
                     {uploadedVideo ? (
                       <div className="space-y-2 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                         <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-full inline-flex border border-emerald-500/20">
-                          <Video className="w-6 h-6 animate-pulse" />
+                          {uploadedVideo.isGoogleDrive ? (
+                            <svg className="w-6 h-6 text-emerald-400 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M19.43 12.981L14.71 4.801c-.38-.66-1.08-1.06-1.85-1.06h-1.72c-.77 0-1.47.4-1.85 1.06L4.57 12.981c-.38.66-.38 1.47 0 2.13l2.36 4.091c.38.66 1.08 1.06 1.85 1.06h9.44c.77 0 1.47-.4 1.85-1.06l2.36-4.091c.38-.66.38-1.47 0-2.13zM9.43 17.5c-.38 0-.74-.21-.93-.54L6.14 12.87c-.19-.33-.19-.74 0-1.07l2.36-4.09c.19-.33.55-.54.93-.54h4.72c.38 0 .74.21.93.54l2.36 4.09c.19.33.19.74 0 1.07l-2.36 4.09c-.19.33-.55.54-.93.54H9.43z" />
+                            </svg>
+                          ) : (
+                            <Video className="w-6 h-6 animate-pulse" />
+                          )}
                         </div>
                         <div className="text-center">
                           <p className="text-xs font-semibold text-white max-w-[250px] truncate mx-auto">
                             {uploadedVideo.name}
                           </p>
                           <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            Size: {uploadedVideo.size} | Staged successfully
+                            {uploadedVideo.isGoogleDrive ? 'Linked from Google Drive' : `Size: ${uploadedVideo.size}`} | Staged successfully
                           </p>
+                          {uploadedVideo.isGoogleDrive && uploadedVideo.url && (
+                            <a
+                              href={uploadedVideo.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-indigo-400 hover:text-indigo-300 hover:underline font-mono inline-block mt-1 animate-pulse"
+                            >
+                              Open in Drive 🔗
+                            </a>
+                          )}
                         </div>
                         <button
                           type="button"
@@ -1548,11 +1610,24 @@ export default function ContentPlanner({
                       </div>
                     )}
                   </div>
+
+                  {/* Google Drive Picker Trigger Button */}
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={handleVideoGooglePicker}
+                      className="w-full bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 rounded-xl py-2 px-3 text-[11px] font-semibold text-slate-300 transition-colors cursor-pointer flex items-center justify-center gap-2 shadow active:scale-95"
+                    >
+                      <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19.43 12.981L14.71 4.801c-.38-.66-1.08-1.06-1.85-1.06h-1.72c-.77 0-1.47.4-1.85 1.06L4.57 12.981c-.38.66-.38 1.47 0 2.13l2.36 4.091c.38.66 1.08 1.06 1.85 1.06h9.44c.77 0 1.47-.4 1.85-1.06l2.36-4.091c.38-.66.38-1.47 0-2.13zM9.43 17.5c-.38 0-.74-.21-.93-.54L6.14 12.87c-.19-.33-.19-.74 0-1.07l2.36-4.09c.19-.33.55-.54.93-.54h4.72c.38 0 .74.21.93.54l2.36 4.09c.19.33.19.74 0 1.07l-2.36 4.09c-.19.33-.55.54-.93.54H9.43z" />
+                      </svg>
+                      Select Staged Video via Google Picker
+                    </button>
+                  </div>
+                  </div>
                 </div>
 
               </div>
-
-            </div>
 
             <div className="pt-4 border-t border-slate-800/60 flex justify-end gap-3">
               <button
@@ -1571,115 +1646,6 @@ export default function ContentPlanner({
             </div>
 
           </form>
-        )}
-
-        {/* =========================================================================
-            TAB 4: PRELOADED ENTITIES (TEMPLATE BANK & AUTO-ASSIGN SYSTEM)
-            ========================================================================= */}
-        {activeTab === 'preloaded-entities' && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-indigo-950/40 via-slate-900/40 to-emerald-950/20 border border-indigo-500/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-400 animate-bounce" /> Auto-Deploy Campaigns Registry
-                </h4>
-                <p className="text-xs text-slate-400 max-w-xl">
-                  Deploy instantly formatted campaign entities into your schedule. Select an absolute calendar date or let our automated assigner find the next optimal available date slot.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 self-start md:self-auto shrink-0 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono">
-                <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-                <span className="text-slate-400">Templates Loaded:</span>
-                <span className="text-white font-bold">{PRELOADED_TEMPLATES.length}</span>
-              </div>
-            </div>
-
-            {/* Main Template Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
-              {PRELOADED_TEMPLATES.map((tpl, idx) => {
-                const dateVal = templateDates[idx] || '';
-                const { month, day } = parseDateString(dateVal);
-                
-                let platformColor = 'bg-slate-950 border-slate-800 text-slate-400';
-                if (tpl.platform === 'YouTube') platformColor = 'bg-red-500/10 border-red-500/20 text-red-400';
-                else if (tpl.platform === 'Instagram') platformColor = 'bg-pink-500/10 border-pink-500/20 text-pink-400';
-                else if (tpl.platform === 'TikTok') platformColor = 'bg-teal-500/10 border-teal-500/20 text-teal-400';
-                else if (tpl.platform === 'LinkedIn') platformColor = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
-                else if (tpl.platform === 'Facebook') platformColor = 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400';
-
-                return (
-                  <div key={idx} className="bg-slate-950/55 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-between hover:border-indigo-500/40 transition-all group">
-                    <div>
-                      {/* Header tags */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border border-slate-800/80 bg-slate-900 text-slate-400 uppercase tracking-wider font-bold">
-                          {tpl.type}
-                        </span>
-                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${platformColor} uppercase tracking-wider font-bold`}>
-                          {tpl.platform}
-                        </span>
-                      </div>
-
-                      {/* Title & Desc */}
-                      <h5 className="text-xs font-bold text-white uppercase tracking-tight font-display mb-1.5 group-hover:text-indigo-400 transition-colors">
-                        {tpl.title}
-                      </h5>
-                      <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
-                        {tpl.description}
-                      </p>
-                    </div>
-
-                    {/* Auto assigning controls */}
-                    <div className="bg-slate-900/60 border border-slate-850/80 rounded-lg p-3 space-y-3.5">
-                      <div className="flex items-center justify-between gap-2 border-b border-slate-850/60 pb-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-indigo-400" /> Target: {month} Day {day}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleAutoFindSlot(idx)}
-                          className="text-[9px] font-mono font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 border border-indigo-900/30 px-2 py-0.5 rounded transition-colors cursor-pointer"
-                          title="Auto-calculate next open scheduler slot in selected Month"
-                        >
-                          Find Next Slot
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-                        <div>
-                          <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">
-                            Schedule Date
-                          </label>
-                          <input
-                            type="date"
-                            value={dateVal}
-                            onChange={(e) => setTemplateDates(prev => ({ ...prev, [idx]: e.target.value }))}
-                            className="w-full bg-slate-950 border border-slate-850 rounded p-1.5 text-[10px] text-white outline-none cursor-pointer focus:border-indigo-500 transition-all font-mono"
-                          />
-                        </div>
-                        
-                        <div className="pt-2.5 sm:pt-0">
-                          <button
-                            type="button"
-                            onClick={() => handleDeployTemplate(idx, tpl)}
-                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold py-2 px-3 rounded-md flex items-center justify-center gap-1 cursor-pointer transition-all shadow-md active:scale-[0.98]"
-                          >
-                            <Plus className="w-3 h-3" /> Deploy Plan
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-indigo-950/10 border border-indigo-900/20 rounded-xl p-3 text-center">
-              <span className="text-[10px] text-slate-500 font-mono">
-                Clicking <strong className="text-indigo-400">Deploy Plan</strong> automatically transitions back to the active scheduler calendar grid view.
-              </span>
-            </div>
-          </div>
         )}
 
         {/* =========================================================================
@@ -2009,7 +1975,7 @@ export default function ContentPlanner({
                     </span>
                   </div>
 
-                  {assignedTasks.length === 0 ? (
+                  {visibleAssignedTasks.length === 0 ? (
                     <div className="py-12 text-center border border-dashed border-slate-850 rounded-xl">
                       <AlertCircle className="w-8 h-8 text-slate-700 mx-auto mb-2.5" />
                       <p className="text-xs text-slate-400 font-semibold">No assigned campaign tasks found</p>
@@ -2029,7 +1995,7 @@ export default function ContentPlanner({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-900/60">
-                          {assignedTasks.map((task) => (
+                          {visibleAssignedTasks.map((task) => (
                             <React.Fragment key={task.id}>
                               <tr className="group hover:bg-slate-900/30 transition-colors">
                                 {/* Task Details & Assignee */}
@@ -2078,10 +2044,22 @@ export default function ContentPlanner({
                                     )}
                                     
                                     {task.fileName ? (
-                                      <div className="flex items-center gap-1.5 bg-emerald-950/30 border border-emerald-900/20 px-2 py-0.5 rounded text-[9px] text-emerald-300 w-fit font-mono" title="Binary Attachment Registered">
-                                        <Paperclip className="w-2.5 h-2.5 shrink-0" />
-                                        <span className="truncate max-w-[110px]">{task.fileName}</span>
-                                        <span className="text-emerald-500 font-semibold shrink-0">({task.fileSize})</span>
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5 bg-emerald-950/30 border border-emerald-900/20 px-2 py-0.5 rounded text-[9px] text-emerald-300 w-fit font-mono" title="Binary Attachment Registered">
+                                          <Paperclip className="w-2.5 h-2.5 shrink-0" />
+                                          <span className="truncate max-w-[110px]">{task.fileName}</span>
+                                          <span className="text-emerald-500 font-semibold shrink-0">({task.fileSize})</span>
+                                        </div>
+                                        {task.fileUrl && (
+                                          <a
+                                            href={task.fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[9px] text-indigo-400 hover:text-indigo-300 hover:underline font-mono flex items-center gap-1 mt-0.5"
+                                          >
+                                            <span>🔗</span> Open Drive File
+                                          </a>
+                                        )}
                                       </div>
                                     ) : (
                                       <p className="text-[9px] text-slate-600 italic">No attachments dropped</p>
@@ -2154,16 +2132,32 @@ export default function ContentPlanner({
 
                                 {/* File Upload Input */}
                                 <td className="py-3 pr-2">
-                                  <div className="relative">
-                                    <label className="flex items-center gap-1 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-400 transition-colors cursor-pointer w-fit shadow active:scale-95">
-                                      <Paperclip className="w-3 h-3 text-slate-500" />
-                                      <span>{task.fileName ? 'Change' : 'Upload'}</span>
-                                      <input
-                                        type="file"
-                                        onChange={(e) => handleTaskFileUpload(task.id, e)}
-                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                                      />
-                                    </label>
+                                  <div className="flex flex-col sm:flex-row gap-1.5 items-start sm:items-center">
+                                    {/* Local File Upload Button */}
+                                    <div className="relative">
+                                      <label className="flex items-center gap-1 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-400 transition-colors cursor-pointer w-fit shadow active:scale-95">
+                                        <Paperclip className="w-3 h-3 text-slate-500" />
+                                        <span>{task.fileName ? 'Local' : 'Upload'}</span>
+                                        <input
+                                          type="file"
+                                          onChange={(e) => handleTaskFileUpload(task.id, e)}
+                                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                        />
+                                      </label>
+                                    </div>
+                                    
+                                    {/* Google Picker Drive Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTaskGooglePicker(task.id)}
+                                      className="flex items-center gap-1 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-400 transition-colors cursor-pointer w-fit shadow active:scale-95"
+                                      title="Select resource from Google Drive"
+                                    >
+                                      <svg className="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M19.43 12.981L14.71 4.801c-.38-.66-1.06-1.06-1.85-1.06h-1.72c-.77 0-1.47.4-1.85 1.06L4.57 12.981c-.38.66-.38 1.47 0 2.13l2.36 4.091c.38.66 1.08 1.06 1.85 1.06h9.44c.77 0 1.47-.4 1.85-1.06l2.36-4.091c.38-.66.38-1.47 0-2.13zM9.43 17.5c-.38 0-.74-.21-.93-.54L6.14 12.87c-.19-.33-.19-.74 0-1.07l2.36-4.09c.19-.33.55-.54.93-.54h4.72c.38 0 .74.21.93.54l2.36 4.09c.19.33.19.74 0 1.07l-2.36 4.09c-.19.33-.55.54-.93.54H9.43z" />
+                                      </svg>
+                                      <span>Drive</span>
+                                    </button>
                                   </div>
                                 </td>
 
@@ -2255,6 +2249,374 @@ export default function ContentPlanner({
                   <span>Logged-in Operator: <strong className="text-slate-400">{currentUser}</strong></span>
                   <span>Auto-saved to local node engine storage</span>
                 </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            TAB 6: INSTAGRAM HUB (INTERACTIVE SIMULATOR & HASHTAG OPTIMIZER)
+            ========================================================================= */}
+        {activeTab === 'instagram-interface' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-950/40 via-slate-900/40 to-amber-950/20 border border-blue-500/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Instagram className="w-4 h-4 text-pink-400 animate-bounce" /> Interactive Instagram Interface Previewer
+                </h4>
+                <p className="text-xs text-slate-400 max-w-xl">
+                  Simulate, test, and preview your campaigns before they go live. Review layouts, optimize captions with hashtags, click interactive controls, and test real-time comments.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 self-start md:self-auto shrink-0 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono">
+                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-slate-400">Mode:</span>
+                <span className="text-amber-300 font-bold">LIVE SIMULATION</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left">
+              
+              {/* Left Column: High-Fidelity Mobile Frame Simulator */}
+              <div className="lg:col-span-5 flex justify-center">
+                <div className="relative w-full max-w-[340px] bg-slate-950 border-[6px] border-slate-800 rounded-[40px] shadow-2xl overflow-hidden pb-4">
+                  {/* Notch / Dynamic Island */}
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-900 rounded-full z-20 flex items-center justify-center">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-950 ml-auto mr-3 border border-slate-800" />
+                  </div>
+
+                  {/* Phone Header Info */}
+                  <div className="bg-slate-950 px-5 pt-7 pb-2 flex justify-between text-[10px] text-slate-400 font-mono select-none">
+                    <span>9:41 AM</span>
+                    <div className="flex gap-1 items-center">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span>5G</span>
+                    </div>
+                  </div>
+
+                  {/* Insta Header */}
+                  <div className="px-3.5 py-2 border-b border-slate-900 flex justify-between items-center bg-slate-950">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[1.5px]">
+                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
+                          <img 
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80" 
+                            alt="avatar" 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-white leading-tight flex items-center gap-1">
+                          swanaya_enterprises
+                          <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex items-center justify-center text-[6px] text-white">✓</span>
+                        </p>
+                        <p className="text-[8px] text-slate-400">Swanaya Studios, Chennai</p>
+                      </div>
+                    </div>
+                    <button className="text-slate-400 hover:text-white text-xs font-bold font-mono tracking-widest px-1">•••</button>
+                  </div>
+
+                  {/* Insta Main Post Image/Video Placeholder */}
+                  <div className="relative aspect-square w-full bg-slate-900 group overflow-hidden select-none">
+                    <img 
+                      src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=500" 
+                      alt="Instagram Mock Post Content" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+                      referrerPolicy="no-referrer"
+                      onDoubleClick={() => {
+                        if (!instaHasLiked) {
+                          setInstaLikes(prev => prev + 1);
+                          setInstaHasLiked(true);
+                          addLog('Instagram Simulator: Double-tapped image to LIKE post', 'success');
+                        }
+                      }}
+                    />
+                    
+                    {/* Double Tap Heart Animation Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 hover:opacity-100 transition-opacity">
+                      <span className="text-[9px] bg-slate-950/80 text-slate-300 font-mono px-2.5 py-1 rounded-full backdrop-blur">
+                        Double-tap to Like
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div className="px-3.5 py-2.5 flex justify-between items-center bg-slate-950">
+                    <div className="flex gap-3.5">
+                      <button 
+                        onClick={() => {
+                          const liked = !instaHasLiked;
+                          setInstaHasLiked(liked);
+                          setInstaLikes(prev => liked ? prev + 1 : prev - 1);
+                          addLog(`Instagram Simulator: ${liked ? 'Liked' : 'Unliked'} mock post`, 'action');
+                        }}
+                        className="transition-transform hover:scale-110 cursor-pointer"
+                      >
+                        <Heart className={`w-5 h-5 ${instaHasLiked ? 'text-rose-500 fill-rose-500' : 'text-white'}`} />
+                      </button>
+                      <button className="transition-transform hover:scale-110 cursor-pointer text-white">
+                        <MessageCircle className="w-5 h-5" />
+                      </button>
+                      <button className="transition-transform hover:scale-110 cursor-pointer text-white">
+                        <Send className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const bmed = !instaHasBookmarked;
+                        setInstaHasBookmarked(bmed);
+                        setInstaBookmarks(prev => bmed ? prev + 1 : prev - 1);
+                        addLog(`Instagram Simulator: ${bmed ? 'Saved' : 'Unsaved'} post mockup`, 'action');
+                      }}
+                      className="transition-transform hover:scale-110 cursor-pointer"
+                    >
+                      <Bookmark className={`w-5 h-5 ${instaHasBookmarked ? 'text-amber-400 fill-amber-400' : 'text-white'}`} />
+                    </button>
+                  </div>
+
+                  {/* Interaction Stats */}
+                  <div className="px-3.5 pb-1 bg-slate-950 text-left select-none">
+                    <p className="text-[11px] font-bold text-white">{instaLikes.toLocaleString()} likes</p>
+                  </div>
+
+                  {/* Caption */}
+                  <div className="px-3.5 pb-2.5 bg-slate-950 text-left text-[11px] leading-relaxed">
+                    <p className="text-slate-300">
+                      <span className="font-bold text-white mr-1.5">swanaya_enterprises</span>
+                      {instaCaption}
+                    </p>
+                  </div>
+
+                  {/* Comments Feed Panel */}
+                  <div className="px-3.5 py-2 bg-slate-900/30 border-t border-slate-900 max-h-[140px] overflow-y-auto scrollbar-thin space-y-2 text-left">
+                    <span className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-widest">Live Simulated Comments ({instaComments.length})</span>
+                    {instaComments.map(c => (
+                      <div key={c.id} className="text-[10px] leading-tight flex items-start gap-1 justify-between">
+                        <div>
+                          <strong className="text-white mr-1">{c.user}</strong>
+                          <span className="text-slate-300">{c.text}</span>
+                        </div>
+                        <span className="text-[8px] font-mono text-slate-500 shrink-0">{c.time}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Post Comment Input */}
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!newInstaComment.trim()) return;
+                      const commentObj = {
+                        id: `c-${Date.now()}`,
+                        user: 'each_operator',
+                        text: newInstaComment.trim(),
+                        time: '1s'
+                      };
+                      setInstaComments(prev => [...prev, commentObj]);
+                      setNewInstaComment('');
+                      addLog(`Instagram Simulator: Added comment "${commentObj.text}" to post preview`, 'success');
+                    }}
+                    className="px-3 py-2 bg-slate-950 border-t border-slate-900 flex gap-2 items-center"
+                  >
+                    <input 
+                      type="text"
+                      value={newInstaComment}
+                      onChange={(e) => setNewInstaComment(e.target.value)}
+                      placeholder="Add interactive comment..."
+                      className="flex-1 bg-slate-900 border border-slate-850 rounded-full px-3 py-1 text-[10px] text-white placeholder-slate-500 outline-none focus:border-blue-500 transition-all"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!newInstaComment.trim()}
+                      className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-full p-1.5 transition-all cursor-pointer shrink-0"
+                    >
+                      <Send className="w-2.5 h-2.5 fill-white" />
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Right Column: Interaction Hub Toolkits */}
+              <div className="lg:col-span-7 space-y-6">
+                
+                {/* 1. Campaign Plan Loader */}
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                    <FolderOpen className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulate Scheduled Campaigns</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Select any of your current scheduled Instagram campaigns from the selector below. This instantly imports its title and description into the live Instagram mockup on the left for visualization.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    <div className="sm:col-span-9">
+                      <select 
+                        onChange={(e) => {
+                          const selectedId = e.target.value;
+                          const found = plans.find(p => p.id === selectedId);
+                          if (found) {
+                            setInstaCaption(`${found.title} - ${found.description}`);
+                            addLog(`Instagram Simulator: Loaded scheduled campaign "${found.title}" into mockup`, 'info');
+                          }
+                        }}
+                        className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-all cursor-pointer font-mono"
+                      >
+                        <option value="">-- Choose scheduled campaign to preview --</option>
+                        {plans.map(p => (
+                          <option key={p.id} value={p.id}>
+                            [{p.month} Day {p.day}] - {p.title} ({p.platform})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="sm:col-span-3">
+                      <button 
+                        onClick={() => {
+                          setInstaCaption('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
+                          addLog('Instagram Simulator: Reset preview caption to default boilerplate text', 'info');
+                        }}
+                        className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-300 text-xs font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer text-center"
+                      >
+                        Reset Caption
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Hashtag Optimizer */}
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                    <Sparkles className="w-4 h-4 text-pink-400" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">AI Hashtag Optimizer</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Optimize search discoverability and algorithmic engagement. Choose a niche theme below to generate a trending set of optimized, highly matching campaign hashtags.
+                  </p>
+
+                  {/* Category Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {['Media', 'Technology', 'Fashion', 'Corporate', 'Creative'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setHashtagCategory(cat)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                          hashtagCategory === cat
+                            ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-md shadow-amber-500/5'
+                            : 'bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Hashtags display and apply button */}
+                  <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-850 space-y-3.5">
+                    <div className="flex flex-wrap gap-2">
+                      {hashtagCategory === 'Media' && [
+                        '#mediaproduction', '#swanaya', '#contentplanner', '#videoediting', '#agencylife', '#digitalmarketing', '#campaigns'
+                      ].map((h, i) => (
+                        <span key={i} className="text-[10px] font-mono font-semibold bg-blue-950/60 text-blue-300 border border-blue-900/40 px-2.5 py-1 rounded">
+                          {h}
+                        </span>
+                      ))}
+
+                      {hashtagCategory === 'Technology' && [
+                        '#containerization', '#esbuild', '#typescript', '#clouddeploy', '#nodejs', '#webdevelopment', '#devops'
+                      ].map((h, i) => (
+                        <span key={i} className="text-[10px] font-mono font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-900/40 px-2.5 py-1 rounded">
+                          {h}
+                        </span>
+                      ))}
+
+                      {hashtagCategory === 'Fashion' && [
+                        '#editorial', '#aesthetic', '#vogue', '#outfitoftheday', '#colorgrading', '#brandshoot', '#runway'
+                      ].map((h, i) => (
+                        <span key={i} className="text-[10px] font-mono font-semibold bg-pink-950/60 text-pink-300 border border-pink-900/40 px-2.5 py-1 rounded">
+                          {h}
+                        </span>
+                      ))}
+
+                      {hashtagCategory === 'Corporate' && [
+                        '#corporatelaunch', '#enterpriseworkflow', '#saas', '#b2bmarketing', '#productivity', '#collaboration', '#agile'
+                      ].map((h, i) => (
+                        <span key={i} className="text-[10px] font-mono font-semibold bg-slate-900 text-slate-300 border border-slate-800 px-2.5 py-1 rounded">
+                          {h}
+                        </span>
+                      ))}
+
+                      {hashtagCategory === 'Creative' && [
+                        '#storyboarding', '#artdirection', '#conceptual', '#uiux', '#brandidentity', '#digitalart', '#motiongraphics'
+                      ].map((h, i) => (
+                        <span key={i} className="text-[10px] font-mono font-semibold bg-indigo-950/60 text-indigo-300 border border-indigo-900/40 px-2.5 py-1 rounded">
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2.5 border-t border-slate-900">
+                      <span className="text-[9px] font-mono text-slate-500">Suggested density: 7 tags (Optimal for Instagram discovery)</span>
+                      <button
+                        onClick={() => {
+                          const tags = {
+                            'Media': ' #mediaproduction #swanaya #contentplanner #videoediting #agencylife #digitalmarketing #campaigns',
+                            'Technology': ' #containerization #esbuild #typescript #clouddeploy #nodejs #webdevelopment #devops',
+                            'Fashion': ' #editorial #aesthetic #vogue #outfitoftheday #colorgrading #brandshoot #runway',
+                            'Corporate': ' #corporatelaunch #enterpriseworkflow #saas #b2bmarketing #productivity #collaboration #agile',
+                            'Creative': ' #storyboarding #artdirection #conceptual #uiux #brandidentity #digitalart #motiongraphics'
+                          }[hashtagCategory] || '';
+
+                          setInstaCaption(prev => {
+                            // Strip existing tags if already added
+                            const cleanText = prev.split('#')[0].trim();
+                            return `${cleanText} ${tags}`;
+                          });
+                          addLog(`Instagram Simulator: Applied trending [${hashtagCategory}] hashtags to caption`, 'success');
+                        }}
+                        className="bg-amber-400 text-slate-950 text-[10px] font-bold py-1.5 px-3 rounded hover:bg-amber-300 transition-colors cursor-pointer"
+                      >
+                        Apply to Mock Post Caption
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Predictive Performance Analytics */}
+                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                    <BarChart3 className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulated Reach & Algorithmic Impact</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Based on hashtag density, posting time, and interactive engagement metrics (likes/bookmarks), simulate prospective algorithmic reach statistics.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
+                      <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Est. Impressions</p>
+                      <p className="text-lg font-extrabold text-white font-display mt-1">{(instaLikes * 12.4).toFixed(0)}</p>
+                      <span className="text-[8px] font-mono text-blue-400">Impression Multiplier: 12.4x</span>
+                    </div>
+
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
+                      <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Engagement Rate</p>
+                      <p className="text-lg font-extrabold text-amber-300 font-display mt-1">{((instaLikes / 4.2) + (instaBookmarks / 1.5)).toFixed(2)}%</p>
+                      <span className="text-[8px] font-mono text-emerald-400">Healthy Profile Average</span>
+                    </div>
+
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
+                      <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Estimated Shares</p>
+                      <p className="text-lg font-extrabold text-white font-display mt-1">{(instaBookmarks * 2.8).toFixed(0)}</p>
+                      <span className="text-[8px] font-mono text-pink-400">Bookmark Save-rate: High</span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
             </div>

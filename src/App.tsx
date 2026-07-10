@@ -82,125 +82,56 @@ export default function App() {
     // Load plans from localStorage or load beautiful initial seed data
     const savedPlans = localStorage.getItem('swanaya_content_plans');
     if (savedPlans) {
-      try {
-        setPlans(JSON.parse(savedPlans));
-      } catch (e) {
-        console.error('Error parsing content plans', e);
-      }
+       try {
+         setPlans(JSON.parse(savedPlans));
+       } catch (e) {
+         console.error('Error parsing content plans', e);
+       }
     } else {
-      const seedPlans: ContentPlan[] = [
-        {
-          id: 'p1',
-          title: 'Swanaya Corporate Launch Video',
-          type: 'Video',
-          description: 'Official promotional brand launch video detailing custom planning tools and direct upload pipelines.',
-          month: 'October',
-          day: 15,
-          year: 2026,
-          assignedDate: '2026-10-15',
-          status: 'In Progress',
-          platform: 'YouTube',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'p2',
-          title: 'Behind the Scenes Vlog',
-          type: 'Story',
-          description: 'Casual raw office video covering our production processes and system integration cycles.',
-          month: 'December',
-          day: 25,
-          year: 2026,
-          assignedDate: '2026-12-25',
-          status: 'Planned',
-          platform: 'TikTok',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'p3',
-          title: 'Aesthetic Product Showcase Reel',
-          type: 'Video',
-          description: 'Highly polished high-contrast visual display of client media workspace overlays.',
-          month: 'October',
-          day: 3,
-          year: 2026,
-          assignedDate: '2026-10-03',
-          status: 'Completed',
-          platform: 'Instagram',
-          createdAt: new Date().toISOString()
-        }
-      ];
-      setPlans(seedPlans);
-      localStorage.setItem('swanaya_content_plans', JSON.stringify(seedPlans));
+       const seedPlans: ContentPlan[] = [];
+       setPlans(seedPlans);
+       localStorage.setItem('swanaya_content_plans', JSON.stringify(seedPlans));
     }
 
     // Load attendance records or load initial seed records
     const savedAttendance = localStorage.getItem('swanaya_attendance');
     if (savedAttendance) {
-      try {
-        setAttendanceRecords(JSON.parse(savedAttendance));
-      } catch (e) {
-        console.error('Error parsing attendance', e);
-      }
+       try {
+         setAttendanceRecords(JSON.parse(savedAttendance));
+       } catch (e) {
+         console.error('Error parsing attendance', e);
+       }
     } else {
-      // Seed days 3, 5, 12, 28 to leave remaining days as "Unused" for the Dates Not Used finder
-      const seedAttendance: AttendanceRecord[] = [
-        {
-          id: 'a1',
-          day: 3,
-          type: 'check_in',
-          timestamp: '09:14:22',
-          dateTime: '2026-10-03 09:14',
-          notes: 'Standard morning check-in for Q3 launch prep.',
-          username: 'AADITHYAN'
-        },
-        {
-          id: 'a2',
-          day: 3,
-          type: 'check_out',
-          timestamp: '18:05:10',
-          dateTime: '2026-10-03 18:05',
-          notes: 'Completed edit workflows for Day 3.',
-          username: 'AADITHYAN'
-        },
-        {
-          id: 'a3',
-          day: 15,
-          type: 'check_in',
-          timestamp: '08:55:00',
-          dateTime: '2026-10-15 08:55',
-          notes: 'Early check-in for promotional trailer compilation.',
-          username: 'AADITHYAN'
-        }
-      ];
-      setAttendanceRecords(seedAttendance);
-      localStorage.setItem('swanaya_attendance', JSON.stringify(seedAttendance));
+       const seedAttendance: AttendanceRecord[] = [];
+       setAttendanceRecords(seedAttendance);
+       localStorage.setItem('swanaya_attendance', JSON.stringify(seedAttendance));
     }
 
     // Load activity logs or set initial logs
     const savedLogs = localStorage.getItem('swanaya_activity_logs');
     if (savedLogs) {
-      try {
-        setLogs(JSON.parse(savedLogs));
-      } catch (e) {
-        console.error('Error parsing activity logs', e);
-      }
+       try {
+         setLogs(JSON.parse(savedLogs));
+       } catch (e) {
+         console.error('Error parsing activity logs', e);
+       }
     } else {
-      const seedLogs: ActivityLog[] = [
-        {
-          id: 'l1',
-          text: 'System: Initialized Swanaya Media Enterprises database pipelines',
-          timestamp: '07:38:15',
-          type: 'info'
-        },
-        {
-          id: 'l2',
-          text: 'Security: Credentials initialized for root administrator "AADITHYAN"',
-          timestamp: '07:38:20',
-          type: 'success'
-        }
-      ];
-      setLogs(seedLogs);
-      localStorage.setItem('swanaya_activity_logs', JSON.stringify(seedLogs));
+       const seedLogs: ActivityLog[] = [
+         {
+           id: 'l1',
+           text: 'System: Initialized Swanaya Media Enterprises database pipelines',
+           timestamp: '07:38:15',
+           type: 'info'
+         },
+         {
+           id: 'l2',
+           text: 'Security: Credentials initialized for root administrator "each"',
+           timestamp: '07:38:20',
+           type: 'success'
+         }
+       ];
+       setLogs(seedLogs);
+       localStorage.setItem('swanaya_activity_logs', JSON.stringify(seedLogs));
     }
   }, []);
 
@@ -271,6 +202,7 @@ export default function App() {
   const handleAddPlan = (newPlan: Omit<ContentPlan, 'id' | 'createdAt'>) => {
     const plan: ContentPlan = {
       ...newPlan,
+      createdBy: newPlan.createdBy || currentUser || 'each',
       id: `p_${Date.now()}`,
       createdAt: new Date().toISOString()
     };
@@ -515,7 +447,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setActiveMainTab('security');
-                  addLog('System Navigation: Switched workspace to [Security & Telemetry]', 'info');
+                  addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
                 }}
                 className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   activeMainTab === 'security'
@@ -524,7 +456,7 @@ export default function App() {
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Security Logs</span>
+                <span>{currentUser.toLowerCase() === 'aadithyan' || currentUser.toLowerCase() === 'each' ? 'Admin Console' : 'Security Logs'}</span>
                 {activeMainTab === 'security' && (
                   <motion.div
                     layoutId="activeTabUnderline"
@@ -651,6 +583,7 @@ export default function App() {
                       logs={logs} 
                       onClearLogs={handleClearLogs} 
                       currentUser={currentUser} 
+                      addLog={addLog}
                     />
                   </motion.div>
                 )}

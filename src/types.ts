@@ -23,6 +23,7 @@ export interface ContentPlan {
   status: 'Planned' | 'In Progress' | 'Completed' | 'Review';
   platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook';
   createdAt: string;
+  createdBy?: string; // Track who created the plan
 }
 
 export interface ActivityLog {
