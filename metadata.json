@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Swanaya Media Enterprises Content Planner",
+  "description": "Custom 3D-styled Content Planner, Dual Login, Attendance Tracker, Video uploader, and Admin Activity Log for Swanaya Media Enterprises.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
