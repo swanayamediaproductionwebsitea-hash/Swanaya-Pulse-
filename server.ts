@@ -154,6 +154,70 @@ The response must be a JSON object containing a "tags" array of strings. Mix som
   }
 });
 
+// API: Generate AI To-Dos using gemini-3.5-flash
+app.post("/api/generate-todos", async (req, res) => {
+  try {
+    const { topic, platform } = req.body;
+    const ai = getAiClient();
+    
+    const contextPrompt = topic 
+      ? `focusing on the topic/theme "${topic}"` 
+      : `spanning general digital marketing, media production, and corporate branding tasks`;
+
+    const platformPrompt = platform && platform !== "All"
+      ? `specifically tailored for the ${platform} platform`
+      : `across various channels like Instagram, YouTube, LinkedIn, and Meta Ads`;
+
+    const prompt = `You are an expert digital marketing director and content strategist for Swanaya Media Enterprises.
+Generate exactly 4 highly professional, actionable, and strategically sound production/marketing To-Do tasks ${contextPrompt} and ${platformPrompt}.
+
+For each To-Do, provide:
+1. "text": Clear, specific, and actionable description of the task (under 120 characters).
+2. "platform": The social channel it belongs to (choose from: Instagram, YouTube, Google Ads, Meta Ads, LinkedIn, Facebook).
+3. "priority": Urgent operational importance (choose from: High, Medium, Low).`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            todos: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING, description: "Actionable item text" },
+                  platform: { type: Type.STRING, description: "Target social channel" },
+                  priority: { type: Type.STRING, description: "High, Medium, or Low" }
+                },
+                required: ["text", "platform", "priority"]
+              }
+            }
+          },
+          required: ["todos"]
+        }
+      }
+    });
+
+    const resultText = response.text;
+    if (!resultText) {
+      throw new Error("No response text received from Gemini API");
+    }
+
+    const resultJson = JSON.parse(resultText);
+    res.json(resultJson);
+  } catch (error: any) {
+    console.error("Gemini API Error in /api/generate-todos:", error);
+    res.status(500).json({ 
+      error: "Failed to generate AI To-Dos", 
+      details: error?.message || error 
+    });
+  }
+});
+
 // Serve health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

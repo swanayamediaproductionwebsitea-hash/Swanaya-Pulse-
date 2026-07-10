@@ -15,6 +15,7 @@ import AdminActivityLog from './components/AdminActivityLog';
 import AssistantWidget from './components/AssistantWidget';
 import Home from './components/Home';
 import ProfileSettings from './components/ProfileSettings';
+import SecurityLogs from './components/SecurityLogs';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -22,7 +23,7 @@ export default function App() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'assistant' | 'profile'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'admin' | 'assistant' | 'profile'>('home');
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
@@ -447,7 +448,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setActiveMainTab('security');
-                  addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
+                  addLog('System Navigation: Switched workspace to [Security Logs]', 'info');
                 }}
                 className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   activeMainTab === 'security'
@@ -456,7 +457,7 @@ export default function App() {
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>{currentUser.toLowerCase() === 'aadithyan' || currentUser.toLowerCase() === 'each' ? 'Admin Console' : 'Security Logs'}</span>
+                <span>Security Logs</span>
                 {activeMainTab === 'security' && (
                   <motion.div
                     layoutId="activeTabUnderline"
@@ -465,6 +466,29 @@ export default function App() {
                   />
                 )}
               </button>
+              {(currentUser && (currentUser.toLowerCase() === 'aadithyan' || currentUser.toLowerCase() === 'each')) && (
+                <button
+                  onClick={() => {
+                    setActiveMainTab('admin');
+                    addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
+                  }}
+                  className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeMainTab === 'admin'
+                      ? 'bg-yellow-650 text-white shadow-lg shadow-yellow-500/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <Cpu className="w-4 h-4" />
+                  <span>Admin Console</span>
+                  {activeMainTab === 'admin' && (
+                    <motion.div
+                      layoutId="activeTabUnderline"
+                      className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-yellow-400 rounded-full"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </button>
+              )}
               <button
                 onClick={() => {
                   setActiveMainTab('assistant');
@@ -579,10 +603,26 @@ export default function App() {
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                     className="w-full h-full flex flex-col"
                   >
+                    <SecurityLogs 
+                      logs={logs} 
+                      currentUser={currentUser || ''} 
+                    />
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'admin' && (
+                  <motion.div
+                    key="admin-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
                     <AdminActivityLog 
                       logs={logs} 
                       onClearLogs={handleClearLogs} 
-                      currentUser={currentUser} 
+                      currentUser={currentUser || ''} 
                       addLog={addLog}
                     />
                   </motion.div>

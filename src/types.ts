@@ -44,3 +44,13 @@ export interface RegisteredUser {
   designation?: string;
   profileImage?: string;
 }
+
+export interface AiTodoItem {
+  id: string;
+  text: string;
+  platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook' | 'Google Ads' | 'Meta Ads';
+  priority: 'High' | 'Medium' | 'Low';
+  completed: boolean;
+  createdAt: string;
+}
+

@@ -7,11 +7,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
+import AiTodo from './AiTodo';
 
 interface HomeProps {
   plans: ContentPlan[];
   onAddPlan: (plan: Omit<ContentPlan, 'id' | 'createdAt'>) => void;
-  setActiveMainTab: (tab: 'home' | 'planner' | 'attendance' | 'security' | 'assistant') => void;
+  setActiveMainTab: (tab: any) => void;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   currentUser: string;
 }
@@ -528,187 +529,14 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
           </div>
         </div>
 
-        {/* Right column (7 cols): Interactive Site Mapper, Site Map Chatbot */}
-        <div className="lg:col-span-7 space-y-6 flex flex-col justify-stretch">
-          
-          {/* Module 3: 12 Major Modules Site Map */}
-          <div className="bg-slate-950/45 border border-slate-800/80 rounded-2xl p-5 space-y-4 flex-grow flex flex-col justify-between">
-            <div className="flex items-center justify-between border-b border-slate-850 pb-3">
-              <div className="flex items-center gap-2">
-                <Layout className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">12 Major Modules Site Map</h3>
-              </div>
-              <span className="text-[9px] text-slate-500 font-mono">Click nodes to analyze module paths</span>
-            </div>
-
-            {/* Interactive Grid of Nodes */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
-              {SITE_MODULES.map((mod) => {
-                const Icon = mod.icon;
-                const isSelected = selectedModule.id === mod.id;
-                return (
-                  <button
-                    key={mod.id}
-                    onClick={() => {
-                      setSelectedModule(mod);
-                      addLog(`Home Node: Diagnostic checked "${mod.name}" path details`, 'info');
-                    }}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2 hover:border-indigo-500/40 hover:bg-slate-900/30 group ${
-                      isSelected 
-                        ? 'bg-indigo-950/20 border-indigo-500/50 shadow-md shadow-indigo-500/5' 
-                        : 'bg-slate-950/60 border-slate-900 text-slate-400'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1.5 w-full">
-                      <div className={`p-1.5 rounded-lg border transition-colors ${
-                        isSelected 
-                          ? 'bg-indigo-600 text-white border-indigo-400' 
-                          : 'bg-slate-900 text-slate-400 border-slate-850 group-hover:text-white'
-                      }`}>
-                        <Icon className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[8px] font-mono px-1 bg-slate-900 text-emerald-400 rounded tracking-widest font-extrabold scale-90">
-                        {mod.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-bold text-white tracking-tight group-hover:text-indigo-400 transition-colors uppercase leading-none font-mono">
-                        {mod.name}
-                      </p>
-                      <p className="text-[9px] text-slate-500 line-clamp-1 leading-tight font-mono">{mod.desc}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Selected Module Detail Banner */}
-            <div className="bg-slate-900/80 border border-slate-850 p-4 rounded-xl flex gap-3.5 items-start">
-              <div className="p-2.5 bg-indigo-600/10 text-indigo-400 rounded-xl border border-indigo-900/30 shrink-0">
-                {React.createElement(selectedModule.icon, { className: 'w-5 h-5' })}
-              </div>
-              <div className="space-y-1.5 text-left">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">{selectedModule.name}</h4>
-                  <span className="text-[9px] font-mono text-indigo-400 font-extrabold uppercase px-1 rounded bg-indigo-950/60">Module Node</span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed font-sans">{selectedModule.details}</p>
-                
-                {/* Custom Quick Jump Actions */}
-                <div className="pt-2">
-                  <button
-                    onClick={() => {
-                      if (selectedModule.id === 'planner' || selectedModule.id === 'social' || selectedModule.id === 'assignment' || selectedModule.id === 'approval' || selectedModule.id === 'media') {
-                        setActiveMainTab('planner');
-                      } else if (selectedModule.id === 'attendance') {
-                        setActiveMainTab('attendance');
-                      } else if (selectedModule.id === 'security') {
-                        setActiveMainTab('security');
-                      } else if (selectedModule.id === 'assistant' || selectedModule.id === 'analytics') {
-                        setActiveMainTab('assistant');
-                      } else {
-                        addLog(`Routing: Redirected to ${selectedModule.name} within main stack`, 'info');
-                        setActiveMainTab('planner');
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
-                  >
-                    Quick Jump to {selectedModule.name} <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Module 4: Site Map AI Chatbot widget */}
-          <div className="bg-slate-950/45 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between h-[310px]">
-            <div className="flex items-center justify-between border-b border-slate-850 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                <span className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">Site Mapping Assistant Bot</span>
-              </div>
-              <span className="text-[9px] text-slate-500 font-mono">Swanaya Media AI Core</span>
-            </div>
-
-            {/* Chat list */}
-            <div className="flex-grow my-3 overflow-y-auto space-y-3 pr-1 scrollbar-thin text-left text-xs max-h-[160px]">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`p-3 rounded-xl max-w-[85%] leading-relaxed space-y-2 ${
-                    msg.sender === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none'
-                      : 'bg-slate-900 border border-slate-850 text-slate-300 rounded-bl-none font-mono text-[10px]'
-                  }`}>
-                    <p>{msg.text}</p>
-                    {msg.linkTab && (
-                      <button
-                        onClick={() => {
-                          setActiveMainTab(msg.linkTab);
-                          addLog(`Bot Redirect: Routing operator to [${msg.linkTab}] tab`, 'success');
-                        }}
-                        className="bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-900/40 text-indigo-300 font-bold px-2 py-1 rounded text-[9px] uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1 mt-1"
-                      >
-                        <Compass className="w-3 h-3" /> Redirect Now
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Suggested quick prompt chips */}
-            <div className="flex flex-wrap gap-1.5 pb-2.5">
-              <button
-                onClick={() => sendBotQuery('Where is Content Planner?')}
-                className="text-[9px] font-mono text-slate-400 hover:text-white bg-slate-900 border border-slate-850 hover:border-slate-800 px-2.5 py-0.5 rounded-full cursor-pointer transition-colors"
-              >
-                #Content Planner
-              </button>
-              <button
-                onClick={() => sendBotQuery('Where is Task Assignment?')}
-                className="text-[9px] font-mono text-slate-400 hover:text-white bg-slate-900 border border-slate-850 hover:border-slate-800 px-2.5 py-0.5 rounded-full cursor-pointer transition-colors"
-              >
-                #Task Delegation
-              </button>
-              <button
-                onClick={() => sendBotQuery('Tell me about Campaign Tips!')}
-                className="text-[9px] font-mono text-slate-400 hover:text-white bg-slate-900 border border-slate-850 hover:border-slate-800 px-2.5 py-0.5 rounded-full cursor-pointer transition-colors"
-              >
-                #Campaign Tips
-              </button>
-              <button
-                onClick={() => sendBotQuery('List all 12 modules')}
-                className="text-[9px] font-mono text-slate-400 hover:text-white bg-slate-900 border border-slate-850 hover:border-slate-800 px-2.5 py-0.5 rounded-full cursor-pointer transition-colors"
-              >
-                #Site Map Info
-              </button>
-            </div>
-
-            {/* Form submit */}
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendBotQuery(chatInput);
-              }}
-              className="flex gap-2"
-            >
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask Swanaya AI about module paths, scheduling, or site mappings..."
-                className="flex-grow bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-700 outline-none font-mono"
-              />
-              <button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-white p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow"
-              >
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </form>
-          </div>
-
+        {/* Right column (7 cols): AI Task Planner & Strategic To-Do engine */}
+        <div className="lg:col-span-7">
+          <AiTodo 
+            onAddPlan={onAddPlan} 
+            setActiveMainTab={setActiveMainTab} 
+            addLog={addLog} 
+            currentUser={currentUser} 
+          />
         </div>
 
       </div>
