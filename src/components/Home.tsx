@@ -6,6 +6,7 @@ import {
   ChevronRight, Laptop, Key, Power, Image, Check, Smartphone, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ContentPlan } from '../types';
 import AiTodo from './AiTodo';
 
@@ -351,6 +352,36 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
     }
   }, [selectedPlatform]);
 
+  // Status mapping for visual stats
+  const statusDistribution = (() => {
+    const counts = { Draft: 0, 'In Progress': 0, 'In Review': 0, Published: 0 };
+    
+    plans.forEach(plan => {
+      if (plan.status === 'Planned') counts.Draft++;
+      else if (plan.status === 'In Progress') counts['In Progress']++;
+      else if (plan.status === 'Review') counts['In Review']++;
+      else if (plan.status === 'Completed') counts.Published++;
+    });
+
+    const total = plans.length;
+    const isDemo = total === 0;
+
+    // Use demo data if empty
+    const data = isDemo ? [
+      { name: 'Draft', value: 4, color: '#6366f1' },
+      { name: 'In Progress', value: 2, color: '#f59e0b' },
+      { name: 'In Review', value: 3, color: '#3b82f6' },
+      { name: 'Published', value: 5, color: '#10b981' }
+    ] : [
+      { name: 'Draft', value: counts.Draft, color: '#6366f1' },
+      { name: 'In Progress', value: counts['In Progress'], color: '#f59e0b' },
+      { name: 'In Review', value: counts['In Review'], color: '#3b82f6' },
+      { name: 'Published', value: counts.Published, color: '#10b981' }
+    ];
+
+    return { data, total, isDemo };
+  })();
+
   return (
     <div className="space-y-6">
 
@@ -565,6 +596,104 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
                 </button>
               </form>
             </div>
+          </div>
+
+          {/* Data Visualization module */}
+          <div className="bg-slate-950/45 border border-slate-800/80 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+            <div className="space-y-1 border-b border-slate-850 pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-indigo-400" />
+                  <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">Content Status Metrics</h3>
+                </div>
+                {statusDistribution.isDemo && (
+                  <span className="text-[8px] font-mono font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                    Demo Mode
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-500">Live breakdown of campaigns by completion status</p>
+            </div>
+
+            {/* Pie Chart container */}
+            <div className="relative h-44 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusDistribution.data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={45}
+                    outerRadius={65}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {statusDistribution.data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="#090d16" strokeWidth={2} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-slate-950/95 border border-slate-800 px-2.5 py-1.5 rounded-lg text-[10px] font-mono shadow-xl">
+                            <span className="font-bold text-white block uppercase mb-0.5">{data.name}</span>
+                            <span className="text-slate-400">Plans: <strong className="text-white font-bold">{data.value}</strong></span>
+                            {statusDistribution.total > 0 && (
+                              <span className="text-slate-500 block text-[9px]">
+                                {((data.value / statusDistribution.total) * 100).toFixed(0)}% of total
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* Central total text */}
+              <div className="absolute flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-tight">
+                  {statusDistribution.isDemo ? 'Demo Total' : 'Total Plans'}
+                </span>
+                <span className="text-xl font-black font-display text-white">
+                  {statusDistribution.isDemo ? 14 : statusDistribution.total}
+                </span>
+              </div>
+            </div>
+
+            {/* Visual breakdown details & Legend */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {statusDistribution.data.map((item) => {
+                const pct = statusDistribution.isDemo
+                  ? ((item.value / 14) * 100).toFixed(0)
+                  : statusDistribution.total > 0 
+                    ? ((item.value / statusDistribution.total) * 100).toFixed(0) 
+                    : '0';
+
+                return (
+                  <div key={item.name} className="bg-slate-900/40 border border-slate-850/60 rounded-lg p-2 flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-tight truncate">{item.name}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] font-mono font-bold text-white">{item.value}</span>
+                      <span className="text-[8px] font-mono text-slate-500 block leading-none">{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {statusDistribution.isDemo && (
+              <p className="text-[9px] font-mono text-slate-500 text-center leading-relaxed">
+                💡 No active plans logged. Use the **Selector** above or the **Scheduler** tab to deploy campaigns and build live statistics.
+              </p>
+            )}
           </div>
         </div>
 

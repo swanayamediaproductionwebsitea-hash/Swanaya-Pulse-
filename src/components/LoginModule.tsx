@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Key, User, ShieldCheck, ArrowRight, UserPlus, Fingerprint, Lock, 
   Sparkles, RefreshCw, AlertCircle, CheckCircle2, MessageSquare, ArrowLeft, Camera,
-  LogIn, Copy, Check, Terminal, Mail
+  LogIn, Copy, Check, Terminal, Mail, Eye, EyeOff
 } from 'lucide-react';
 import { RegisteredUser } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -20,6 +20,11 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   
   const [directUsername, setDirectUsername] = useState('');
   const [directPassword, setDirectPassword] = useState('');
+  
+  const [showDirectPassword, setShowDirectPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -657,13 +662,20 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       <Lock className="w-4 h-4" />
                     </span>
                     <input
-                      type="password"
+                      type={showDirectPassword ? "text" : "password"}
                       required
                       value={directPassword}
                       onChange={(e) => setDirectPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-10 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowDirectPassword(!showDirectPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    >
+                      {showDirectPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -808,13 +820,20 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                         <Lock className="w-4 h-4" />
                       </span>
                       <input
-                        type="password"
+                        type={showNewPassword ? "text" : "password"}
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Minimum 4 characters"
-                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-2 pl-9 pr-10 text-xs text-white placeholder-slate-600 outline-none font-mono"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -936,14 +955,21 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       <Lock className="w-3.5 h-3.5" />
                     </span>
                     <input
-                      type="password"
+                      type={showRegPassword ? "text" : "password"}
                       required
                       autoComplete="new-password"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="Min 4 chars"
-                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    >
+                      {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
  
@@ -956,14 +982,21 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       <ShieldCheck className="w-3.5 h-3.5" />
                     </span>
                     <input
-                      type="password"
+                      type={showRegConfirmPassword ? "text" : "password"}
                       required
                       autoComplete="new-password"
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
                       placeholder="Repeat password"
-                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    >
+                      {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
               </div>
