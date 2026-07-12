@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Shield, Mail, Briefcase, FileText, Camera, UploadCloud, 
-  CheckCircle2, AlertCircle, Save, Award, RefreshCw, UserCheck
+  CheckCircle2, AlertCircle, Save, Award, RefreshCw, UserCheck, Code2, Cpu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RegisteredUser } from '../types';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import ClientHub from './ClientHub';
 
 interface ProfileSettingsProps {
   currentUser: string;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   onProfileUpdate?: () => void;
+  setActiveMainTab?: (tab: any) => void;
 }
 
 const PRESET_AVATARS = [
@@ -23,7 +25,7 @@ const PRESET_AVATARS = [
   { name: 'Creative Designer', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150' }
 ];
 
-export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }: ProfileSettingsProps) {
+export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, setActiveMainTab }: ProfileSettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Profile state fields
@@ -37,6 +39,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }
   const [isSaving, setIsSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [settingsSubTab, setSettingsSubTab] = useState<'profile' | 'clientHub'>('profile');
 
   // Load existing profile from Firestore or LocalStorage
   useEffect(() => {
@@ -100,6 +103,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }
         }
       } catch (error) {
         console.error('Failed to sync profile from Firestore', error);
+        handleFirestoreError(error, OperationType.GET, `users/${cleanUser}`);
       } finally {
         setIsLoading(false);
       }
@@ -160,6 +164,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }
       console.error('Failed to save profile', err);
       setSaveStatus('error');
       addLog(`Profile Settings Error: Failed to save changes to Firestore`, 'warning');
+      handleFirestoreError(err, OperationType.WRITE, `users/${cleanUser}`);
     } finally {
       setIsSaving(false);
     }
@@ -219,7 +224,51 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="space-y-6">
+      {/* Settings Sub-Tab Navigation Header */}
+      <div className="flex bg-slate-950/60 p-1 rounded-2xl border border-slate-850 max-w-sm">
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('profile');
+            addLog('Profile Settings: Switched setting category to Operator Profile Parameters', 'info');
+          }}
+          className={`flex-1 py-1.5 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            settingsSubTab === 'profile' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <User className="w-3.5 h-3.5" />
+          <span>Operator Profile</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('clientHub');
+            addLog('Profile Settings: Switched setting category to Client Connection Hub Matrix', 'info');
+          }}
+          className={`flex-1 py-1.5 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            settingsSubTab === 'clientHub' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <UserCheck className="w-3.5 h-3.5" />
+          <span>Client Hub</span>
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {settingsSubTab === 'profile' ? (
+          <motion.div
+            key="profile-form-parameters"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+          >
       
       {/* LEFT COLUMN: Visual Profile Card Mockup (5 Cols) */}
       <div className="lg:col-span-5 space-y-6">
@@ -336,6 +385,65 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Developer Information Card */}
+        <div className="bg-slate-950/45 border border-slate-800/80 rounded-2xl p-5 space-y-4">
+          <div className="border-b border-slate-850 pb-2.5 flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">Developer Information</h4>
+              <p className="text-[10px] text-slate-500">System architecture & workspace metadata</p>
+            </div>
+            <Code2 className="w-4 h-4 text-indigo-400" />
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-slate-900/40 border border-slate-850 p-3 rounded-xl space-y-2 text-left font-mono text-[10px]">
+              <div className="flex justify-between border-b border-slate-850 pb-1.5">
+                <span className="text-slate-500">Workspace Mode:</span>
+                <span className="text-indigo-400 font-bold">Hybrid Node (React/Vite)</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-850 pb-1.5">
+                <span className="text-slate-500">Server Ingress:</span>
+                <span className="text-slate-300">Port 3000</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-850 pb-1.5">
+                <span className="text-slate-500">Cloud Database:</span>
+                <span className="text-emerald-400 font-bold">Active (Firestore)</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-850 pb-1.5">
+                <span className="text-slate-500">Security Credentials:</span>
+                <span className="text-amber-400">RSA-2048 Shared Key</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Local System Clock:</span>
+                <span className="text-slate-300">{new Date().toISOString().split('T')[0]}</span>
+              </div>
+            </div>
+
+            {/* Hidden Console Access under Dev Info */}
+            <div className="pt-2">
+              <span className="text-[9px] font-mono text-slate-500 uppercase block mb-2 text-left font-bold font-display">Administrative Commands</span>
+              
+              {setActiveMainTab ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMainTab('admin');
+                    addLog('System Navigation: Switched workspace to [Admin Console] via Developer Information', 'info');
+                  }}
+                  className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 font-mono font-bold text-[10px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow"
+                >
+                  <Cpu className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                  <span>Launch Admin Console</span>
+                </button>
+              ) : (
+                <div className="text-[10px] text-slate-500 bg-slate-950 p-2.5 rounded-lg border border-slate-900 text-left">
+                  ⚠️ Administrative console routing is detached. Return to standard command channels.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -541,7 +649,19 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate }
           </div>
         </form>
       </div>
-
+          </motion.div>
+        ) : (
+          <motion.div
+            key="profile-client-hub-matrix"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ClientHub currentUser={currentUser} addLog={addLog} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

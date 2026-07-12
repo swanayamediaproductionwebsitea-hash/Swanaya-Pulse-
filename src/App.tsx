@@ -16,6 +16,8 @@ import AssistantWidget from './components/AssistantWidget';
 import Home from './components/Home';
 import ProfileSettings from './components/ProfileSettings';
 import SecurityLogs from './components/SecurityLogs';
+import RealTimeTicker from './components/RealTimeTicker';
+import PopupHub from './components/PopupHub';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -421,6 +423,9 @@ export default function App() {
   return (
     <div className="relative min-h-screen w-full flex flex-col justify-between text-slate-100 font-sans selection:bg-indigo-500/35 selection:text-white pb-0">
       
+      {/* Real-time Rolling Ticker & Simulation Notification HUD */}
+      <RealTimeTicker />
+      
       {/* Absolute 3D Backdrop canvas */}
       <Background3D />
 
@@ -684,29 +689,6 @@ export default function App() {
                   />
                 )}
               </button>
-              {(currentUser && (currentUser.toLowerCase() === 'aadithyan' || currentUser.toLowerCase() === 'each')) && (
-                <button
-                  onClick={() => {
-                    setActiveMainTab('admin');
-                    addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
-                  }}
-                  className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeMainTab === 'admin'
-                      ? 'bg-yellow-650 text-white shadow-lg shadow-yellow-500/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                  }`}
-                >
-                  <Cpu className="w-4 h-4" />
-                  <span>Admin Console</span>
-                  {activeMainTab === 'admin' && (
-                    <motion.div
-                      layoutId="activeTabUnderline"
-                      className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-yellow-400 rounded-full"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                </button>
-              )}
               <button
                 onClick={() => {
                   setActiveMainTab('assistant');
@@ -875,6 +857,7 @@ export default function App() {
                       currentUser={currentUser || ''} 
                       addLog={addLog} 
                       onProfileUpdate={loadCurrentUserProfile}
+                      setActiveMainTab={setActiveMainTab}
                     />
                   </motion.div>
                 )}
@@ -885,6 +868,9 @@ export default function App() {
         )}
 
       </div>
+
+      {/* Globally Active AI and Secure Messenger Popups Floating Hub */}
+      <PopupHub addLog={addLog} />
 
     </div>
   );

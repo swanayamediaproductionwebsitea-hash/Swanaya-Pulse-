@@ -75,6 +75,55 @@
         "completed": { "type": "boolean" }
       },
       "required": ["text", "platform", "priority", "completed"]
+    },
+    "ClientPartner": {
+      "title": "ClientPartner",
+      "description": "Registered co-publishing collaborator",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "email": { "type": "string" },
+        "social": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      },
+      "required": ["name", "role", "email"]
+    },
+    "ClientSocial": {
+      "title": "ClientSocial",
+      "description": "Connected channel profile integration",
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string" },
+        "handle": { "type": "string" },
+        "followers": { "type": "string" },
+        "connected": { "type": "boolean" },
+        "linkedBy": { "type": "string" }
+      },
+      "required": ["platform", "handle", "connected"]
+    },
+    "ClientNotes": {
+      "title": "ClientNotes",
+      "description": "Workspace notes scratchpad text content",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string" },
+        "lastUpdated": { "type": "integer" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["content"]
+    },
+    "PasswordReset": {
+      "title": "PasswordReset",
+      "description": "Crypto recovery code dispatched via software ticker",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "code": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      },
+      "required": ["username", "code", "timestamp"]
     }
   }
 }

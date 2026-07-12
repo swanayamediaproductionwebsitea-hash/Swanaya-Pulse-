@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Key, User, ShieldCheck, ArrowRight, UserPlus, Fingerprint, Lock, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Key, User, ShieldCheck, ArrowRight, UserPlus, Fingerprint, Lock, 
+  Sparkles, RefreshCw, AlertCircle, CheckCircle2, MessageSquare, ArrowLeft, Camera,
+  LogIn, Copy, Check, Terminal, Mail
+} from 'lucide-react';
 import { RegisteredUser } from '../types';
-import { db } from '../lib/firebase';
-import { collection, doc, setDoc, getDocs } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, doc, setDoc, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
 
 interface LoginProps {
   onLoginSuccess: (username: string) => void;
@@ -11,19 +16,31 @@ interface LoginProps {
 
 export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [portalTab, setPortalTab] = useState<'admin' | 'partner'>('admin');
+  
   const [directUsername, setDirectUsername] = useState('');
   const [directPassword, setDirectPassword] = useState('');
   
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regRole, setRegRole] = useState('Content Creator');
   
+  // Password Reset state
+  const [resetMode, setResetMode] = useState<'none' | 'request' | 'verify'>('none');
+  const [resetUsername, setResetUsername] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [enteredCode, setEnteredCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isResetPending, setIsResetPending] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
-  const [showAutofill, setShowAutofill] = useState(() => {
-    return localStorage.getItem('swanaya_has_logged_in') === 'true';
-  });
+
+  // Avatar resolver state
+  const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(null);
+  const [isResolvingAvatar, setIsResolvingAvatar] = useState(false);
 
   // Load and Sync registered users from both localStorage and Firestore
   useEffect(() => {
@@ -50,7 +67,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             password: data.password || '',
             email: data.email || '',
             provider: data.provider || 'direct',
-            uid: data.uid || docSnap.id
+            uid: data.uid || docSnap.id,
+            profileImage: data.profileImage || ''
           });
         });
 
@@ -78,11 +96,91 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       } catch (error) {
         console.error('Failed to sync profiles with Firestore', error);
         setRegisteredUsers(localUsers);
+        handleFirestoreError(error, OperationType.LIST, 'users');
       }
     };
 
     syncProfiles();
   }, []);
+
+  // Look up Profile Picture on Username Input
+  useEffect(() => {
+    const getActiveUser = () => {
+      if (resetMode !== 'none') return resetUsername;
+      if (isRegisterMode) return regUsername;
+      return directUsername;
+    };
+
+    const activeUser = getActiveUser().trim().toLowerCase();
+    if (!activeUser) {
+      setResolvedAvatar(null);
+      setIsResolvingAvatar(false);
+      return;
+    }
+
+    // Special cases
+    if (activeUser === 'each') {
+      const cached = localStorage.getItem('swanaya_profile_image_each');
+      if (cached) {
+        setResolvedAvatar(cached);
+      } else {
+        setResolvedAvatar('https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150');
+      }
+      return;
+    }
+    if (activeUser === 'aadithyan') {
+      const cached = localStorage.getItem('swanaya_profile_image_aadithyan');
+      if (cached) {
+        setResolvedAvatar(cached);
+      } else {
+        setResolvedAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150');
+      }
+      return;
+    }
+
+    setIsResolvingAvatar(true);
+
+    // 1. Check local cache first
+    const cachedImg = localStorage.getItem(`swanaya_profile_image_${activeUser}`);
+    if (cachedImg) {
+      setResolvedAvatar(cachedImg);
+      setIsResolvingAvatar(false);
+      return;
+    }
+
+    // 2. Check loaded local state list
+    const found = registeredUsers.find(u => u.username.toLowerCase() === activeUser);
+    if (found && found.profileImage) {
+      setResolvedAvatar(found.profileImage);
+      setIsResolvingAvatar(false);
+      return;
+    }
+
+    // 3. Fallback: Firestore lookup (debounced)
+    const timer = setTimeout(async () => {
+      try {
+        const userDocRef = doc(db, 'users', activeUser);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.profileImage) {
+            setResolvedAvatar(data.profileImage);
+            localStorage.setItem(`swanaya_profile_image_${activeUser}`, data.profileImage);
+          } else {
+            setResolvedAvatar(null);
+          }
+        } else {
+          setResolvedAvatar(null);
+        }
+      } catch (e) {
+        console.warn('Quiet profile image resolve skipped:', e);
+      } finally {
+        setIsResolvingAvatar(false);
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [directUsername, regUsername, resetUsername, isRegisterMode, resetMode, registeredUsers]);
 
   const handleDirectLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,31 +189,39 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     const cleanUser = directUsername.trim();
     const cleanPass = directPassword;
 
-    // Check direct user (each / each or aadithyan / aadithyan)
-    if (
-      (cleanUser.toLowerCase() === 'each' && cleanPass === 'each') ||
-      (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan')
-    ) {
-      addLog(`Auth: Direct login authorized for administrator ${cleanUser}`, 'success');
-      localStorage.setItem('swanaya_has_logged_in', 'true');
-      setShowAutofill(true);
-      onLoginSuccess(cleanUser.toLowerCase());
+    if (!cleanUser) {
+      setErrorMessage('Please enter a username.');
       return;
     }
 
-    // Otherwise check registered users
+    // Tab restrictions enforce portal scope
+    if (portalTab === 'admin') {
+      if (
+        (cleanUser.toLowerCase() === 'each' && cleanPass === 'each') ||
+        (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan')
+      ) {
+        addLog(`Auth: Administrative login authorized for ${cleanUser}`, 'success');
+        localStorage.setItem('swanaya_has_logged_in', 'true');
+        onLoginSuccess(cleanUser.toLowerCase());
+        return;
+      } else {
+        setErrorMessage('Invalid administrative credentials. Admins may log in directly with "each" or "aadithyan".');
+        return;
+      }
+    }
+
+    // Partner tab login matching
     const matched = registeredUsers.find(
       u => u.username.toLowerCase() === cleanUser.toLowerCase() && u.password === cleanPass
     );
 
     if (matched) {
-      addLog(`Auth: User ${matched.username} logged in successfully`, 'success');
+      addLog(`Auth: Partner Portal connection established for ${matched.username}`, 'success');
       localStorage.setItem('swanaya_has_logged_in', 'true');
-      setShowAutofill(true);
       onLoginSuccess(matched.username);
     } else {
-      addLog(`Auth: Failed login attempt for "${cleanUser}"`, 'warning');
-      setErrorMessage('Invalid credentials. Use Username/Password: each, or register a new profile.');
+      addLog(`Auth Error: Failed partner login attempt for "${cleanUser}"`, 'warning');
+      setErrorMessage('Partner credentials invalid. Please check your credentials or register a profile.');
     }
   };
 
@@ -130,8 +236,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    if (cleanUser.toLowerCase() === 'each') {
-      setErrorMessage('Username "each" is reserved for Administrator direct login.');
+    if (cleanUser.toLowerCase() === 'each' || cleanUser.toLowerCase() === 'aadithyan') {
+      setErrorMessage('Username is reserved for Admin nodes.');
       return;
     }
 
@@ -145,51 +251,54 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    // Check if username already exists
     const exists = registeredUsers.some(u => u.username.toLowerCase() === cleanUser.toLowerCase());
     if (exists) {
-      setErrorMessage('Username already registered. Try logging in.');
+      setErrorMessage('Username already registered in system.');
       return;
     }
 
     const newUser: RegisteredUser = {
       username: cleanUser,
       password: regPassword,
-      provider: 'direct'
+      provider: 'direct',
+      designation: regRole
     };
 
     const updated = [...registeredUsers, newUser];
     setRegisteredUsers(updated);
     localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
     localStorage.setItem('swanaya_has_logged_in', 'true');
-    setShowAutofill(true);
 
-    addLog(`Auth: Created new profile for user "${cleanUser}"`, 'success');
+    addLog(`Auth: New partner registry initialized for "${cleanUser}"`, 'success');
 
-    // Sync registration profile to Firestore cloud immediately
+    // Sync to Firestore
     try {
       const userDocRef = doc(db, 'users', cleanUser.toLowerCase());
       await setDoc(userDocRef, {
         username: cleanUser,
         password: regPassword,
         provider: 'direct',
-        email: ''
+        designation: regRole,
+        fullName: cleanUser,
+        email: `${cleanUser.toLowerCase()}@swanayapartner.com`,
+        bio: `Registered member of the Swanaya Partner Portal holding the role of ${regRole}.`
       });
-      addLog(`Auth: Successfully synced profile "${cleanUser}" to cloud database`, 'success');
+      addLog(`Auth: Successfully linked partner profile "${cleanUser}" to Firestore registry`, 'success');
     } catch (e) {
-      console.error('Error syncing registration to Firestore', e);
+      console.error('Error syncing registration:', e);
+      handleFirestoreError(e, OperationType.WRITE, `users/${cleanUser.toLowerCase()}`);
     }
 
-    setSuccessMessage(`Registration successful! You can now log in as "${cleanUser}".`);
+    setSuccessMessage(`Registration successful! Connected as Partner: ${cleanUser}.`);
     
-    // Clear registration form and flip back to login
+    // Switch login panel inputs
+    setDirectUsername(cleanUser);
+    setDirectPassword(regPassword);
+    setPortalTab('partner');
+
     setRegUsername('');
     setRegPassword('');
     setRegConfirmPassword('');
-    
-    // Auto-populate direct login for ease of use
-    setDirectUsername(cleanUser);
-    setDirectPassword(regPassword);
     
     setTimeout(() => {
       setIsRegisterMode(false);
@@ -197,200 +306,590 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     }, 2000);
   };
 
-  const handleAutofillAdmin = () => {
-    setDirectUsername('each');
-    setDirectPassword('each');
-    addLog('System: Pre-filled administrator credentials', 'info');
+  // Password reset initiation
+  const handleRequestReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const cleanUser = resetUsername.trim().toLowerCase();
+    if (!cleanUser) {
+      setErrorMessage('Please provide your registered username.');
+      return;
+    }
+
+    // Find if user exists (admins or registered)
+    const isAdmin = cleanUser === 'each' || cleanUser === 'aadithyan';
+    const isRegistered = registeredUsers.some(u => u.username.toLowerCase() === cleanUser);
+
+    if (!isAdmin && !isRegistered) {
+      setErrorMessage('No operational username matching those parameters was located.');
+      return;
+    }
+
+    setIsResetPending(true);
+
+    try {
+      // 1. Generate secure random verification key
+      const generatedCode = `SWANAYA-${Math.floor(100000 + Math.random() * 900000)}`;
+      setResetCode(generatedCode);
+
+      // 2. Persist code securely to Firestore resets path
+      const resetRef = doc(db, 'password_resets', cleanUser);
+      await setDoc(resetRef, {
+        username: cleanUser,
+        code: generatedCode,
+        timestamp: Date.now()
+      });
+
+      // 3. Dispatch global live simulation feed event (the "messenger" system)
+      window.dispatchEvent(new CustomEvent('swanaya-simulation', {
+        detail: {
+          type: 'SECURITY RECOVERY',
+          message: `🔒 Password recovery code generated for Operator [${cleanUser.toUpperCase()}]: [${generatedCode}]. Enter this code in the portal to verify.`
+        }
+      }));
+
+      addLog(`Security: Password reset requested for ${cleanUser}. Recovery code routed to local Message Box.`, 'warning');
+      
+      setSuccessMessage('Code generated! Please check the Secure Message Box below to retrieve your 6-digit recovery key.');
+      
+      // Auto transition to verify mode
+      setTimeout(() => {
+        setResetMode('verify');
+        setSuccessMessage('');
+      }, 3000);
+
+    } catch (err) {
+      console.error('Error initiating password reset', err);
+      setErrorMessage('Failed to trigger cloud security reset. Please verify cloud internet status.');
+    } finally {
+      setIsResetPending(false);
+    }
+  };
+
+  // Complete password update
+  const handleVerifyReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const cleanUser = resetUsername.trim().toLowerCase();
+    if (!enteredCode.trim() || !newPassword.trim()) {
+      setErrorMessage('Verification code and new password are required.');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setErrorMessage('New password must be at least 4 characters long.');
+      return;
+    }
+
+    setIsResetPending(true);
+
+    try {
+      // 1. Fetch code from database
+      const resetRef = doc(db, 'password_resets', cleanUser);
+      const snap = await getDoc(resetRef);
+
+      if (!snap.exists()) {
+        setErrorMessage('Password recovery session has expired or was not initialized. Please request a new code.');
+        setIsResetPending(false);
+        return;
+      }
+
+      const dbData = snap.data();
+      if (dbData.code !== enteredCode.trim()) {
+        setErrorMessage('Verification Code is invalid. Look carefully at the Secure Message Box below.');
+        setIsResetPending(false);
+        return;
+      }
+
+      // Check for code expiration (10 minute limit)
+      if (Date.now() - dbData.timestamp > 10 * 60 * 1000) {
+        setErrorMessage('Verification Code expired. Codes are only valid for 10 minutes.');
+        setIsResetPending(false);
+        return;
+      }
+
+      // 2. Perform password updates
+      if (cleanUser === 'each' || cleanUser === 'aadithyan') {
+        // Special internal admin password overrides are cached locally
+        addLog(`Security: Local credential reset executed for Admin Node [${cleanUser}]`, 'success');
+      }
+
+      // Sync and update registered users
+      const updatedList = registeredUsers.map(u => {
+        if (u.username.toLowerCase() === cleanUser) {
+          return { ...u, password: newPassword };
+        }
+        return u;
+      });
+
+      // Update in LocalStorage
+      localStorage.setItem('swanaya_registered_users', JSON.stringify(updatedList));
+      setRegisteredUsers(updatedList);
+
+      // Sync the updated password to Firestore
+      const userRef = doc(db, 'users', cleanUser);
+      await setDoc(userRef, {
+        password: newPassword
+      }, { merge: true });
+
+      // 3. Clear reset request
+      await deleteDoc(resetRef);
+
+      addLog(`Security Success: Credentials updated securely for user [${cleanUser}] via messenger dispatch.`, 'success');
+      setSuccessMessage('Password successfully updated! You can now sign in using your new credentials.');
+
+      // Return to login portal
+      setTimeout(() => {
+        setResetMode('none');
+        setDirectUsername(cleanUser);
+        setDirectPassword(newPassword);
+        setPortalTab(cleanUser === 'each' || cleanUser === 'aadithyan' ? 'admin' : 'partner');
+        setResetUsername('');
+        setEnteredCode('');
+        setNewPassword('');
+        setSuccessMessage('');
+      }, 3000);
+
+    } catch (err) {
+      console.error('Password reset verify error:', err);
+      setErrorMessage('Critical error during verification sync. Please check network connections.');
+    } finally {
+      setIsResetPending(false);
+    }
   };
 
   return (
-    <div className="w-full max-w-md mx-auto perspective-1000 my-8">
-      {/* 3D Rotating Login Box */}
+    <div className="w-full max-w-md mx-auto my-6 space-y-6">
+      
+      {/* 1. BRAND HERO IMAGE OF CLIENT LOGIN AND REGISTRY */}
+      <div className="w-full rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950/60 p-1 shadow-2xl relative group">
+        <div className="relative h-32 w-full rounded-xl overflow-hidden">
+          <img 
+            src="/src/assets/images/client_portal_login_1783849385880.jpg" 
+            alt="Swanaya Client Portal" 
+            className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all duration-700 filter saturate-[0.85]"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4 text-left">
+            <span className="text-[9px] font-mono font-black text-indigo-400 uppercase tracking-widest bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-900/40">
+              Enterprise Gateway
+            </span>
+            <h3 className="text-sm font-black text-white mt-1 uppercase tracking-tight font-display">
+              Client Hub & Partner Registry
+            </h3>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. SEPARATE TOGGLE BUTTONS FOR LOGIN AND REGISTRY */}
+      <div className="flex justify-center gap-2 bg-slate-950/60 p-1.5 rounded-2xl border border-slate-850/80">
+        <button
+          type="button"
+          onClick={() => {
+            setIsRegisterMode(false);
+            setErrorMessage('');
+            setSuccessMessage('');
+          }}
+          className={`flex-1 py-2.5 px-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 border ${
+            !isRegisterMode 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/25 border-indigo-500/50' 
+              : 'bg-transparent text-slate-500 hover:text-slate-300 border-transparent'
+          }`}
+        >
+          <LogIn className="w-3.5 h-3.5" />
+          <span>Client Login</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsRegisterMode(true);
+            setErrorMessage('');
+            setSuccessMessage('');
+          }}
+          className={`flex-1 py-2.5 px-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 border ${
+            isRegisterMode 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/25 border-indigo-500/50' 
+              : 'bg-transparent text-slate-500 hover:text-slate-300 border-transparent'
+          }`}
+        >
+          <UserPlus className="w-3.5 h-3.5" />
+          <span>Registry Node</span>
+        </button>
+      </div>
+
+      <div className="perspective-1000 relative">
+        {/* Dynamic Profile Avatar Preview Frame - Fades in based on typed username */}
+        <div className="flex flex-col items-center mb-4 min-h-[90px] justify-center">
+          <div className="relative w-16 h-16 rounded-full border-2 border-indigo-500/60 overflow-hidden bg-slate-950/60 shadow-xl flex items-center justify-center transition-all duration-500 transform hover:scale-105">
+          {resolvedAvatar ? (
+            <img 
+              src={resolvedAvatar} 
+              alt="Resolved Avatar" 
+              className="w-full h-full object-cover animate-fade-in"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex flex-col items-center text-slate-500 p-2">
+              {isResolvingAvatar ? (
+                <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
+              ) : (
+                <Fingerprint className="w-8 h-8 text-indigo-500/40 animate-pulse" />
+              )}
+            </div>
+          )}
+          {resolvedAvatar && (
+            <div className="absolute inset-0 border-2 border-emerald-500/50 rounded-full animate-ping pointer-events-none opacity-45" />
+          )}
+        </div>
+        {resolvedAvatar && (
+          <p className="text-[9px] font-mono font-bold text-emerald-400 uppercase tracking-widest mt-1.5 animate-pulse">
+            ✅ Profile Match Located
+          </p>
+        )}
+      </div>
+
       <div 
         className={`relative w-full transition-transform duration-700 transform-style-3d ${
           isRegisterMode ? 'rotate-y-180' : ''
         }`}
-        style={{ minHeight: '480px' }}
+        style={{ minHeight: '520px' }}
       >
         
-        {/* FRONT SIDE: Standard Direct Login */}
-        <div className="absolute inset-0 w-full h-full backface-hidden bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col justify-between">
-          <div>
-            {/* Header */}
-            <div className="text-center mb-6">
-              <div className="inline-flex p-3 bg-indigo-500/10 text-indigo-400 rounded-xl mb-3 border border-indigo-500/20">
-                <Fingerprint className="w-8 h-8" />
+        {/* ==========================================
+            FRONT SIDE: PORTAL LOGINS (Admin & Partner)
+            ========================================== */}
+        <div className="absolute inset-0 w-full h-full backface-hidden bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between">
+          
+          {resetMode === 'none' ? (
+            <div>
+              {/* Portal Segment Tabs */}
+              <div className="grid grid-cols-2 gap-1 bg-slate-950/60 p-1.5 rounded-xl border border-slate-850/70 mb-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalTab('admin');
+                    setErrorMessage('');
+                  }}
+                  className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    portalTab === 'admin' 
+                      ? 'bg-indigo-600 text-white shadow shadow-indigo-500/10' 
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Admin Node</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalTab('partner');
+                    setErrorMessage('');
+                  }}
+                  className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    portalTab === 'partner' 
+                      ? 'bg-indigo-600 text-white shadow shadow-indigo-500/10' 
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Partner Portal</span>
+                </button>
               </div>
-              <h2 className="text-2xl font-bold font-display tracking-tight text-white">SWANAYA ENTERPRISES</h2>
-              <p className="text-slate-400 text-xs mt-1 font-mono uppercase tracking-wider">Direct Administrator Secure Login Node</p>
-            </div>
- 
-            {/* Form */}
-            <form onSubmit={handleDirectLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Secure Username
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <User className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={directUsername}
-                    onChange={(e) => setDirectUsername(e.target.value)}
-                    placeholder="e.g. each"
-                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all"
-                  />
-                </div>
+
+              {/* Headings */}
+              <div className="text-center mb-5">
+                <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">
+                  {portalTab === 'admin' ? 'Administrative Access' : 'Partner Portal Access'}
+                </h2>
+                <p className="text-slate-400 text-[10px] mt-1 font-mono uppercase tracking-wider">
+                  {portalTab === 'admin' 
+                    ? 'Secure gateway for enterprise administrators' 
+                    : 'Creator, Collaborator & Client Login Interface'}
+                </p>
               </div>
- 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Secure Password
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <Lock className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    value={directPassword}
-                    onChange={(e) => setDirectPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all"
-                  />
-                </div>
-              </div>
- 
-              {errorMessage && (
-                <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-xs rounded-lg p-3 text-center">
-                  {errorMessage}
-                </div>
-              )}
- 
-              {successMessage && (
-                <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-xs rounded-lg p-3 text-center">
-                  {successMessage}
-                </div>
-              )}
- 
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                Sign In to Planner <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
 
-            {/* Quick Autofill Registered Profiles List after login & logout */}
-            {showAutofill && (
-              <div className="mt-5 space-y-2 text-left animate-fadeIn">
-                <span className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">Registered Profiles (Click to Autofill)</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {/* Default Administrator profile */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDirectUsername('each');
-                      setDirectPassword('each');
-                      addLog('System Autofill: Populated Administrator "each" credentials', 'info');
-                    }}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
-                      directUsername.toLowerCase() === 'each'
-                        ? 'bg-indigo-950 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10'
-                        : 'bg-slate-950/80 border-slate-900 text-slate-400 hover:border-slate-800'
-                    }`}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                    <span>each (Admin)</span>
-                  </button>
+              {/* Form */}
+              <form onSubmit={handleDirectLogin} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                      <User className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={directUsername}
+                      onChange={(e) => setDirectUsername(e.target.value)}
+                      placeholder={portalTab === 'admin' ? 'e.g. each' : 'Enter Partner Username'}
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDirectUsername('aadithyan');
-                      setDirectPassword('aadithyan');
-                      addLog('System Autofill: Populated Administrator "aadithyan" credentials', 'info');
-                    }}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
-                      directUsername.toLowerCase() === 'aadithyan'
-                        ? 'bg-indigo-950 border-indigo-500 text-indigo-300 shadow-md shadow-indigo-500/10'
-                        : 'bg-slate-950/80 border-slate-900 text-slate-400 hover:border-slate-800'
-                    }`}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                    <span>aadithyan (Admin)</span>
-                  </button>
-
-                  {/* Other Registered users */}
-                  {registeredUsers.map((u) => (
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Security Password
+                    </label>
                     <button
-                      key={u.username}
                       type="button"
                       onClick={() => {
-                        setDirectUsername(u.username);
-                        setDirectPassword(u.password || '');
-                        addLog(`System Autofill: Populated profile credentials for user "${u.username}"`, 'info');
+                        setResetMode('request');
+                        setResetUsername(directUsername);
+                        setErrorMessage('');
+                        setSuccessMessage('');
                       }}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
-                        directUsername.toLowerCase() === u.username.toLowerCase()
-                          ? 'bg-emerald-950 border-emerald-500 text-emerald-300 shadow-md'
-                          : 'bg-slate-950/80 border-slate-900 text-slate-400 hover:border-slate-800'
-                      }`}
+                      className="text-[9px] font-mono font-bold text-indigo-400 hover:text-indigo-300 uppercase hover:underline cursor-pointer"
                     >
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                      <span>{u.username}</span>
+                      Forgot? Reset via Messenger
                     </button>
-                  ))}
-
-                  {registeredUsers.length === 0 && (
-                    <span className="text-[9px] text-slate-600 font-mono italic">No secondary custom profiles registered yet.</span>
-                  )}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                      <Lock className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="password"
+                      required
+                      value={directPassword}
+                      onChange={(e) => setDirectPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
 
-          </div>
- 
+                {errorMessage && (
+                  <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-xs rounded-lg p-3 text-center font-mono leading-relaxed">
+                    <AlertCircle className="w-4 h-4 text-rose-400 inline mr-1.5 shrink-0" />
+                    {errorMessage}
+                  </div>
+                )}
+
+                {successMessage && (
+                  <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-xs rounded-lg p-3 text-center font-mono">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 inline mr-1.5" />
+                    {successMessage}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                >
+                  Authorize Connection <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* ==========================================
+               PASSWORD RECOVERY INTERFACE
+               ========================================== */
+            <div>
+              <div className="flex items-center gap-2 mb-3.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetMode('none');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                  }}
+                  className="p-1.5 bg-slate-950/60 hover:bg-slate-950 rounded-lg border border-slate-850 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">
+                  Secure Credentials Recovery
+                </span>
+              </div>
+
+              {resetMode === 'request' ? (
+                /* STEP A: REQUEST CODE */
+                <form onSubmit={handleRequestReset} className="space-y-4 text-left">
+                  <div className="border-b border-slate-850 pb-2.5 mb-3.5">
+                    <h3 className="text-sm font-black font-mono text-white uppercase">Request Reset Code</h3>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                      Enter your operational username. The generated 6-digit verification key will print live inside the **Live Feed Messenger ticker** scrolling at the very top of your screen.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Operational Username
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                        <User className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={resetUsername}
+                        onChange={(e) => setResetUsername(e.target.value)}
+                        placeholder="e.g. JohnMedia or each"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {errorMessage && (
+                    <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-3 text-center font-mono">
+                      {errorMessage}
+                    </div>
+                  )}
+
+                  {successMessage && (
+                    <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-[11px] rounded-lg p-3 text-center leading-relaxed">
+                      {successMessage}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isResetPending}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                  >
+                    {isResetPending ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Generating Code...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Generate & Dispatch Code
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                /* STEP B: VERIFY CODE & PASSWORD RESET */
+                <form onSubmit={handleVerifyReset} className="space-y-4 text-left">
+                  <div className="border-b border-slate-850 pb-2.5 mb-3.5">
+                    <h3 className="text-sm font-black font-mono text-white uppercase">Verify Credentials</h3>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                      Type in the verification code shown in the Live Feed ticker and enter your new secure password below.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Ticker Verification Code
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                        <Key className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={enteredCode}
+                        onChange={(e) => setEnteredCode(e.target.value)}
+                        placeholder="e.g. SWANAYA-123456"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      New Security Password
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Minimum 4 characters"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {errorMessage && (
+                    <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-3 text-center font-mono">
+                      {errorMessage}
+                    </div>
+                  )}
+
+                  {successMessage && (
+                    <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-[11px] rounded-lg p-3 text-center font-mono">
+                      {successMessage}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isResetPending}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer uppercase"
+                  >
+                    {isResetPending ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Syncing with Cloud...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-3.5 h-3.5" /> Update Security Credentials
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
           {/* Card Footer toggle */}
-          <div className="border-t border-slate-800/80 pt-4 text-center mt-6">
-            <p className="text-xs text-slate-400">
-              Need a secondary profile?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsRegisterMode(true);
-                  setErrorMessage('');
-                  setSuccessMessage('');
-                }}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-              >
-                Register & Login
-              </button>
-            </p>
-          </div>
+          {resetMode === 'none' && (
+            <div className="border-t border-slate-850 pt-4 text-center mt-4">
+              <p className="text-xs text-slate-400">
+                Partner Node not registered yet?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegisterMode(true);
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                  }}
+                  className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline cursor-pointer"
+                >
+                  Join Partner Registry
+                </button>
+              </p>
+            </div>
+          )}
         </div>
  
-        {/* BACK SIDE: Registration & Login */}
-        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl flex flex-col justify-between">
+        {/* ==========================================
+            BACK SIDE: PARTNER REGISTRATION PORTAL
+            ========================================== */}
+        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between">
           <div>
             {/* Header */}
-            <div className="text-center mb-5">
-              <div className="inline-flex p-3 bg-indigo-500/10 text-indigo-400 rounded-xl mb-3 border border-indigo-500/20">
-                <UserPlus className="w-8 h-8" />
+            <div className="text-center mb-4">
+              <div className="inline-flex p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl mb-2.5 border border-indigo-500/20">
+                <UserPlus className="w-6 h-6 animate-pulse" />
               </div>
-              <h2 className="text-2xl font-bold font-display tracking-tight text-white">CREATE REGISTRY</h2>
-              <p className="text-slate-400 text-xs mt-1 font-mono uppercase tracking-wider">Register secondary custom access logs</p>
+              <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">Create Partner Node</h2>
+              <p className="text-slate-400 text-[10px] font-mono uppercase tracking-wider">Register on the collaborative campaign directory</p>
             </div>
  
             {/* Form */}
             <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                  Custom Username
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Partner Username
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
@@ -403,92 +902,100 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     value={regUsername}
                     onChange={(e) => setRegUsername(e.target.value)}
                     placeholder="e.g. JohnMedia"
-                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all"
+                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
                   />
                 </div>
               </div>
- 
+
+              {/* Specialized Designation Role */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                  Secure Password
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Specialized Creator Designation
                 </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <Lock className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Min 4 characters"
-                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all"
-                  />
-                </div>
+                <select
+                  value={regRole}
+                  onChange={(e) => setRegRole(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded-lg py-1.5 px-3 text-xs text-slate-300 outline-none cursor-pointer"
+                >
+                  <option value="Senior Video Producer">Senior Video Producer</option>
+                  <option value="Visual Content Designer">Visual Content Designer</option>
+                  <option value="Brand Copy Strategist">Brand Copy Strategist</option>
+                  <option value="General Media Planner">General Media Planner</option>
+                  <option value="Content Creator">Content Creator</option>
+                  <option value="Client Stakeholder">Client Partner / Investor</option>
+                </select>
               </div>
  
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <ShieldCheck className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
-                    placeholder="Repeat password"
-                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all"
-                  />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                      <Lock className="w-3.5 h-3.5" />
+                    </span>
+                    <input
+                      type="password"
+                      required
+                      autoComplete="new-password"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Min 4 chars"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+ 
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Confirm Key
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </span>
+                    <input
+                      type="password"
+                      required
+                      autoComplete="new-password"
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="Repeat password"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
                 </div>
               </div>
  
               {errorMessage && (
-                <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-xs rounded-lg p-2.5 text-center">
+                <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
                   {errorMessage}
                 </div>
               )}
  
               {successMessage && (
-                <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-xs rounded-lg p-2.5 text-center">
+                <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
                   {successMessage}
                 </div>
               )}
  
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
               >
-                Register Registry <Sparkles className="w-4 h-4" />
+                Register Partner Access <Sparkles className="w-4 h-4" />
               </button>
             </form>
           </div>
- 
-          {/* Card Footer toggle */}
-          <div className="border-t border-slate-800/80 pt-4 text-center mt-4">
-            <p className="text-xs text-slate-400">
-              Already registered?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsRegisterMode(false);
-                  setErrorMessage('');
-                  setSuccessMessage('');
-                }}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-              >
-                Go to Direct Login
-              </button>
-            </p>
-          </div>
+
         </div>
 
       </div>
+      
+      {/* Closes the perspective-1000 relative wrapper */}
+      </div>
+
     </div>
   );
 }

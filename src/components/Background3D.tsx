@@ -50,7 +50,7 @@ export default function Background3D() {
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#030712]">
       {/* Dynamic 3D Grid Overlay */}
       <div 
-        className="absolute inset-0 opacity-15"
+        className="absolute inset-0"
         style={{
           backgroundImage: `
             linear-gradient(to right, #1f2937 1px, transparent 1px),
@@ -59,23 +59,26 @@ export default function Background3D() {
           backgroundSize: '80px 80px',
           transform: `perspective(800px) rotateX(60deg) translateY(-100px) translateZ(-150px) translate3d(${coords.x * -20}px, ${coords.y * -20}px, 0px)`,
           transformOrigin: 'center top',
-          transition: 'transform 0.1s ease-out'
+          transition: 'transform 0.1s ease-out',
+          opacity: 0.1
         }}
       />
 
       {/* Floating 3D Orbs with Mouse Lag */}
       <div 
-        className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-30 bg-gradient-to-tr from-blue-600 to-indigo-800"
+        className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl bg-gradient-to-tr from-blue-600 to-indigo-800"
         style={{
           transform: `translate3d(${coords.x * 50}px, ${coords.y * 50}px, 0)`,
-          transition: 'transform 0.3s cubic-bezier(0.1, 0.8, 0.2, 1)'
+          transition: 'transform 0.3s cubic-bezier(0.1, 0.8, 0.2, 1)',
+          opacity: 0.1
         }}
       />
       <div 
-        className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl opacity-20 bg-gradient-to-br from-purple-600 to-pink-700"
+        className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full blur-3xl bg-gradient-to-br from-purple-600 to-pink-700"
         style={{
           transform: `translate3d(${coords.x * -70}px, ${coords.y * -70}px, 0)`,
-          transition: 'transform 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)'
+          transition: 'transform 0.4s cubic-bezier(0.1, 0.8, 0.2, 1)',
+          opacity: 0.1
         }}
       />
 
@@ -84,7 +87,8 @@ export default function Background3D() {
         className="absolute inset-0 perspective-1000 transform-style-3d flex items-center justify-center"
         style={{
           transform: `rotateX(${coords.y * -8}deg) rotateY(${coords.x * 8}deg)`,
-          transition: 'transform 0.15s ease-out'
+          transition: 'transform 0.15s ease-out',
+          opacity: 0.1
         }}
       >
         {nodes.map((node) => (

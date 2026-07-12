@@ -18,6 +18,7 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
   const [newTodoText, setNewTodoText] = useState('');
   const [newTodoPlatform, setNewTodoPlatform] = useState<any>('Instagram');
   const [newTodoPriority, setNewTodoPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
+  const [selectedTodoDetail, setSelectedTodoDetail] = useState<AiTodoItem | null>(null);
 
   // AI Generation states
   const [aiTopic, setAiTopic] = useState('');
@@ -327,15 +328,114 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
         ? 'bg-slate-900/60 border-slate-800' 
         : 'bg-slate-900/45 border-slate-800/80 shadow-md'
     }`}>
-      <div>
-        {/* Header Title */}
-        <div className="flex items-center justify-between pb-3.5 border-b border-slate-800/60 mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-2 rounded-xl border transition-all ${
-              uiMode === 'ai' 
-                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/25' 
-                : 'bg-slate-800 text-slate-400 border-slate-700'
-            }`}>
+      {selectedTodoDetail ? (
+        <div className="flex flex-col h-full justify-between space-y-5 animate-fadeIn">
+          {/* Detailed Assignment View */}
+          <div className="space-y-4">
+            {/* Back Button & Title */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-850">
+              <button
+                onClick={() => setSelectedTodoDetail(null)}
+                className="text-xs font-mono font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 cursor-pointer bg-indigo-950/40 px-3 py-1.5 rounded-lg border border-indigo-900"
+              >
+                ← Return Back to Assignments
+              </button>
+              <span className="text-[10px] font-mono text-slate-500">Swanaya Work Node</span>
+            </div>
+
+            {/* Campaign details */}
+            <div className="space-y-2 text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono font-bold bg-indigo-950 border border-indigo-900/60 text-indigo-400 px-2 py-0.5 rounded-full uppercase">
+                  {selectedTodoDetail.platform}
+                </span>
+                <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                  selectedTodoDetail.priority === 'High' ? 'text-rose-400 border-rose-900/30 bg-rose-950/20' : 'text-amber-400 border-amber-900/30 bg-amber-950/20'
+                }`}>
+                  {selectedTodoDetail.priority} Urgency
+                </span>
+              </div>
+              <h3 className="text-sm font-extrabold font-display text-white leading-tight text-left">
+                {selectedTodoDetail.text}
+              </h3>
+              <p className="text-[9px] text-slate-500 font-mono text-left">
+                Assigned on: {new Date(selectedTodoDetail.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+
+            {/* Creative Deliverables Checklist */}
+            <div className="bg-slate-950/80 border border-slate-850 p-4 rounded-xl text-left space-y-3">
+              <h4 className="text-[11px] font-bold text-slate-200 uppercase tracking-wide font-mono flex items-center gap-1.5">
+                <Layers className="w-4 h-4 text-indigo-400" />
+                Required Campaign Deliverables
+              </h4>
+              
+              <ul className="space-y-2.5 text-xs font-sans text-slate-300">
+                <li className="flex items-start gap-2 text-left">
+                  <span className="text-indigo-400 font-bold font-mono text-[10px]">1.</span>
+                  <div>
+                    <strong className="text-white text-xs block">Visual Assets & Storyboard:</strong>
+                    <span className="text-[10px] text-slate-400">Design 3 core overlay graphics matching {selectedTodoDetail.platform} guidelines.</span>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2 text-left">
+                  <span className="text-indigo-400 font-bold font-mono text-[10px]">2.</span>
+                  <div>
+                    <strong className="text-white text-xs block">Gemini Optimized Subtitles:</strong>
+                    <span className="text-[10px] text-slate-400">Include high-engagement bold subtitles for the first 3 seconds to optimize retention.</span>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2 text-left">
+                  <span className="text-indigo-400 font-bold font-mono text-[10px]">3.</span>
+                  <div>
+                    <strong className="text-white text-xs block">Call to Action Copy:</strong>
+                    <span className="text-[10px] text-slate-400">Standardized coupon codes and signup prompts to track ROI conversion metrics.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Simulated Gemini Optimization Recommendation */}
+            <div className="bg-indigo-950/15 border border-indigo-500/15 p-4 rounded-xl text-left space-y-2">
+              <span className="text-[9px] font-mono font-bold bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-2 py-0.5 rounded uppercase tracking-wider">
+                Gemini Campaign Forecast
+              </span>
+              <p className="text-[10px] text-slate-300 leading-relaxed font-mono text-left">
+                "Based on recent telemetry analysis, publishing this campaign on a Tuesday or Thursday at exactly 5:15 PM EST yields a predictive CTR increase of +2.4%. We recommend syncing this directly with the Content Planner."
+              </p>
+            </div>
+          </div>
+
+          {/* Action button */}
+          <div className="pt-4 border-t border-slate-850/60 flex gap-2">
+            <button
+              onClick={() => {
+                handleToggleComplete(selectedTodoDetail.id);
+                setSelectedTodoDetail(null);
+              }}
+              className="flex-grow bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10px] py-2.5 rounded-lg cursor-pointer transition-all shadow"
+            >
+              {selectedTodoDetail.completed ? 'Mark as Active' : 'Mark Deliverables Complete ✓'}
+            </button>
+            <button
+              onClick={() => setSelectedTodoDetail(null)}
+              className="px-4 bg-slate-950 border border-slate-850 hover:bg-slate-900 text-slate-400 font-mono text-[10px] rounded-lg cursor-pointer transition-all"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div>
+          {/* Header Title */}
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-800/60 mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-xl border transition-all ${
+                uiMode === 'ai' 
+                  ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/25' 
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}>
               {uiMode === 'ai' ? (
                 <Sparkles className="w-5 h-5 animate-pulse text-indigo-400" />
               ) : (
@@ -502,7 +602,14 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
                         </button>
 
                         <div className="space-y-1">
-                          <p className={`text-xs text-white leading-relaxed ${todo.completed ? 'line-through text-slate-500 font-normal' : 'font-semibold'}`}>
+                          <p 
+                            onClick={() => {
+                              setSelectedTodoDetail(todo);
+                              addLog(`User Action: Inspected details of assignment "${todo.text.substring(0, 30)}..."`, 'info');
+                            }}
+                            title="Click to view full campaign deliverables & assignment details"
+                            className={`text-xs text-white leading-relaxed hover:text-indigo-400 cursor-pointer transition-colors ${todo.completed ? 'line-through text-slate-500 font-normal' : 'font-semibold'}`}
+                          >
                             {todo.text}
                           </p>
                           <div className="flex items-center gap-1.5">
@@ -512,6 +619,12 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
                             <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${priorityColor} uppercase font-bold`}>
                               {todo.priority} Priority
                             </span>
+                            <button
+                              onClick={() => setSelectedTodoDetail(todo)}
+                              className="text-[8px] font-mono font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
+                            >
+                              [View Deliverables]
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -651,6 +764,8 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
           </div>
         </div>
       </form>
+        </>
+      )}
     </div>
   );
 }

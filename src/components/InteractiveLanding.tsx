@@ -90,6 +90,14 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
 
       setGeneratedSeo({ score, keywords, tags, headline, description });
       setIsSeoAnalyzing(false);
+
+      // Dispatch global simulation alert event for Real-Time Ticker notification
+      window.dispatchEvent(new CustomEvent('swanaya-simulation', {
+        detail: {
+          type: 'SEO Sandbox',
+          message: `Gemini SEO campaign simulation on topic "${topic}" completed with score: ${score}%.`
+        }
+      }));
     }, 1200);
   };
 
