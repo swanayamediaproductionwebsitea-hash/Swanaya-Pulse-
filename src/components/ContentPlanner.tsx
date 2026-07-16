@@ -128,7 +128,7 @@ export default function ContentPlanner({
   searchQuery = '',
   uiMode = 'ai'
 }: ContentPlannerProps) {
-  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'assigner' | 'instagram-interface'>('monthly');
+  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'instagram-interface'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
   const [plannerViewMode, setPlannerViewMode] = useState<'list' | 'calendar'>('list');
   const [viewingPostPlan, setViewingPostPlan] = useState<ContentPlan | null>(null);
@@ -138,7 +138,7 @@ export default function ContentPlanner({
   const [multi3dPerspective, setMulti3dPerspective] = useState<number>(800);
 
   const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each';
-  const visiblePlans = isSystemAdmin ? plans : plans.filter(p => !p.createdBy || p.createdBy.toLowerCase() === currentUser.toLowerCase());
+  const visiblePlans = plans;
 
   // Instagram Hub Live Simulator states
   const [instaLikes, setInstaLikes] = useState(148);
@@ -193,7 +193,7 @@ export default function ContentPlanner({
     localStorage.setItem('swanaya_assigned_tasks', JSON.stringify(assignedTasks));
   }, [assignedTasks]);
 
-  const visibleAssignedTasks = isSystemAdmin ? assignedTasks : assignedTasks.filter(t => !t.createdBy || t.createdBy.toLowerCase() === currentUser.toLowerCase());
+  const visibleAssignedTasks = assignedTasks;
 
   const handleAiAutofill = async () => {
     if (!assignerTaskName.trim()) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, CheckCircle2, AlertCircle, Clock, CalendarCheck, HelpCircle, CornerDownRight, LogIn, LogOut, User } from 'lucide-react';
+import { Calendar, CheckCircle2, AlertCircle, Clock, CalendarCheck, HelpCircle, CornerDownRight, LogIn, LogOut, User, Download } from 'lucide-react';
 import { AttendanceRecord } from '../types';
 
 interface AttendanceTrackerProps {
@@ -37,6 +37,33 @@ export default function AttendanceTracker({ records, onAddRecord, onClearRecords
     const matchesUser = userFilter === 'all' || r.username === currentUser;
     return matchesType && matchesUser;
   });
+
+  const handleExportCSV = () => {
+    if (records.length === 0) return;
+    const headers = ['Record ID', 'Day Cycle', 'Registry Action', 'Operator', 'Timestamp', 'Date', 'Memo Notes'];
+    const csvContent = [
+      headers.join(','),
+      ...records.map(rec => [
+        `"${rec.id || ''}"`,
+        `"${rec.day}"`,
+        `"${rec.type === 'check_in' ? 'Check-In' : 'Check-Out'}"`,
+        `"${rec.username || 'System'}"`,
+        `"${rec.timestamp || ''}"`,
+        `"${rec.dateTime || ''}"`,
+        `"${(rec.notes || '').replace(/"/g, '""')}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Swanaya_Attendance_Logs_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl flex flex-col h-full justify-between">
@@ -399,17 +426,29 @@ export default function AttendanceTracker({ records, onAddRecord, onClearRecords
         </div>
       </div>
 
-      {records.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-slate-800/60 flex justify-end">
+      <div className="mt-4 pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+        {records.length > 0 ? (
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2 px-4 rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-md"
+          >
+            <Download className="w-4 h-4" /> Export Attendance Logs to CSV
+          </button>
+        ) : (
+          <div className="text-xs text-slate-500 italic">No logs recorded yet. Complete check-in to enable CSV export.</div>
+        )}
+
+        {records.length > 0 && (
           <button
             type="button"
             onClick={onClearRecords}
-            className="text-[10px] text-rose-400/80 hover:text-rose-400 transition-colors cursor-pointer font-mono"
+            className="text-[10px] text-rose-400/80 hover:text-rose-400 hover:underline transition-colors cursor-pointer font-mono"
           >
             [Reset Attendance Log Database]
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

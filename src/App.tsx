@@ -19,6 +19,7 @@ import SecurityLogs from './components/SecurityLogs';
 import RealTimeTicker from './components/RealTimeTicker';
 import PopupHub from './components/PopupHub';
 import ClientHub from './components/ClientHub';
+import FaqExperiences from './components/FaqExperiences';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function App() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'admin' | 'assistant' | 'profile' | 'client'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'admin' | 'assistant' | 'profile' | 'client' | 'faq'>('home');
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
@@ -35,6 +36,58 @@ export default function App() {
   const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
     return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
   });
+
+  // Load any unread text dispatches from Admin
+  const [adminMessages, setAdminMessages] = useState<any[]>([]);
+
+  const loadAdminMessages = () => {
+    if (!currentUser) return;
+    try {
+      const saved = localStorage.getItem('swanaya_user_messages');
+      if (saved) {
+        const msgs = JSON.parse(saved);
+        // Find messages for this user or 'all' broadcasts, and not dismissed
+        const activeMsgs = msgs.filter((m: any) => 
+          (m.recipient === 'all' || m.recipient.toLowerCase() === currentUser.toLowerCase()) && 
+          !(m.dismissedBy || []).includes(currentUser.toLowerCase())
+        );
+        setAdminMessages(activeMsgs);
+      }
+    } catch (e) {
+      console.warn('Failed to load admin dispatches:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadAdminMessages();
+  }, [currentUser, activeMainTab]);
+
+  const handleDismissAdminMessage = (msgId: string) => {
+    if (!currentUser) return;
+    try {
+      const saved = localStorage.getItem('swanaya_user_messages');
+      if (saved) {
+        const msgs = JSON.parse(saved);
+        const updated = msgs.map((m: any) => {
+          if (m.id === msgId) {
+            const dismissedBy = m.dismissedBy || [];
+            if (!dismissedBy.includes(currentUser.toLowerCase())) {
+              dismissedBy.push(currentUser.toLowerCase());
+            }
+            return { ...m, dismissedBy };
+          }
+          return m;
+        });
+        localStorage.setItem('swanaya_user_messages', JSON.stringify(updated));
+        
+        // Update local state
+        setAdminMessages(prev => prev.filter(m => m.id !== msgId));
+        addLog('Admin Messaging: Dismissed secure text message alert from view', 'info');
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  };
 
   const handleSetUiMode = (mode: 'human' | 'ai') => {
     setUiMode(mode);
@@ -226,6 +279,21 @@ export default function App() {
     localStorage.setItem('swanaya_current_user', username);
     localStorage.setItem('swanaya_has_logged_in', 'true');
     addLog(`Security: Authorized session created for operator "${username}"`, 'success');
+    
+    try {
+      const savedLogins = localStorage.getItem('swanaya_workspace_logins');
+      const logins = savedLogins ? JSON.parse(savedLogins) : [];
+      logins.push({
+        id: `login_${Date.now()}`,
+        username,
+        timestamp: new Date().toLocaleTimeString(),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        userAgent: navigator.userAgent
+      });
+      localStorage.setItem('swanaya_workspace_logins', JSON.stringify(logins));
+    } catch (e) {
+      console.warn('Failed to save login event:', e);
+    }
   };
 
   // 5. Authentication logout handler
@@ -604,6 +672,37 @@ export default function App() {
 
             </header>
 
+            {/* Incoming Admin Dispatches Banner Alert */}
+            {adminMessages.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {adminMessages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-yellow-500/10 border-l-4 border-yellow-500 p-3 rounded-r-xl flex items-start justify-between gap-3 shadow-lg backdrop-blur-md"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <span className="font-bold font-mono text-yellow-400 uppercase tracking-wide block mb-0.5">
+                          Direct Dispatch from Administrator ({msg.sender}):
+                        </span>
+                        <p className="text-slate-200 leading-relaxed font-sans">{msg.text}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDismissAdminMessage(msg.id)}
+                      className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+                      title="Dismiss Dispatch"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
             {/* Main Tab Navigation Menu */}
             <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 p-2 rounded-2xl flex flex-wrap justify-center sm:justify-start gap-2 shadow-lg z-10">
               <motion.button
@@ -752,6 +851,30 @@ export default function App() {
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
+                  setActiveMainTab('faq');
+                  addLog('System Navigation: Switched workspace to [FAQ & Experiences]', 'info');
+                }}
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'faq'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <HelpCircle className="w-4 h-4 text-indigo-400" />
+                <span>FAQ & Reviews</span>
+                {activeMainTab === 'faq' && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
                   setActiveMainTab('profile');
                   addLog('System Navigation: Switched workspace to [Profile Settings]', 'info');
                 }}
@@ -771,6 +894,32 @@ export default function App() {
                   />
                 )}
               </motion.button>
+
+              {(currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each') && (
+                <motion.button
+                  whileHover={{ scale: 1.05, translateY: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setActiveMainTab('admin');
+                    addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
+                  }}
+                  className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeMainTab === 'admin'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 text-yellow-500" />
+                  <span>Admin Console</span>
+                  {activeMainTab === 'admin' && (
+                    <motion.div
+                      layoutId="activeTabUnderline"
+                      className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
+              )}
             </div>
 
             {/* Main Interactive Tab Views with motion animations */}
@@ -914,6 +1063,22 @@ export default function App() {
                       addLog={addLog} 
                       onProfileUpdate={loadCurrentUserProfile}
                       setActiveMainTab={setActiveMainTab}
+                    />
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'faq' && (
+                  <motion.div
+                    key="faq-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <FaqExperiences 
+                      currentUser={currentUser || ''} 
+                      addLog={addLog}
                     />
                   </motion.div>
                 )}
