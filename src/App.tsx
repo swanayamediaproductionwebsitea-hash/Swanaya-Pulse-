@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
-  Home as HomeIcon, User, Search, X
+  Home as HomeIcon, User, Search, X, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan, AttendanceRecord, ActivityLog } from './types';
@@ -18,6 +18,7 @@ import ProfileSettings from './components/ProfileSettings';
 import SecurityLogs from './components/SecurityLogs';
 import RealTimeTicker from './components/RealTimeTicker';
 import PopupHub from './components/PopupHub';
+import ClientHub from './components/ClientHub';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function App() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'admin' | 'assistant' | 'profile'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'admin' | 'assistant' | 'profile' | 'client'>('home');
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
@@ -605,7 +606,9 @@ export default function App() {
 
             {/* Main Tab Navigation Menu */}
             <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 p-2 rounded-2xl flex flex-wrap justify-center sm:justify-start gap-2 shadow-lg z-10">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('home');
                   addLog('System Navigation: Switched workspace to [Home Control]', 'info');
@@ -625,8 +628,10 @@ export default function App() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('planner');
                   addLog('System Navigation: Switched workspace to [Content Planner]', 'info');
@@ -646,13 +651,17 @@ export default function App() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('attendance');
                   addLog('System Navigation: Switched workspace to [Attendance Tracker]', 'info');
                 }}
-                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  (userProfileTitle === 'Client Stakeholder' || userProfileTitle === 'Client Partner / Investor') ? 'hidden' : 'flex'
+                } items-center gap-2 cursor-pointer ${
                   activeMainTab === 'attendance'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -667,13 +676,17 @@ export default function App() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('security');
                   addLog('System Navigation: Switched workspace to [Security Logs]', 'info');
                 }}
-                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  (userProfileTitle === 'Client Stakeholder' || userProfileTitle === 'Client Partner / Investor') ? 'hidden' : 'flex'
+                } items-center gap-2 cursor-pointer ${
                   activeMainTab === 'security'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
@@ -688,8 +701,33 @@ export default function App() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setActiveMainTab('client');
+                  addLog('System Navigation: Switched workspace to [Client Hub]', 'info');
+                }}
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'client'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Client Hub</span>
+                {activeMainTab === 'client' && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('assistant');
                   addLog('System Navigation: Switched workspace to [Swanaya Assist]', 'info');
@@ -709,8 +747,10 @@ export default function App() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('profile');
                   addLog('System Navigation: Switched workspace to [Profile Settings]', 'info');
@@ -730,7 +770,7 @@ export default function App() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-              </button>
+              </motion.button>
             </div>
 
             {/* Main Interactive Tab Views with motion animations */}
@@ -841,6 +881,22 @@ export default function App() {
                     className="w-full h-full flex flex-col"
                   >
                     <AssistantWidget addLog={addLog} />
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'client' && (
+                  <motion.div
+                    key="client-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <ClientHub 
+                      currentUser={currentUser || ''} 
+                      addLog={addLog}
+                    />
                   </motion.div>
                 )}
 

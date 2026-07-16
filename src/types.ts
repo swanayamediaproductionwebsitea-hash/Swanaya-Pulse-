@@ -20,7 +20,7 @@ export interface ContentPlan {
   videoUrl?: string; // object URL for previewing uploaded videos
   videoName?: string;
   videoSize?: string;
-  status: 'Planned' | 'In Progress' | 'Completed' | 'Review';
+  status: 'Planned' | 'In Progress' | 'Completed' | 'Review' | 'Live';
   platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook';
   createdAt: string;
   createdBy?: string; // Track who created the plan

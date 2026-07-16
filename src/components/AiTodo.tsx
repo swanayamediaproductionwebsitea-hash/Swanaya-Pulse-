@@ -139,28 +139,30 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
   // Toggle To-Do complete status with DB synchronization
   const handleToggleComplete = async (id: string) => {
     let targetTodo: AiTodoItem | undefined;
-    setTodos((prev) => {
-      const updated = prev.map(todo => {
-        if (todo.id === id) {
-          targetTodo = { ...todo, completed: !todo.completed };
-          addLog(`To-Do Engine: Marked task as ${targetTodo.completed ? 'Completed' : 'Active'}`, 'info');
-          return targetTodo;
-        }
-        return todo;
-      });
-      localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
-      return updated;
+    const updated = todos.map(todo => {
+      if (todo.id === id) {
+        targetTodo = { ...todo, completed: !todo.completed };
+        return targetTodo;
+      }
+      return todo;
     });
 
-    if (targetTodo && !id.startsWith('todo_')) {
-      try {
-        await fetch(`/api/todos/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ completed: targetTodo.completed })
-        });
-      } catch (err) {
-        console.error('Failed to update todo status in DB:', err);
+    setTodos(updated);
+    localStorage.setItem('swanaya_ai_todos', JSON.stringify(updated));
+
+    if (targetTodo) {
+      addLog(`To-Do Engine: Marked task as ${targetTodo.completed ? 'Completed' : 'Active'}`, 'info');
+
+      if (!id.startsWith('todo_')) {
+        try {
+          await fetch(`/api/todos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ completed: targetTodo.completed })
+          });
+        } catch (err) {
+          console.error('Failed to update todo status in DB:', err);
+        }
       }
     }
   };

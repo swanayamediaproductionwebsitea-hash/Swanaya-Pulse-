@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Plus, Calendar, Film, Image, FileText, CheckCircle, Clock, Trash2, 
   Video, Eye, Play, X, UploadCloud, ChevronRight, BarChart3, AlertCircle, Sparkles, Filter, Edit2,
-  ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send
+  ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send,
+  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
@@ -27,6 +28,15 @@ const MONTHS = [
 
 const PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'LinkedIn', 'Facebook'];
 const TYPES = ['Video', 'Image', 'Article', 'Campaign', 'Story'] as const;
+
+const getMonthDetails = (monthName: string) => {
+  const monthIndex = MONTHS.indexOf(monthName);
+  if (monthIndex === -1) return { totalDays: 30, startDayOfWeek: 0 };
+  const firstDay = new Date(2026, monthIndex, 1);
+  const startDayOfWeek = firstDay.getDay(); // 0-6
+  const totalDays = new Date(2026, monthIndex + 1, 0).getDate();
+  return { totalDays, startDayOfWeek };
+};
 
 const PRELOADED_TEMPLATES = [
   {
@@ -120,6 +130,12 @@ export default function ContentPlanner({
 }: ContentPlannerProps) {
   const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'assigner' | 'instagram-interface'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
+  const [plannerViewMode, setPlannerViewMode] = useState<'list' | 'calendar'>('list');
+  const [viewingPostPlan, setViewingPostPlan] = useState<ContentPlan | null>(null);
+  const [multi3dModel, setMulti3dModel] = useState<'smartphone' | 'cinema' | 'hologram' | 'billboard'>('smartphone');
+  const [multi3dRotation, setMulti3dRotation] = useState<number>(15);
+  const [multi3dGlow, setMulti3dGlow] = useState<number>(40);
+  const [multi3dPerspective, setMulti3dPerspective] = useState<number>(800);
 
   const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each';
   const visiblePlans = isSystemAdmin ? plans : plans.filter(p => !p.createdBy || p.createdBy.toLowerCase() === currentUser.toLowerCase());
@@ -393,6 +409,53 @@ export default function ContentPlanner({
         addLog(`Google Picker Error: ${err.message || err}`, 'warning');
       }
     );
+  };
+
+  const handleVideoUploadInModal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      alert('Please upload a video file only.');
+      return;
+    }
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+    const videoUrl = URL.createObjectURL(file);
+    const updated: ContentPlan = {
+      ...viewingPostPlan!,
+      videoUrl,
+      videoName: file.name,
+      videoSize: `${sizeInMB} MB`
+    };
+    onUpdatePlan(updated);
+    setViewingPostPlan(updated);
+    addLog(`Media: Video file "${file.name}" uploaded directly inside View Node for "${viewingPostPlan!.title}"`, 'upload');
+  };
+
+  const handleVideoPickerInModal = () => {
+    addLog('Google Picker: Launching secure drive file selector in View Node...', 'info');
+    launchGooglePicker(
+      (file) => {
+        const sizeInMB = file.sizeBytes > 0 ? (file.sizeBytes / (1024 * 1024)).toFixed(1) : 'G-Drive';
+        const updated: ContentPlan = {
+          ...viewingPostPlan!,
+          videoUrl: file.url,
+          videoName: `GDrive: ${file.name}`,
+          videoSize: file.sizeBytes > 0 ? `${sizeInMB} MB` : 'G-Drive Video'
+        };
+        onUpdatePlan(updated);
+        setViewingPostPlan(updated);
+        addLog(`Media: Staged Google Drive video "${file.name}" in View Node for "${viewingPostPlan!.title}"`, 'upload');
+      },
+      () => {
+        addLog('Google Picker: Canceled by user', 'warning');
+      }
+    );
+  };
+
+  const handleStatusChange = (newStatus: ContentPlan['status']) => {
+    onUpdatePlanStatus(viewingPostPlan!.id, newStatus);
+    setViewingPostPlan(prev => prev ? { ...prev, status: newStatus } : null);
+    addLog(`System: Changed campaign [${viewingPostPlan!.title}] status to [${newStatus}] via Interactive View Node`, 'action');
   };
 
   const toggleTaskStatus = (taskId: string) => {
@@ -1074,16 +1137,7 @@ export default function ContentPlanner({
             >
               <Plus className="w-3.5 h-3.5 animate-pulse" /> Add Registry Item
             </button>
-            <button
-              onClick={() => setActiveTab('assigner')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'assigner'
-                  ? 'bg-indigo-600 text-white shadow font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <ClipboardList className="w-3.5 h-3.5 text-emerald-400 animate-pulse" /> Assigning System
-            </button>
+
             <button
               onClick={() => {
                 setActiveTab('instagram-interface');
@@ -1146,6 +1200,40 @@ export default function ContentPlanner({
                     <Filter className="w-3.5 h-3.5 text-indigo-400" /> Active Registry: {selectedMonth}
                   </span>
                   <div className="flex items-center gap-2">
+                    {/* View Switcher Toggle */}
+                    <div className="flex items-center bg-slate-900/90 border border-slate-800 p-0.5 rounded-lg mr-1 shadow-inner">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlannerViewMode('list');
+                          addLog('System Navigation: Switched Planner to List Registry layout', 'info');
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[9px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                          plannerViewMode === 'list'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        }`}
+                        title="Switch to List View"
+                      >
+                        <List className="w-3 h-3" /> List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlannerViewMode('calendar');
+                          addLog('System Navigation: Switched Planner to Visual Monthly Calendar grid', 'info');
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[9px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                          plannerViewMode === 'calendar'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        }`}
+                        title="Switch to Monthly Calendar Layout"
+                      >
+                        <Calendar className="w-3 h-3" /> Calendar
+                      </button>
+                    </div>
+
                     <button
                       onClick={handleExportPDF}
                       className="bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-300 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer transition-all shadow active:scale-95"
@@ -1159,123 +1247,295 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
-                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                  <AnimatePresence mode="popLayout">
-                    {filteredPlans.length === 0 ? (
-                      <motion.div 
-                        key="empty-state"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="bg-slate-950/30 border border-slate-800/50 rounded-xl p-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2"
-                      >
-                        <Calendar className="w-8 h-8 text-slate-700" />
-                        <p>{searchQuery ? `No content plans match the query "${searchQuery}".` : `No content scheduled for ${selectedMonth} yet.`}</p>
-                        {!searchQuery && (
-                          <button
-                            onClick={() => {
-                              setFormMonth(selectedMonth);
-                              setActiveTab('entity-manager');
-                            }}
-                            className="mt-2 text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-                          >
-                            + Click here to schedule one
-                          </button>
-                        )}
-                      </motion.div>
-                    ) : (
-                      filteredPlans.map((plan, index) => (
+                {plannerViewMode === 'list' ? (
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                    <AnimatePresence mode="popLayout">
+                      {filteredPlans.length === 0 ? (
                         <motion.div 
-                          key={plan.id}
-                          layout
-                          initial={{ opacity: 0, y: 15, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, x: -15 }}
-                          transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.15), ease: 'easeOut' }}
-                          className="bg-slate-950/50 border border-slate-800/85 hover:border-slate-700/80 rounded-xl p-4 transition-colors hover:bg-slate-950/70 shadow-md flex flex-col justify-between"
+                          key="empty-state"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="bg-slate-950/30 border border-slate-800/50 rounded-xl p-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2"
                         >
-                          <div>
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="flex flex-wrap gap-1.5 items-center">
-                                <span className="font-mono text-[10px] font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded-full">
-                                  {searchQuery ? `${plan.month} ` : ''}Day {plan.day} • {plan.platform}
-                                </span>
-                                <span className="font-mono text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 px-2 py-0.5 rounded-full flex items-center gap-1" title="Assigned Target Date">
-                                  <Calendar className="w-2.5 h-2.5 shrink-0" />
-                                  {plan.assignedDate || formatDateComponents(2026, plan.month, plan.day)}
-                                </span>
-                              </div>
-                              <div className="flex gap-1 items-center">
-                                <button
-                                  onClick={() => openEditModal(plan)}
-                                  className="text-slate-500 hover:text-indigo-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer mr-0.5"
-                                  title="Edit Campaign details & Assigned Date"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <select
-                                  value={plan.status}
-                                  onChange={(e) => onUpdatePlanStatus(plan.id, e.target.value as any)}
-                                  className={`text-[10px] font-bold py-0.5 px-1.5 rounded outline-none cursor-pointer ${
-                                    plan.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' :
-                                    plan.status === 'In Progress' ? 'bg-indigo-500/10 text-indigo-400' :
-                                    plan.status === 'Review' ? 'bg-amber-500/10 text-amber-400' :
-                                    'bg-slate-800 text-slate-300'
-                                  }`}
-                                >
-                                  <option value="Planned">Planned</option>
-                                  <option value="In Progress">In Progress</option>
-                                  <option value="Review">Review</option>
-                                  <option value="Completed">Completed</option>
-                                </select>
-                                <button
-                                  onClick={() => onDeletePlan(plan.id)}
-                                  className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer"
-                                  title="Delete Plan"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <h4 className="text-sm font-bold text-white mb-1 font-display">{plan.title}</h4>
-                            <p className="text-xs text-slate-400 line-clamp-2 mb-3">{plan.description}</p>
-                          </div>
-
-                          {/* Staged media files in this item */}
-                          {plan.videoUrl ? (
-                            <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center justify-between">
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                <div className="bg-indigo-500/10 text-indigo-400 p-1.5 rounded">
-                                  <Video className="w-4 h-4" />
-                                </div>
-                                <div className="text-left overflow-hidden">
-                                  <p className="text-[10px] font-medium text-white truncate max-w-[130px]">
-                                    {plan.videoName || 'Uploaded Video'}
-                                  </p>
-                                  <p className="text-[9px] text-slate-500 font-mono">
-                                    {plan.videoSize || 'N/A MB'}
-                                  </p>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => setPreviewVideo({ url: plan.videoUrl!, title: plan.title })}
-                                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded p-1.5 transition-all text-[10px] flex items-center gap-1 cursor-pointer"
-                              >
-                                <Play className="w-3 h-3 fill-white" /> Play
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-[10px] text-slate-600 italic border border-dashed border-slate-800 rounded-lg py-1 px-3">
-                              No associated video clip.
-                            </div>
+                          <Calendar className="w-8 h-8 text-slate-700" />
+                          <p>{searchQuery ? `No content plans match the query "${searchQuery}".` : `No content scheduled for ${selectedMonth} yet.`}</p>
+                          {!searchQuery && (
+                            <button
+                              onClick={() => {
+                                setFormMonth(selectedMonth);
+                                setActiveTab('entity-manager');
+                              }}
+                              className="mt-2 text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                            >
+                              + Click here to schedule one
+                            </button>
                           )}
                         </motion.div>
-                      ))
-                    )}
-                  </AnimatePresence>
-                </div>
+                      ) : (
+                        filteredPlans.map((plan, index) => (
+                          <motion.div 
+                            key={plan.id}
+                            layout
+                            initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: -15 }}
+                            transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.15), ease: 'easeOut' }}
+                            className="bg-slate-950/50 border border-slate-800/85 hover:border-slate-700/80 hover:bg-slate-950/80 rounded-xl p-4 transition-all hover:scale-[1.01] shadow-md flex flex-col justify-between cursor-pointer group"
+                            onClick={() => {
+                              setViewingPostPlan(plan);
+                              addLog(`Interactive Node: Opened detailed 3D View for "${plan.title}"`, 'action');
+                            }}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex flex-wrap gap-1.5 items-center">
+                                  <span className="font-mono text-[10px] font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded-full">
+                                    {searchQuery ? `${plan.month} ` : ''}Day {plan.day} • {plan.platform}
+                                  </span>
+                                  {plan.status === 'Live' ? (
+                                    <span className="font-mono text-[9px] font-bold text-rose-400 bg-rose-950/50 border border-rose-900/40 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                      LIVE
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 px-2 py-0.5 rounded-full flex items-center gap-1" title="Assigned Target Date">
+                                      <Calendar className="w-2.5 h-2.5 shrink-0" />
+                                      {plan.assignedDate || formatDateComponents(2026, plan.month, plan.day)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex gap-1 items-center">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); openEditModal(plan); }}
+                                    className="text-slate-500 hover:text-indigo-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer mr-0.5"
+                                    title="Edit Campaign details & Assigned Date"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <select
+                                    value={plan.status}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      onUpdatePlanStatus(plan.id, e.target.value as any);
+                                      addLog(`System: Changed campaign "${plan.title}" status to [${e.target.value}]`, 'action');
+                                    }}
+                                    className={`text-[10px] font-bold py-0.5 px-1.5 rounded outline-none cursor-pointer ${
+                                      plan.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                      plan.status === 'In Progress' ? 'bg-indigo-500/10 text-indigo-400' :
+                                      plan.status === 'Review' ? 'bg-amber-500/10 text-amber-400' :
+                                      plan.status === 'Live' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
+                                      'bg-slate-800 text-slate-300'
+                                    }`}
+                                  >
+                                    <option value="Planned">Planned</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Review">Review</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Live">Live</option>
+                                  </select>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onDeletePlan(plan.id); }}
+                                    className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                                    title="Delete Plan"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <h4 className="text-sm font-bold text-white mb-1 font-display group-hover:text-indigo-300 transition-colors">{plan.title}</h4>
+                              <p className="text-xs text-slate-400 line-clamp-2 mb-3">{plan.description}</p>
+                            </div>
+
+                            {/* Staged media files in this item */}
+                            {plan.videoUrl ? (
+                              <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <div className="bg-indigo-500/10 text-indigo-400 p-1.5 rounded">
+                                    <Video className="w-4 h-4" />
+                                  </div>
+                                  <div className="text-left overflow-hidden">
+                                    <p className="text-[10px] font-medium text-white truncate max-w-[130px]">
+                                      {plan.videoName || 'Uploaded Video'}
+                                    </p>
+                                    <p className="text-[9px] text-slate-500 font-mono">
+                                      {plan.videoSize || 'N/A MB'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewVideo({ url: plan.videoUrl!, title: plan.title });
+                                    addLog(`Media: Loaded cinematic video preview for [${plan.title}] into sandbox pipeline`, 'info');
+                                  }}
+                                  className="bg-indigo-600 hover:bg-indigo-500 text-white rounded p-1.5 transition-all text-[10px] flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Play className="w-3 h-3 fill-white" /> Play
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-slate-600 italic border border-dashed border-slate-800 rounded-lg py-1 px-3">
+                                No associated video clip.
+                              </div>
+                            )}
+                          </motion.div>
+                        ))
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  /* GORGEOUS MONTHLY CALENDAR GRID LAYOUT */
+                  <div className="bg-slate-950/30 border border-slate-850 rounded-2xl p-4.5 space-y-3">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500" />
+                        Interactive 2026 Calendar Node
+                      </span>
+                      <span className="text-slate-600">Select day to view or add post</span>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {/* Weekday headers */}
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                        <div key={d} className="text-center text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest py-1">
+                          {d}
+                        </div>
+                      ))}
+
+                      {/* Empty padding offsets for current month */}
+                      {(() => {
+                        const { startDayOfWeek, totalDays } = getMonthDetails(selectedMonth);
+                        const cells = [];
+                        
+                        // Empty pads
+                        for (let i = 0; i < startDayOfWeek; i++) {
+                          cells.push(
+                            <div key={`empty-${i}`} className="aspect-square bg-slate-950/10 border border-slate-900/40 rounded-lg opacity-30" />
+                          );
+                        }
+
+                        // Day cells
+                        for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+                          const dayPlans = filteredPlans.filter(p => p.day === dayNum);
+                          const hasPlans = dayPlans.length > 0;
+                          const isToday = new Date().getDate() === dayNum && MONTHS[new Date().getMonth()] === selectedMonth;
+                          
+                          // Determine platform indicator border
+                          let customStyle = "bg-slate-950/20 border-slate-900 hover:border-slate-800 hover:bg-slate-900/40";
+                          if (hasPlans) {
+                            const firstPlan = dayPlans[0];
+                            if (firstPlan.status === 'Live') {
+                              customStyle = "bg-rose-950/30 border-rose-500/40 hover:border-rose-400 hover:bg-rose-950/50 text-rose-300 shadow-sm shadow-rose-500/10 animate-pulse";
+                            } else if (firstPlan.platform === 'YouTube') {
+                              customStyle = "bg-red-950/25 border-red-500/30 hover:border-red-400/50 hover:bg-red-950/40 text-red-200";
+                            } else if (firstPlan.platform === 'Instagram') {
+                              customStyle = "bg-pink-950/20 border-pink-500/35 hover:border-pink-400/50 hover:bg-pink-950/30 text-pink-200";
+                            } else if (firstPlan.platform === 'TikTok') {
+                              customStyle = "bg-cyan-950/20 border-cyan-500/30 hover:border-cyan-400/50 hover:bg-cyan-950/30 text-cyan-200";
+                            } else {
+                              customStyle = "bg-indigo-950/25 border-indigo-500/35 hover:border-indigo-400/50 hover:bg-indigo-950/35 text-indigo-200";
+                            }
+                          }
+
+                          cells.push(
+                            <motion.div
+                              whileHover={{ scale: 1.04, y: -1 }}
+                              whileTap={{ scale: 0.96 }}
+                              key={`day-${dayNum}`}
+                              onClick={() => {
+                                if (hasPlans) {
+                                  setViewingPostPlan(dayPlans[0]);
+                                  addLog(`Interactive Node: Opened calendar day ${dayNum} post detail: "${dayPlans[0].title}"`, 'action');
+                                } else {
+                                  setFormMonth(selectedMonth);
+                                  setFormDay(dayNum);
+                                  // Compute date
+                                  const mIdx = MONTHS.indexOf(selectedMonth) + 1;
+                                  const formattedMonth = mIdx < 10 ? `0${mIdx}` : `${mIdx}`;
+                                  const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+                                  setFormDate(`2026-${formattedMonth}-${formattedDay}`);
+                                  setActiveTab('entity-manager');
+                                  addLog(`System: Staged scheduler date [2026-${formattedMonth}-${formattedDay}] via calendar matrix`, 'action');
+                                }
+                              }}
+                              className={`aspect-square p-1 border rounded-lg flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden group ${customStyle} ${
+                                isToday ? 'ring-1 ring-emerald-500 border-emerald-500/50' : ''
+                              }`}
+                            >
+                              {/* Day Label & Platform Indicators */}
+                              <div className="flex justify-between items-center z-10">
+                                <span className={`text-[9px] font-mono font-bold ${
+                                  isToday ? 'text-emerald-400 bg-emerald-950/60 px-1 rounded border border-emerald-900/30' : 
+                                  hasPlans ? 'text-indigo-300 font-extrabold' : 'text-slate-500'
+                                }`}>
+                                  {dayNum}
+                                </span>
+                                
+                                {hasPlans && (
+                                  <div className="flex gap-0.5">
+                                    {dayPlans.map((p, idx) => {
+                                      let dotColor = 'bg-slate-400';
+                                      if (p.platform === 'YouTube') dotColor = 'bg-red-500';
+                                      else if (p.platform === 'Instagram') dotColor = 'bg-pink-500';
+                                      else if (p.platform === 'TikTok') dotColor = 'bg-cyan-400';
+                                      else if (p.platform === 'LinkedIn') dotColor = 'bg-blue-500';
+                                      else if (p.platform === 'Facebook') dotColor = 'bg-blue-600';
+                                      
+                                      return (
+                                        <span 
+                                          key={p.id || idx} 
+                                          className={`w-1 h-1 rounded-full ${dotColor} ${p.status === 'Live' ? 'animate-ping' : ''}`}
+                                          title={`${p.platform}: ${p.title}`}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Day Miniature content descriptor */}
+                              {hasPlans ? (
+                                <div className="mt-auto text-left leading-tight">
+                                  <p className="text-[7.5px] font-medium text-slate-200 truncate group-hover:text-white transition-colors">
+                                    {dayPlans[0].title}
+                                  </p>
+                                  <div className="flex items-center justify-between mt-0.5">
+                                    <span className="text-[6.5px] font-mono px-1 py-0.2 bg-slate-900/80 rounded border border-slate-800 text-slate-400 uppercase tracking-wider scale-[0.9] origin-left">
+                                      {dayPlans[0].platform.substring(0, 3)}
+                                    </span>
+                                    {dayPlans[0].videoUrl && (
+                                      <Video className="w-2.5 h-2.5 text-indigo-400 animate-pulse shrink-0" />
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-[7px] text-slate-700 font-mono text-left opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+                                  + Add Plan
+                                </span>
+                              )}
+                            </motion.div>
+                          );
+                        }
+                        
+                        return cells;
+                      })()}
+                    </div>
+
+                    {/* Platform color legend */}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center pt-2 border-t border-slate-900 text-[8px] font-mono text-slate-500">
+                      <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> YouTube</span>
+                      <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-pink-500" /> Instagram</span>
+                      <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> TikTok</span>
+                      <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> LinkedIn</span>
+                      <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-600" /> Facebook</span>
+                      <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" /> Live</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Live Preview Card */}
@@ -1684,612 +1944,7 @@ export default function ContentPlanner({
           </form>
         )}
 
-        {/* =========================================================================
-            TAB 5: CONTENT ASSIGNING SYSTEM
-            ========================================================================= */}
-        {activeTab === 'assigner' && (
-          <div className="space-y-6">
-            
-            {/* Header / Intro block */}
-            <div className="bg-gradient-to-r from-emerald-950/35 via-slate-900/40 to-indigo-950/20 border border-emerald-500/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-emerald-400 animate-pulse" /> Content Assigning System Node
-                </h4>
-                <p className="text-xs text-slate-400 max-w-xl">
-                  Enterprise-grade client task scheduler. Enter descriptions, select standard monthly/yearly scopes, assign calendar deadlines, and upload attachments to generate trackable campaign deliverables.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-850 px-3 py-1.5 rounded-lg text-xs font-mono shrink-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-                <span className="text-slate-400">Total Tasks:</span>
-                <strong className="text-white font-bold">{assignedTasks.length}</strong>
-              </div>
-            </div>
 
-            {/* Dark-themed CSS Grid Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* Left Column: Form Assignment Panel */}
-              <div className="bg-slate-950/40 border border-slate-850/80 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-850 pb-3 mb-2">
-                  <Plus className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Assign New Task</span>
-                </div>
-
-                <form onSubmit={handleAssignTask} className="space-y-4">
-                  {/* Monthly/Yearly Selector */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                      Schedule Target Scope
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-lg border border-slate-850">
-                      <button
-                        type="button"
-                        onClick={() => setAssignerPeriod('Monthly')}
-                        className={`py-1.5 rounded-md text-[10px] font-mono font-bold uppercase transition-all cursor-pointer ${
-                          assignerPeriod === 'Monthly'
-                            ? 'bg-emerald-600 text-white shadow'
-                            : 'text-slate-500 hover:text-slate-300'
-                        }`}
-                      >
-                        Monthly Scope
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAssignerPeriod('Yearly')}
-                        className={`py-1.5 rounded-md text-[10px] font-mono font-bold uppercase transition-all cursor-pointer ${
-                          assignerPeriod === 'Yearly'
-                            ? 'bg-indigo-600 text-white shadow'
-                            : 'text-slate-500 hover:text-slate-300'
-                        }`}
-                      >
-                        Yearly Scope
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Text Input for Task Assignment */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Task Description / Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={assignerTaskName}
-                      onChange={(e) => setAssignerTaskName(e.target.value)}
-                      placeholder="e.g., Assemble Q3 Instagram Visual Deck..."
-                      className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg p-2.5 text-xs text-white placeholder-slate-700 outline-none transition-all font-sans"
-                    />
-
-                    {/* AI Autofill trigger button */}
-                    <div className="flex items-center justify-between gap-2 mt-1.5">
-                      <span className="text-[8px] text-slate-500 font-mono">Need SEO-optimized copy?</span>
-                      <button
-                        type="button"
-                        disabled={isAiLoading || !assignerTaskName.trim()}
-                        onClick={handleAiAutofill}
-                        className={`px-2.5 py-1 rounded text-[9px] font-mono font-bold uppercase transition-all duration-300 flex items-center gap-1 cursor-pointer ${
-                          assignerTaskName.trim()
-                            ? 'bg-gradient-to-r from-emerald-500/20 to-indigo-500/20 text-emerald-400 hover:text-white border border-emerald-500/40 hover:from-emerald-600 hover:to-indigo-600 shadow-md hover:shadow-emerald-500/20'
-                            : 'bg-slate-900 text-slate-600 border border-slate-850 cursor-not-allowed'
-                        }`}
-                      >
-                        <Sparkles className={`w-3.5 h-3.5 ${isAiLoading ? 'animate-spin text-emerald-400' : 'text-emerald-400'}`} />
-                        {isAiLoading ? 'Analyzing...' : 'Smart SEO Autofill'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* AI Loading State with specific logs */}
-                  {isAiLoading && (
-                    <div className="bg-slate-900/80 border border-indigo-500/30 rounded-xl p-3.5 space-y-2.5 animate-pulse">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" />
-                        <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-wider">Gemini SEO Engine Booting...</span>
-                      </div>
-                      <p className="text-[9px] text-slate-400 font-mono leading-relaxed">
-                        Fetching semantic metadata, analyzing search intent, crafting social tags, and predicting expected timelines.
-                      </p>
-                      <div className="w-full bg-slate-950 rounded-full h-1">
-                        <div className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-1 rounded-full" style={{ width: '65%' }}></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI Error Display */}
-                  {aiError && (
-                    <div className="bg-rose-950/40 border border-rose-900/30 text-rose-400 text-[9px] font-mono p-2.5 rounded-lg">
-                      ⚠️ AI Autofill Failed: {aiError}
-                    </div>
-                  )}
-
-                  {/* AI SUGGESTIONS PANEL - AI UI INTEGRATED WITH SEO */}
-                  {showAiSuggestions && aiSuggestions && (
-                    <div className="bg-gradient-to-br from-indigo-950/30 to-slate-950 border border-indigo-500/30 rounded-xl p-3.5 space-y-3 relative overflow-hidden">
-                      <div className="absolute top-0 right-0">
-                        <span className="text-[7px] font-mono font-bold uppercase tracking-widest bg-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded-bl border-l border-b border-indigo-500/20">SEO SUITE</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 border-b border-slate-850/60 pb-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                        <h5 className="text-[10px] font-bold text-white uppercase tracking-wider font-mono">Gemini SEO Recommendations</h5>
-                      </div>
-
-                      {/* Description */}
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">💡 Improved Description</span>
-                        <p className="text-[10px] text-slate-300 bg-slate-950/80 border border-slate-900/40 p-2 rounded-lg leading-relaxed max-h-[80px] overflow-y-auto">
-                          {aiSuggestions.description}
-                        </p>
-                      </div>
-
-                      {/* Tags & Keywords Grid */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">🏷️ Social Tags</span>
-                          <div className="flex flex-wrap gap-1">
-                            {aiSuggestions.tags.map((tag, idx) => (
-                              <span key={idx} className="bg-indigo-950/50 border border-indigo-900/20 text-indigo-300 text-[8px] font-mono px-1 py-0.5 rounded">
-                                {tag.startsWith('#') ? tag : `#${tag}`}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">📈 Target SEO Keywords</span>
-                          <div className="flex flex-wrap gap-1">
-                            {aiSuggestions.seoKeywords.map((kw, idx) => (
-                              <span key={idx} className="bg-emerald-950/50 border border-emerald-900/20 text-emerald-400 text-[8px] font-mono px-1 py-0.5 rounded">
-                                {kw}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Meta Copy / Caption */}
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">✍️ Meta Description / caption Copy</span>
-                        <p className="text-[9px] text-slate-400 font-mono bg-slate-950/50 p-2 rounded-lg border border-slate-900/40 leading-relaxed">
-                          {aiSuggestions.seoDescription}
-                        </p>
-                      </div>
-
-                      {/* Calculated Timeline info */}
-                      <div className="flex items-center justify-between bg-slate-950/80 p-2 rounded-lg border border-slate-850/60 text-[9px] font-mono">
-                        <span className="text-slate-500">Suggested Timeline:</span>
-                        <strong className="text-emerald-400">{aiSuggestions.timelineDays} Days (Due Date set to {assignerDueDate})</strong>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-850/60">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAiSuggestions(null);
-                            setShowAiSuggestions(false);
-                            addLog("AI System: Suggestions cleared", "info");
-                          }}
-                          className="text-[9px] font-mono font-bold text-rose-400 hover:text-rose-300 cursor-pointer"
-                        >
-                          ✕ Discard Suggestions
-                        </button>
-                        <span className="text-[8px] text-emerald-400 font-mono italic flex items-center gap-0.5">
-                          ✓ Auto-Linked to Form
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Role Selector dropdown */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Assignee Role / Staff
-                    </label>
-                    <select
-                      value={assignerRole}
-                      onChange={(e) => setAssignerRole(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg p-2.5 text-xs text-white outline-none cursor-pointer transition-all font-sans"
-                    >
-                      <option value="Designer">Designer</option>
-                      <option value="Editor">Editor</option>
-                      <option value="Developer">Developer</option>
-                      <option value="SEO Expert">SEO Expert</option>
-                      <option value="Marketing Executive">Marketing Executive</option>
-                      <option value="Photographer">Photographer</option>
-                      <option value="Videographer">Videographer</option>
-                      <option value="Content Writer">Content Writer</option>
-                    </select>
-                  </div>
-
-                  {/* Priority and Due Date in a grid */}
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                        Priority Level
-                      </label>
-                      <select
-                        value={assignerPriority}
-                        onChange={(e) => setAssignerPriority(e.target.value as any)}
-                        className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg p-2.5 text-xs text-white outline-none cursor-pointer transition-all font-mono"
-                      >
-                        <option value="High">🔴 High</option>
-                        <option value="Medium">🟡 Medium</option>
-                        <option value="Low">🟢 Low</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                        Target Due Date
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={assignerDueDate}
-                        onChange={(e) => setAssignerDueDate(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg p-2.5 text-xs text-white outline-none cursor-pointer transition-all font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tags / SEO Keywords input field with Optimize with AI button */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Tags / SEO Keywords
-                      </label>
-                      <button
-                        type="button"
-                        disabled={isOptimizingTags || !assignerTaskName.trim()}
-                        onClick={handleOptimizeTags}
-                        className={`text-[9px] font-bold uppercase font-mono px-2 py-0.5 rounded flex items-center gap-1 transition-all cursor-pointer ${
-                          assignerTaskName.trim()
-                            ? 'bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-900/60'
-                            : 'bg-slate-900 text-slate-600 border border-slate-850 cursor-not-allowed'
-                        }`}
-                      >
-                        <Sparkles className={`w-3.5 h-3.5 ${isOptimizingTags ? 'animate-spin' : ''}`} />
-                        {isOptimizingTags ? 'Optimizing...' : 'Optimize with AI'}
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      value={assignerTags}
-                      onChange={(e) => setAssignerTags(e.target.value)}
-                      placeholder="e.g. #marketing, #seo, carousel, instatip"
-                      className="w-full bg-slate-950 border border-slate-850 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg p-2.5 text-xs text-white placeholder-slate-700 outline-none transition-all font-mono"
-                    />
-                  </div>
-
-                  {/* Google Workspace Connection Checkbox */}
-                  <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-850/80 space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={assignerGoogleSync}
-                        onChange={(e) => setAssignerGoogleSync(e.target.checked)}
-                        className="rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-950 cursor-pointer h-4 w-4"
-                      />
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wide">Sync with Google Calendar</span>
-                    </label>
-                    <p className="text-[9px] text-slate-500 leading-relaxed font-mono">
-                      {localStorage.getItem('swanaya_google_oauth_linked') === 'true' 
-                        ? '✅ Google Account (aadithyanmmenon@gmail.com) is authenticated. Direct calendar entries will be created.' 
-                        : '⚠️ Google Workspace is currently disconnected. Go to the Home Page to authenticate Google OAuth first.'}
-                    </p>
-                  </div>
-
-                  {/* "Assign" Button */}
-                  <button
-                    type="submit"
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg text-xs shadow-lg shadow-emerald-500/10 cursor-pointer transition-all flex items-center justify-center gap-1.5 hover:shadow-emerald-500/25 active:scale-[0.98]"
-                  >
-                    <ClipboardList className="w-4 h-4" /> Assign Campaign Task
-                  </button>
-                </form>
-
-                <div className="bg-slate-900/40 border border-slate-850/60 rounded-xl p-3 text-[10px] text-slate-500 leading-relaxed font-mono">
-                  <span className="font-bold text-slate-400">Automated Integration:</span> Tasks assigned here feed live interactive pipelines, log activity metrics automatically, and accept binary attachment drops.
-                </div>
-              </div>
-
-              {/* Right Column (Spans 2 cols on wide screens): Dynamic Table */}
-              <div className="lg:col-span-2 bg-slate-950/40 border border-slate-850/80 rounded-2xl p-5 flex flex-col justify-between">
-                
-                <div>
-                  <div className="flex items-center justify-between gap-4 border-b border-slate-850 pb-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Dynamic Scheduler Registry</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      Click Status badging to toggle Pending/Completed states
-                    </span>
-                  </div>
-
-                  {visibleAssignedTasks.length === 0 ? (
-                    <div className="py-12 text-center border border-dashed border-slate-850 rounded-xl">
-                      <AlertCircle className="w-8 h-8 text-slate-700 mx-auto mb-2.5" />
-                      <p className="text-xs text-slate-400 font-semibold">No assigned campaign tasks found</p>
-                      <p className="text-[10px] text-slate-600 mt-1">Fill out the left form to schedule custom campaign tasks.</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-850/60 text-[9px] text-slate-500 uppercase tracking-widest font-mono">
-                            <th className="pb-2.5 font-bold">Task Details</th>
-                            <th className="pb-2.5 font-bold">Scope</th>
-                            <th className="pb-2.5 font-bold">Due Date</th>
-                            <th className="pb-2.5 font-bold">Status</th>
-                            <th className="pb-2.5 font-bold">File Upload</th>
-                            <th className="pb-2.5 text-right font-bold">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-900/60">
-                          {visibleAssignedTasks.map((task) => (
-                            <React.Fragment key={task.id}>
-                              <tr className="group hover:bg-slate-900/30 transition-colors">
-                                {/* Task Details & Assignee */}
-                                <td className="py-3 pr-2">
-                                  <div className="space-y-1.5 max-w-[200px] sm:max-w-[240px]">
-                                    {/* Badges metadata list */}
-                                    <div className="flex flex-wrap gap-1">
-                                      {task.priority && (
-                                        <span className={`text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
-                                          task.priority === 'High'
-                                            ? 'bg-rose-950/60 text-rose-400 border-rose-900/40'
-                                            : task.priority === 'Medium'
-                                              ? 'bg-amber-950/60 text-amber-400 border-amber-900/40'
-                                              : 'bg-emerald-950/60 text-emerald-400 border-emerald-900/40'
-                                        }`}>
-                                          {task.priority} Priority
-                                        </span>
-                                      )}
-                                      {task.role && (
-                                        <span className="bg-indigo-950/60 text-indigo-300 border border-indigo-900/20 text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded">
-                                          👤 {task.role}
-                                        </span>
-                                      )}
-                                      {task.googleSynced && (
-                                        <span className="bg-sky-950/60 text-sky-400 border border-sky-900/20 text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Synced with Google Calendar API">
-                                          <svg className="w-2.5 h-2.5 text-sky-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 6.033 1 12.24 12.24 1 12.24s5.033 11.24 11.24 11.24c6.478 0 10.793-4.537 10.793-10.985 0-.737-.08-1.3-.175-1.855H12.24z" />
-                                          </svg>
-                                          G-Cal
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <p className="text-xs font-bold text-white tracking-tight font-display line-clamp-2">
-                                      {task.name}
-                                    </p>
-
-                                    {task.tags && (
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        {task.tags.split(',').map((tag, idx) => (
-                                          <span key={idx} className="bg-slate-900 border border-slate-800 text-slate-400 text-[8px] font-mono px-1.5 py-0.5 rounded">
-                                            {tag.trim()}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                    
-                                    {task.fileName ? (
-                                      <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-1.5 bg-emerald-950/30 border border-emerald-900/20 px-2 py-0.5 rounded text-[9px] text-emerald-300 w-fit font-mono" title="Binary Attachment Registered">
-                                          <Paperclip className="w-2.5 h-2.5 shrink-0" />
-                                          <span className="truncate max-w-[110px]">{task.fileName}</span>
-                                          <span className="text-emerald-500 font-semibold shrink-0">({task.fileSize})</span>
-                                        </div>
-                                        {task.fileUrl && (
-                                          <a
-                                            href={task.fileUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[9px] text-indigo-400 hover:text-indigo-300 hover:underline font-mono flex items-center gap-1 mt-0.5"
-                                          >
-                                            <span>🔗</span> Open Drive File
-                                          </a>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <p className="text-[9px] text-slate-600 italic">No attachments dropped</p>
-                                    )}
-
-                                    {/* Action toggle for AI SEO suite */}
-                                    {task.aiDescription && (
-                                      <div className="pt-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                          className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase transition-all cursor-pointer flex items-center gap-1 border ${
-                                            expandedTaskId === task.id 
-                                              ? 'bg-indigo-600 border-indigo-500 text-white shadow-md' 
-                                              : 'bg-indigo-950/40 border-indigo-900/35 text-indigo-300 hover:bg-indigo-900/40 hover:text-white'
-                                          }`}
-                                        >
-                                          <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
-                                          {expandedTaskId === task.id ? 'Hide SEO Suite' : 'View AI SEO Suite'}
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-
-                                {/* Scope / Period */}
-                                <td className="py-3 pr-2">
-                                  <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded ${
-                                    task.period === 'Monthly'
-                                      ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/20'
-                                      : 'bg-indigo-950/40 text-indigo-400 border border-indigo-900/20'
-                                  }`}>
-                                    {task.period}
-                                  </span>
-                                </td>
-
-                                {/* Due Date */}
-                                <td className="py-3 pr-2 whitespace-nowrap">
-                                  <span className="text-[10px] font-mono font-medium text-slate-400 flex items-center gap-1">
-                                    <Calendar className="w-3 h-3 text-slate-500" />
-                                    {task.dueDate}
-                                  </span>
-                                </td>
-
-                                {/* Status Toggle Badge */}
-                                <td className="py-3 pr-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleTaskStatus(task.id)}
-                                    className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-all cursor-pointer flex items-center gap-1 ${
-                                      task.status === 'Completed'
-                                        ? 'bg-emerald-950/50 border border-emerald-900/30 text-emerald-400'
-                                        : 'bg-amber-950/50 border border-amber-900/30 text-amber-400 animate-pulse'
-                                    }`}
-                                    title="Click to toggle completion status"
-                                  >
-                                    {task.status === 'Completed' ? (
-                                      <>
-                                        <CheckCircle className="w-2.5 h-2.5 shrink-0" />
-                                        Completed
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-                                        Pending
-                                      </>
-                                    )}
-                                  </button>
-                                </td>
-
-                                {/* File Upload Input */}
-                                <td className="py-3 pr-2">
-                                  <div className="flex flex-col sm:flex-row gap-1.5 items-start sm:items-center">
-                                    {/* Local File Upload Button */}
-                                    <div className="relative">
-                                      <label className="flex items-center gap-1 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-400 transition-colors cursor-pointer w-fit shadow active:scale-95">
-                                        <Paperclip className="w-3 h-3 text-slate-500" />
-                                        <span>{task.fileName ? 'Local' : 'Upload'}</span>
-                                        <input
-                                          type="file"
-                                          onChange={(e) => handleTaskFileUpload(task.id, e)}
-                                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                                        />
-                                      </label>
-                                    </div>
-                                    
-                                    {/* Google Picker Drive Button */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleTaskGooglePicker(task.id)}
-                                      className="flex items-center gap-1 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-mono text-slate-400 transition-colors cursor-pointer w-fit shadow active:scale-95"
-                                      title="Select resource from Google Drive"
-                                    >
-                                      <svg className="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M19.43 12.981L14.71 4.801c-.38-.66-1.06-1.06-1.85-1.06h-1.72c-.77 0-1.47.4-1.85 1.06L4.57 12.981c-.38.66-.38 1.47 0 2.13l2.36 4.091c.38.66 1.08 1.06 1.85 1.06h9.44c.77 0 1.47-.4 1.85-1.06l2.36-4.091c.38-.66.38-1.47 0-2.13zM9.43 17.5c-.38 0-.74-.21-.93-.54L6.14 12.87c-.19-.33-.19-.74 0-1.07l2.36-4.09c.19-.33.55-.54.93-.54h4.72c.38 0 .74.21.93.54l2.36 4.09c.19.33.19.74 0 1.07l-2.36 4.09c-.19.33-.55.54-.93.54H9.43z" />
-                                      </svg>
-                                      <span>Drive</span>
-                                    </button>
-                                  </div>
-                                </td>
-
-                                {/* Actions */}
-                                <td className="py-3 text-right">
-                                  <button
-                                    onClick={() => handleDeleteAssignedTask(task.id)}
-                                    className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900/80 transition-all cursor-pointer inline-flex items-center"
-                                    title="Delete Task Row"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-
-                              {/* Expandable SEO Co-Pilot suite details row */}
-                              {expandedTaskId === task.id && (
-                                <tr className="bg-slate-950/40 hover:bg-transparent">
-                                  <td colSpan={6} className="p-3.5 border-t border-b border-indigo-950/30">
-                                    <div className="bg-slate-950/90 border border-indigo-500/20 rounded-xl p-3.5 space-y-3">
-                                      
-                                      <div className="flex items-center justify-between border-b border-slate-900 pb-2">
-                                        <div className="flex items-center gap-1.5">
-                                          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                                          <span className="text-[10px] font-bold text-white uppercase tracking-wider font-mono">Swanaya SEO Co-Pilot Report</span>
-                                        </div>
-                                        <span className="text-[8px] text-slate-500 font-mono">100% SEO OPTIMIZED SUITE</span>
-                                      </div>
-
-                                      {task.aiDescription && (
-                                        <div className="space-y-1 text-left">
-                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">🎯 Execution Plan & Copy Blueprint</span>
-                                          <p className="text-[10px] text-slate-300 leading-relaxed font-sans whitespace-pre-wrap bg-slate-900/30 p-2.5 rounded-lg border border-slate-900/60">
-                                            {task.aiDescription}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                                        {task.aiTags && task.aiTags.length > 0 && (
-                                          <div className="space-y-1 text-left">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">🏷️ Social Campaign Tags</span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                              {task.aiTags.map((tag, idx) => (
-                                                <span key={idx} className="bg-indigo-950/70 border border-indigo-900/30 text-indigo-300 text-[9px] font-mono px-2 py-0.5 rounded">
-                                                  {tag.startsWith('#') ? tag : `#${tag}`}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {task.aiSeoKeywords && task.aiSeoKeywords.length > 0 && (
-                                          <div className="space-y-1 text-left">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">📈 Target SEO Keywords</span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                              {task.aiSeoKeywords.map((kw, idx) => (
-                                                <span key={idx} className="bg-emerald-950/70 border border-emerald-900/30 text-emerald-400 text-[9px] font-mono px-2 py-0.5 rounded">
-                                                  {kw}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {task.aiSeoDescription && (
-                                        <div className="space-y-1 text-left">
-                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">✍️ Search Meta Description / Post Hook</span>
-                                          <p className="text-[9.5px] text-slate-400 leading-relaxed font-mono bg-slate-900/40 p-2.5 rounded-lg border border-slate-900/60">
-                                            {task.aiSeoDescription}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-900/60 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                  <span>Logged-in Operator: <strong className="text-slate-400">{currentUser}</strong></span>
-                  <span>Auto-saved to local node engine storage</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        )}
 
         {/* =========================================================================
             TAB 6: INSTAGRAM HUB (INTERACTIVE SIMULATOR & HASHTAG OPTIMIZER)
@@ -2795,6 +2450,7 @@ export default function ContentPlanner({
                     <option value="In Progress">In Progress</option>
                     <option value="Review">Review</option>
                     <option value="Completed">Completed</option>
+                    <option value="Live">Live</option>
                   </select>
                 </div>
 
@@ -2816,6 +2472,399 @@ export default function ContentPlanner({
                 </div>
 
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* =========================================================================
+          INTERACTIVE 3D MULTI-VIEW POST PREVIEW & LIVE STATUS GATEWAY MODAL
+          ========================================================================= */}
+      <AnimatePresence>
+        {viewingPostPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.93, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93, y: 30 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="bg-slate-900 border border-slate-800/80 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto md:h-[620px] max-h-[90vh]"
+            >
+              {/* LEFT COLUMN: 3D Simulator Space */}
+              <div className="flex-1 bg-slate-950 p-5 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800 relative overflow-hidden group">
+                {/* 3D Space Grids / Background details */}
+                <div className="absolute inset-0 bg-[radial-gradient(#1e1b4b_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
+                
+                {/* Header of 3D Panel */}
+                <div className="z-10 flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-indigo-500 animate-pulse" />
+                    <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest">
+                      Multi-3D Simulation Viewport
+                    </span>
+                  </div>
+                  
+                  {/* Mockup template selector tabs */}
+                  <div className="flex gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-slate-800 text-[9px] font-mono font-bold">
+                    {(['smartphone', 'cinema', 'hologram', 'billboard'] as const).map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => {
+                          setMulti3dModel(mode);
+                          addLog(`Interactive Node: Simulated 3D template changed to [${mode.toUpperCase()}]`, 'info');
+                        }}
+                        className={`px-2 py-1 rounded transition-all capitalize cursor-pointer ${
+                          multi3dModel === mode
+                            ? 'bg-indigo-600 text-white shadow'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* THE 3D VIEW STAGE */}
+                <div className="flex-1 flex items-center justify-center relative p-4" style={{ perspective: '1200px' }}>
+                  
+                  {/* Holographic glowing ray light cone */}
+                  {multi3dModel === 'hologram' && (
+                    <div 
+                      className="absolute bottom-4 w-40 h-72 bg-gradient-to-t from-indigo-500/20 via-indigo-500/5 to-transparent rounded-full blur-xl origin-bottom pointer-events-none animate-pulse"
+                      style={{
+                        transform: `rotateY(${multi3dRotation}deg) scale(${multi3dGlow / 40})`,
+                        transition: 'transform 0.1s ease-out'
+                      }}
+                    />
+                  )}
+
+                  {/* Dynamic perspective container */}
+                  <motion.div
+                    animate={{
+                      rotateY: multi3dRotation,
+                      rotateX: multi3dModel === 'cinema' ? 10 : 15,
+                      z: multi3dModel === 'smartphone' ? 50 : 0
+                    }}
+                    transition={{ type: 'spring', stiffness: 80, damping: 20 }}
+                    style={{
+                      transformStyle: 'preserve-3d',
+                    }}
+                    className={`relative transition-all shadow-2xl ${
+                      multi3dModel === 'smartphone' ? 'w-52 h-[380px] bg-slate-900 border-4 border-slate-800 rounded-[30px] p-2 flex flex-col justify-between' :
+                      multi3dModel === 'cinema' ? 'w-[320px] h-[190px] bg-slate-900 border-8 border-slate-800 rounded-lg p-1' :
+                      multi3dModel === 'hologram' ? 'w-56 h-[320px] bg-indigo-950/20 border-2 border-indigo-500/30 rounded-3xl p-3 text-center border-dashed backdrop-blur-sm' :
+                      'w-[280px] h-[220px] bg-slate-900 border-4 border-slate-700 rounded p-1.5 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]'
+                    }`}
+                  >
+                    {/* Inner gloss glow */}
+                    <div 
+                      className="absolute inset-0 rounded-lg opacity-40 pointer-events-none z-30" 
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 60%)',
+                        boxShadow: `0 0 ${multi3dGlow}px rgba(99, 102, 241, 0.2)`
+                      }}
+                    />
+
+                    {/* Smartphone notch */}
+                    {multi3dModel === 'smartphone' && (
+                      <div className="w-20 h-4 bg-slate-800 rounded-full mx-auto mb-2 shrink-0 z-30 relative" />
+                    )}
+
+                    {/* ACTIVE SCREEN PIPELINE CONTENT */}
+                    <div className="flex-1 w-full h-full rounded-md overflow-hidden bg-slate-950 border border-slate-800 relative flex flex-col justify-between">
+                      {/* Video clip player */}
+                      {viewingPostPlan.videoUrl ? (
+                        <video
+                          key={viewingPostPlan.videoUrl}
+                          src={viewingPostPlan.videoUrl}
+                          controls
+                          autoPlay
+                          muted
+                          loop
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover rounded"
+                        />
+                      ) : (
+                        /* Polished interactive placeholder visual */
+                        <div className="absolute inset-0 flex flex-col justify-between p-3.5 text-left bg-gradient-to-b from-indigo-950/40 via-slate-950 to-slate-950">
+                          {/* Top header mockup */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[8px] text-indigo-400">S</span>
+                            <div>
+                              <p className="text-[8px] text-white font-bold leading-none">@swanaya_enterprise</p>
+                              <p className="text-[6.5px] text-slate-500 font-mono">2026 Sandbox Server</p>
+                            </div>
+                          </div>
+
+                          {/* Center Graphic */}
+                          <div className="my-auto flex flex-col items-center text-center space-y-1.5 p-2">
+                            <div className="h-10 w-10 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center relative">
+                              <Rotate3d className="w-5 h-5 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+                              <span className="absolute inset-0 rounded-full border border-indigo-500/10 animate-ping" />
+                            </div>
+                            <div>
+                              <p className="text-[9px] font-bold text-indigo-300 uppercase tracking-wider">3D Media Emulator</p>
+                              <p className="text-[7.5px] text-slate-500 max-w-[140px] leading-tight">No active video clip compiled. Upload a video file on the right panel.</p>
+                            </div>
+                          </div>
+
+                          {/* Footer engagement logs */}
+                          <div className="space-y-1 mt-auto">
+                            <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+                              <div className="h-full bg-indigo-500 animate-pulse" style={{ width: '65%' }} />
+                            </div>
+                            <div className="flex items-center justify-between text-[6.5px] font-mono text-slate-600">
+                              <span>AUDIO INGRESS</span>
+                              <span>STABLE SYNC</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Overlap hologram beams */}
+                      {multi3dModel === 'hologram' && (
+                        <div className="absolute inset-0 bg-indigo-500/5 mix-blend-color-dodge pointer-events-none z-20" />
+                      )}
+                    </div>
+
+                    {/* Billboard Pole */}
+                    {multi3dModel === 'billboard' && (
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-4 h-24 bg-gradient-to-r from-slate-800 to-slate-900 border-x border-slate-700/50 z-[-1]" />
+                    )}
+                  </motion.div>
+                </div>
+
+                {/* SLIDER ADJUSTERS FOR 3D ENGINE */}
+                <div className="z-10 bg-slate-900/70 border border-slate-800/80 rounded-xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                    <span className="flex items-center gap-1"><Rotate3d className="w-3.5 h-3.5 text-indigo-400" /> Adjust perspective</span>
+                    <span>Yaw: {multi3dRotation}°</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {/* Slide 1: Yaw */}
+                    <div>
+                      <span className="block text-[8px] font-mono text-slate-500 uppercase">Yaw Rotation</span>
+                      <input
+                        type="range"
+                        min="-60"
+                        max="60"
+                        value={multi3dRotation}
+                        onChange={(e) => setMulti3dRotation(parseInt(e.target.value))}
+                        className="w-full accent-indigo-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer mt-1"
+                      />
+                    </div>
+                    {/* Slide 2: Glow */}
+                    <div>
+                      <span className="block text-[8px] font-mono text-slate-500 uppercase">Neon Glow</span>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={multi3dGlow}
+                        onChange={(e) => setMulti3dGlow(parseInt(e.target.value))}
+                        className="w-full accent-indigo-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer mt-1"
+                      />
+                    </div>
+                    {/* Slide 3: Perspective */}
+                    <div>
+                      <span className="block text-[8px] font-mono text-slate-500 uppercase">Focal Depth</span>
+                      <input
+                        type="range"
+                        min="400"
+                        max="1500"
+                        value={multi3dPerspective}
+                        onChange={(e) => setMulti3dPerspective(parseInt(e.target.value))}
+                        className="w-full accent-indigo-500 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* RIGHT COLUMN: Metadata & Gateway Status Change */}
+              <div className="w-full md:w-[380px] p-6 flex flex-col justify-between overflow-y-auto bg-slate-900 h-full">
+                
+                {/* Header context */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest">
+                        Interactive Campaign Node
+                      </span>
+                      <h3 className="text-base font-extrabold text-white font-display mt-0.5">{viewingPostPlan.title}</h3>
+                    </div>
+                    <button
+                      onClick={() => setViewingPostPlan(null)}
+                      className="text-slate-500 hover:text-white transition-colors p-1.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Badges row */}
+                  <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                    <span className="px-2 py-0.5 bg-slate-950 border border-slate-800 rounded text-slate-300 font-bold">
+                      {viewingPostPlan.platform}
+                    </span>
+                    <span className="px-2 py-0.5 bg-indigo-950/40 border border-indigo-900/30 rounded text-indigo-300">
+                      {viewingPostPlan.type}
+                    </span>
+                    <span className="px-2 py-0.5 bg-slate-950 border border-slate-800 rounded text-slate-400">
+                      Day {viewingPostPlan.day} • {viewingPostPlan.month}
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-1">
+                    <span className="block text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider">Campaign Summary</span>
+                    <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/40 border border-slate-950 p-3 rounded-xl">
+                      {viewingPostPlan.description || 'No description assigned for this content node.'}
+                    </p>
+                  </div>
+
+                  {/* Upload video file inside modal if needed */}
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-3 text-left">
+                    <span className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                      Video Media Controller
+                    </span>
+                    {viewingPostPlan.videoUrl ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-850 p-2 rounded-lg">
+                          <Video className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <div className="overflow-hidden">
+                            <p className="text-[10px] font-medium text-white truncate max-w-[200px]">{viewingPostPlan.videoName || 'Simulated Video'}</p>
+                            <p className="text-[8px] text-slate-500 font-mono">{viewingPostPlan.videoSize || 'N/A MB'}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <label className="flex-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 py-1.5 px-3 rounded text-[10px] font-semibold text-center cursor-pointer transition-colors">
+                            Change File
+                            <input
+                              type="file"
+                              accept="video/*"
+                              className="hidden"
+                              onChange={handleVideoUploadInModal}
+                            />
+                          </label>
+                          <button
+                            onClick={handleVideoPickerInModal}
+                            className="bg-indigo-600/15 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 py-1.5 px-3 rounded text-[10px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <FolderOpen className="w-3 h-3" /> Drive
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-[10px] text-slate-500 leading-tight">No video file associated with this post. Upload or select one below to preview live.</p>
+                        <div className="flex gap-2">
+                          <label className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-1.5 px-3 rounded text-[10px] font-bold text-center cursor-pointer transition-all shadow-md flex items-center justify-center gap-1">
+                            <UploadCloud className="w-3.5 h-3.5" /> Upload Video
+                            <input
+                              type="file"
+                              accept="video/*"
+                              className="hidden"
+                              onChange={handleVideoUploadInModal}
+                            />
+                          </label>
+                          <button
+                            onClick={handleVideoPickerInModal}
+                            className="bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 py-1.5 px-3 rounded text-[10px] font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <FolderOpen className="w-3.5 h-3.5" /> Drive
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Workflow Gateway Control - LIVE STATE CHANGE */}
+                <div className="pt-4 border-t border-slate-800/80 space-y-4 text-left">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                      Workflow Pipeline Gateway
+                    </label>
+                    <select
+                      value={viewingPostPlan.status}
+                      onChange={(e) => handleStatusChange(e.target.value as any)}
+                      className={`w-full text-xs font-bold py-2.5 px-3 rounded-lg outline-none cursor-pointer border ${
+                        viewingPostPlan.status === 'Completed' ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400' :
+                        viewingPostPlan.status === 'In Progress' ? 'bg-indigo-950/40 border-indigo-500/40 text-indigo-400' :
+                        viewingPostPlan.status === 'Review' ? 'bg-amber-950/40 border-amber-500/40 text-amber-400' :
+                        viewingPostPlan.status === 'Live' ? 'bg-rose-950/60 border-rose-500/60 text-rose-300 shadow-md shadow-rose-500/5' :
+                        'bg-slate-950 border-slate-800 text-slate-300'
+                      }`}
+                    >
+                      <option value="Planned">Planned</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Review">Review</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Live">Live</option>
+                    </select>
+                  </div>
+
+                  {/* Active Live Streaming Telemetry Dashboard */}
+                  {viewingPostPlan.status === 'Live' ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-rose-950/20 border border-rose-500/20 p-4 rounded-xl space-y-3"
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-mono text-rose-400">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />
+                          LIVE SIGNAL BEACON ACTIVE
+                        </span>
+                        <span>Ingress: Stable</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-900">
+                          <p className="text-[7.5px] font-mono text-slate-500 uppercase">Live Audience</p>
+                          <p className="text-sm font-extrabold text-white mt-0.5">
+                            {Math.floor(Math.sin(Date.now() / 10000) * 120) + 1480} <span className="text-[9px] font-normal text-rose-500">●</span>
+                          </p>
+                        </div>
+                        <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-900">
+                          <p className="text-[7.5px] font-mono text-slate-500 uppercase">Simulated Engagement</p>
+                          <p className="text-sm font-extrabold text-emerald-400 mt-0.5">92.4%</p>
+                        </div>
+                      </div>
+
+                      {/* Animated frequency bar visualizer representing active streaming data */}
+                      <div className="flex items-end justify-between h-4 px-1 bg-slate-950 rounded-md overflow-hidden pt-1">
+                        {Array.from({ length: 18 }).map((_, i) => (
+                          <span 
+                            key={i} 
+                            className="w-1 bg-rose-500 rounded-t-sm origin-bottom animate-pulse"
+                            style={{
+                              height: `${Math.floor(Math.random() * 80) + 20}%`,
+                              animationDelay: `${i * 0.05}s`
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className="text-[10px] text-slate-500 font-mono text-center py-2 italic border border-dashed border-slate-800 rounded-xl">
+                      Status set to [{viewingPostPlan.status}]. Toggle status to "Live" to deploy simulated interactive telemetry beacons.
+                    </div>
+                  )}
+
+                  {/* Dismiss buttons */}
+                  <button
+                    onClick={() => setViewingPostPlan(null)}
+                    className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs cursor-pointer transition-colors"
+                  >
+                    Close View Node
+                  </button>
+                </div>
+
+              </div>
             </motion.div>
           </div>
         )}
