@@ -3,7 +3,7 @@ import {
   Sparkles, Flame, BarChart3, TrendingUp, Search, Calendar, Shield,
   ArrowRight, MessageSquare, Zap, Target, Database, Terminal, Cpu,
   ChevronDown, ChevronUp, ExternalLink, Mail, Globe, Laptop, HelpCircle,
-  Play, Users, Check
+  Play, Users, Check, Star, User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,6 +16,50 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
   const [activeDemo, setActiveDemo] = useState<'roi' | 'seo' | 'status'>('roi');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [experiences, setExperiences] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem('swanaya_user_experiences');
+      if (saved) {
+        setExperiences(JSON.parse(saved));
+      } else {
+        const defaultExperiences = [
+          {
+            id: 'exp_1',
+            username: 'aadithyan',
+            designation: 'Director & Marketing HOD',
+            rating: 5,
+            title: 'Unbelievable Operational Velocity',
+            text: 'Swanaya Enterprises has completely re-engineered how we plan production campaigns. Moving from manual sheets to the 3D Content Planner and automatic SEO tags has cut campaign deployment times by over 80%.',
+            date: 'Jul 12, 2026'
+          },
+          {
+            id: 'exp_2',
+            username: 'each',
+            designation: 'System Administrator',
+            rating: 5,
+            title: 'Bulletproof Authentication and Auditing',
+            text: 'As an admin, the capability to see real-time workspace logins, review security logs, and immediately dispatch alerts directly to employee dashboards has elevated our communication and compliance to enterprise grades.',
+            date: 'Jul 14, 2026'
+          },
+          {
+            id: 'exp_3',
+            username: 'JohnMedia',
+            designation: 'Senior Video Editor',
+            rating: 5,
+            title: 'Staging Large Files Is Seamless',
+            text: 'I upload multiple draft videos directly into the Campaign view node to check compliance across mobile and billboards. Visual previews are perfectly isolated and responsive.',
+            date: 'Jul 15, 2026'
+          }
+        ];
+        localStorage.setItem('swanaya_user_experiences', JSON.stringify(defaultExperiences));
+        setExperiences(defaultExperiences);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
   
   // ROI Forecaster state
   const [postsPerWeek, setPostsPerWeek] = useState(4);
@@ -641,72 +685,140 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
         </div>
       </div>
 
-      {/* 4. FAQ Section */}
-      <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 md:p-8 space-y-6 text-left shadow-xl">
-        <div className="border-b border-slate-800/60 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
-              <HelpCircle className="w-5 h-5" />
-            </span>
-            <h3 className="text-lg font-extrabold text-white uppercase tracking-wider font-mono">FAQ Node Matrix</h3>
+      {/* 4. FAQ & Operator Reviews Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left: FAQ Node Matrix */}
+        <div className="lg:col-span-7 bg-slate-900/30 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 md:p-8 space-y-6 text-left shadow-xl">
+          <div className="border-b border-slate-800/60 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                <HelpCircle className="w-5 h-5" />
+              </span>
+              <h3 className="text-lg font-extrabold text-white uppercase tracking-wider font-mono">FAQ Node Matrix</h3>
+            </div>
+            <p className="text-xs text-slate-400">Frequently Asked Questions & Operations Manual</p>
           </div>
-          <p className="text-xs text-slate-400">Frequently Asked Questions & Operations Manual</p>
+
+          <div className="space-y-3">
+            {[
+              {
+                q: "What is Swanaya Media Enterprises?",
+                a: "Swanaya Media Enterprises is an advanced digital production, brand building, and software automation department that builds bespoke corporate campaign planners, secure employee tracking layers, and high-throughput advertising structures."
+              },
+              {
+                q: "What is Swanaya AdsPortal and where is it hosted?",
+                a: "The Swanaya AdsPortal is our flagship campaign analytics and active advertising node, fully accessible online at https://swanaya-adsportal.netlify.app. It allows brand oversight and campaign tracking in high fidelity."
+              },
+              {
+                q: "How secure is the platform operator framework?",
+                a: "All operator accounts, daily attendance check-ins, and draft schedules are secured server-side via persistent Google Firebase (Firestore and Authentication) architecture or localized backup registries."
+              },
+              {
+                q: "Who monitors and monitors the technology stack?",
+                a: "All systems, 3D canvases, and automation nodes are engineered, monitored, and audited under the leadership of Aadithyan M Menon, Director and HOD of Marketing and Productions at Swanaya Media Enterprises."
+              },
+              {
+                q: "Can I manage multiple brand platform profiles at once?",
+                a: "Absolutely. Our Format & Platform Selector supports native formats for Instagram Reels/Stories/Carousels, YouTube, Google Ads, Meta Ads, LinkedIn, and Facebook with automatic algorithmic configurations."
+              }
+            ].map((faq, idx) => {
+              const isOpen = activeFaq === idx;
+              return (
+                <div 
+                  key={idx} 
+                  className="bg-slate-950/40 border border-slate-850 rounded-xl overflow-hidden transition-all duration-300"
+                >
+                  <button
+                    onClick={() => setActiveFaq(isOpen ? null : idx)}
+                    className="w-full px-5 py-4 flex items-center justify-between text-left text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <span className="font-mono text-indigo-400 mr-2">Q{idx + 1}. {faq.q}</span>
+                    {isOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="border-t border-slate-900 bg-slate-950/20"
+                      >
+                        <p className="p-5 text-xs text-slate-400 leading-relaxed font-sans border-l-2 border-indigo-500">
+                          {faq.a}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="space-y-3">
-          {[
-            {
-              q: "What is Swanaya Media Enterprises?",
-              a: "Swanaya Media Enterprises is an advanced digital production, brand building, and software automation department that builds bespoke corporate campaign planners, secure employee tracking layers, and high-throughput advertising structures."
-            },
-            {
-              q: "What is Swanaya AdsPortal and where is it hosted?",
-              a: "The Swanaya AdsPortal is our flagship campaign analytics and active advertising node, fully accessible online at https://swanaya-adsportal.netlify.app. It allows brand oversight and campaign tracking in high fidelity."
-            },
-            {
-              q: "How secure is the platform operator framework?",
-              a: "All operator accounts, daily attendance check-ins, and draft schedules are secured server-side via persistent Google Firebase (Firestore and Authentication) architecture or localized backup registries."
-            },
-            {
-              q: "Who monitors and monitors the technology stack?",
-              a: "All systems, 3D canvases, and automation nodes are engineered, monitored, and audited under the leadership of Aadithyan M Menon, Director and HOD of Marketing and Productions at Swanaya Media Enterprises."
-            },
-            {
-              q: "Can I manage multiple brand platform profiles at once?",
-              a: "Absolutely. Our Format & Platform Selector supports native formats for Instagram Reels/Stories/Carousels, YouTube, Google Ads, Meta Ads, LinkedIn, and Facebook with automatic algorithmic configurations."
-            }
-          ].map((faq, idx) => {
-            const isOpen = activeFaq === idx;
-            return (
-              <div 
-                key={idx} 
-                className="bg-slate-950/40 border border-slate-850 rounded-xl overflow-hidden transition-all duration-300"
-              >
-                <button
-                  onClick={() => setActiveFaq(isOpen ? null : idx)}
-                  className="w-full px-5 py-4 flex items-center justify-between text-left text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
-                >
-                  <span className="font-mono text-indigo-400 mr-2">Q{idx + 1}. {faq.q}</span>
-                  {isOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
-                </button>
-                <AnimatePresence initial={false}>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="border-t border-slate-900 bg-slate-950/20"
-                    >
-                      <p className="p-5 text-xs text-slate-400 leading-relaxed font-sans border-l-2 border-indigo-500">
-                        {faq.a}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+        {/* Right: Operator Testimonials & Experience Matrix */}
+        <div className="lg:col-span-5 bg-slate-900/30 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 md:p-8 space-y-6 text-left shadow-xl flex flex-col justify-between">
+          <div className="space-y-6">
+            <div className="border-b border-slate-800/60 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                  <Star className="w-5 h-5 fill-amber-500/20" />
+                </span>
+                <h3 className="text-lg font-extrabold text-white uppercase tracking-wider font-mono">Workspace Pulse</h3>
               </div>
-            );
-          })}
+              <p className="text-xs text-slate-400">Verified reviews and feedback from active administrators & creators</p>
+            </div>
+
+            <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+              {experiences.length > 0 ? (
+                experiences.map((exp) => (
+                  <div key={exp.id || exp.title} className="bg-slate-950/50 border border-slate-900 rounded-xl p-4 space-y-2.5 relative hover:border-slate-800 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                          <User className="w-3.5 h-3.5 text-indigo-400" />
+                        </div>
+                        <div>
+                          <span className="block text-xs font-bold text-slate-200">@{exp.username}</span>
+                          <span className="block text-[9px] text-indigo-400 font-mono font-medium">{exp.designation || 'Creator'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, sIdx) => (
+                          <Star 
+                            key={sIdx} 
+                            className={`w-3 h-3 ${sIdx < (exp.rating || 5) ? 'text-amber-400 fill-amber-400' : 'text-slate-800'}`} 
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-[11px] font-bold text-slate-100 font-mono tracking-tight">"{exp.title}"</h4>
+                      <p className="text-[10.5px] text-slate-400 leading-relaxed font-sans">{exp.text}</p>
+                    </div>
+                    <span className="block text-[8.5px] text-right text-slate-600 font-mono font-semibold">{exp.date || 'Active Session'}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-xs text-slate-500 font-mono">
+                  Loading active operator experiences...
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3.5 space-y-2">
+            <p className="text-[10px] text-slate-400 leading-normal">
+              Have user feedback or want to leave a testimonial? Operator accounts can submit and authorize reviews from the internal security and feedback module.
+            </p>
+            <button
+              onClick={onEnterPortal}
+              className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-[10px] uppercase font-mono tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-600/10"
+            >
+              <span>Login & Submit Review</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
 

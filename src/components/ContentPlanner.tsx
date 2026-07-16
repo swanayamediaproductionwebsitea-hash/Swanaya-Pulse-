@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Plus, Calendar, Film, Image, FileText, CheckCircle, Clock, Trash2, 
+  Plus, Calendar, Film, Image, FileText, CheckCircle, Clock, Trash2, Zap,
   Video, Eye, Play, X, UploadCloud, ChevronRight, BarChart3, AlertCircle, Sparkles, Filter, Edit2,
   ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send,
   List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle
@@ -492,6 +492,16 @@ export default function ContentPlanner({
   // Bidirectional Date Sync helpers
   const parseDateString = (dateStr: string) => {
     if (!dateStr) return { year: 2026, month: 'October', day: 15 };
+    // Try standard Date parsing first for accuracy
+    const cleanedStr = dateStr.replace(' ', 'T');
+    const dateObj = new Date(cleanedStr);
+    if (!isNaN(dateObj.getTime())) {
+      return {
+        year: dateObj.getFullYear(),
+        month: MONTHS[dateObj.getMonth()],
+        day: dateObj.getDate()
+      };
+    }
     const parts = dateStr.split('-');
     const y = parseInt(parts[0]) || 2026;
     const mIndex = (parseInt(parts[1]) || 10) - 1;
@@ -510,16 +520,62 @@ export default function ContentPlanner({
     return `${year}-${mStr}-${dStr}`;
   };
 
-  const [formDate, setFormDate] = useState(() => 
-    formatDateComponents(2026, MONTHS[new Date().getMonth()], new Date().getDate())
-  );
-
-  const handleDateChange = (val: string) => {
-    setFormDate(val);
-    const { month, day } = parseDateString(val);
-    setFormMonth(month);
-    setFormDay(day);
+  const formatPlanDateTime = (plan: ContentPlan) => {
+    const raw = plan.assignedDate || formatDateComponents(2026, plan.month, plan.day);
+    const cleaned = raw.replace(' ', 'T');
+    const dateObj = new Date(cleaned);
+    if (!isNaN(dateObj.getTime())) {
+      if (raw.includes('T') || raw.includes(' ')) {
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        return `${dateStr} @ ${timeStr}`;
+      }
+      return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return raw;
   };
+
+  const getInitialDateTimeString = () => {
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    return (new Date(now.getTime() - tzOffset)).toISOString().slice(0, 16);
+  };
+
+  const [formDateTime, setFormDateTime] = useState<string>(getInitialDateTimeString);
+
+  const ensureDateTimeString = (dateStr: string) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('T')) {
+      return dateStr;
+    }
+    if (dateStr.includes(' ')) {
+      return dateStr.replace(' ', 'T');
+    }
+    return `${dateStr}T12:00`;
+  };
+
+  const handleDateTimeChange = (val: string) => {
+    setFormDateTime(val);
+    const dateObj = new Date(val);
+    if (!isNaN(dateObj.getTime())) {
+      setFormMonth(MONTHS[dateObj.getMonth()]);
+      setFormDay(dateObj.getDate());
+    }
+  };
+
+  useEffect(() => {
+    // Sync formDateTime when formMonth or formDay change (e.g. clicked in calendar cell)
+    const currentMonthIndex = MONTHS.indexOf(formMonth);
+    const mStr = String(currentMonthIndex !== -1 ? currentMonthIndex + 1 : 10).padStart(2, '0');
+    const dStr = String(formDay).padStart(2, '0');
+    
+    const currentTime = formDateTime.split('T')[1] || '12:00';
+    const newDateTime = `2026-${mStr}-${dStr}T${currentTime}`;
+    
+    if (formDateTime.slice(0, 10) !== `2026-${mStr}-${dStr}`) {
+      setFormDateTime(newDateTime);
+    }
+  }, [formMonth, formDay]);
 
   // Editing modal states
   const [editingPlan, setEditingPlan] = useState<ContentPlan | null>(null);
@@ -534,7 +590,7 @@ export default function ContentPlanner({
     setEditingPlan(plan);
     setEditTitle(plan.title);
     setEditDescription(plan.description);
-    setEditDate(plan.assignedDate || formatDateComponents(2026, plan.month, plan.day));
+    setEditDate(ensureDateTimeString(plan.assignedDate || formatDateComponents(2026, plan.month, plan.day)));
     setEditPlatform(plan.platform);
     setEditType(plan.type);
     setEditStatus(plan.status);
@@ -673,7 +729,7 @@ export default function ContentPlanner({
       month: formMonth,
       day: formDay,
       year: 2026,
-      assignedDate: formDate,
+      assignedDate: formDateTime,
       platform: formPlatform,
       status: formStatus,
       videoUrl: uploadedVideo?.url,
@@ -729,6 +785,25 @@ export default function ContentPlanner({
               margin: 0;
               padding: 40px;
               line-height: 1.5;
+              position: relative;
+            }
+
+            /* Faint company watermark in the background of printed page */
+            body::before {
+              content: "SWANAYA MEDIA ENTERPRISES";
+              position: fixed;
+              top: 55%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-32deg);
+              font-size: 48px;
+              font-weight: 900;
+              color: rgba(79, 70, 229, 0.045);
+              white-space: nowrap;
+              pointer-events: none;
+              z-index: -999;
+              letter-spacing: 0.12em;
+              font-family: 'Inter', sans-serif;
+              text-transform: uppercase;
             }
 
             .header-container {
@@ -1000,7 +1075,7 @@ export default function ContentPlanner({
                   <td><span style="font-weight: 500;">${plan.type}</span></td>
                   <td>
                     <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #059669;">
-                      ${plan.assignedDate || formatDateComponents(2026, plan.month, plan.day)}
+                      ${formatPlanDateTime(plan)}
                     </span>
                   </td>
                   <td>
@@ -1302,7 +1377,7 @@ export default function ContentPlanner({
                                   ) : (
                                     <span className="font-mono text-[9px] font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-900/30 px-2 py-0.5 rounded-full flex items-center gap-1" title="Assigned Target Date">
                                       <Calendar className="w-2.5 h-2.5 shrink-0" />
-                                      {plan.assignedDate || formatDateComponents(2026, plan.month, plan.day)}
+                                      {formatPlanDateTime(plan)}
                                     </span>
                                   )}
                                 </div>
@@ -1457,7 +1532,7 @@ export default function ContentPlanner({
                                   const mIdx = MONTHS.indexOf(selectedMonth) + 1;
                                   const formattedMonth = mIdx < 10 ? `0${mIdx}` : `${mIdx}`;
                                   const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
-                                  setFormDate(`2026-${formattedMonth}-${formattedDay}`);
+                                  setFormDateTime(`2026-${formattedMonth}-${formattedDay}T12:00`);
                                   setActiveTab('entity-manager');
                                   addLog(`System: Staged scheduler date [2026-${formattedMonth}-${formattedDay}] via calendar matrix`, 'action');
                                 }
@@ -1737,59 +1812,33 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Target Month
-                    </label>
-                    <select
-                      value={formMonth}
-                      onChange={(e) => setFormMonth(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
-                    >
-                      {MONTHS.map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Target Day (1-31)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min={1}
-                      max={31}
-                      value={formDay}
-                      onChange={(e) => setFormDay(parseInt(e.target.value) || 1)}
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
-                    />
-                  </div>
-                </div>
-
+                {/* Unified Date & Time Picker */}
                 <div className="bg-indigo-950/15 border border-indigo-900/30 p-4 rounded-xl space-y-3 mt-1">
                   <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 animate-pulse" /> Date Assigning System
+                    <Clock className="w-3.5 h-3.5 animate-pulse" /> Integrated Date & Time Selector
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Assign Calendar Date
+                        Select Date & Time
                       </label>
-                      <input
-                        type="date"
-                        required
-                        value={formDate}
-                        onChange={(e) => setFormDate(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2 text-xs text-white outline-none cursor-pointer"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type="datetime-local"
+                          required
+                          value={formDateTime}
+                          onChange={(e) => handleDateTimeChange(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2 text-xs text-white outline-none cursor-pointer font-mono font-bold transition-all hover:border-slate-700"
+                        />
+                      </div>
                     </div>
-                    <div className="text-[9px] text-slate-500 flex flex-col justify-center leading-relaxed">
-                      <p className="font-bold text-slate-400">Reactive Target Sync</p>
+                    <div className="text-[9.5px] text-slate-400 flex flex-col justify-center leading-relaxed">
+                      <p className="font-bold text-indigo-400">Integrated Scheduling Engine</p>
                       <p className="mt-0.5">
-                        Updates here will sync the Target Month & Day dropdowns automatically.
+                        Selected: <span className="text-white font-bold">{formMonth} Day {formDay}</span>
+                        {formDateTime && !isNaN(new Date(formDateTime).getTime()) && (
+                          <> at <span className="text-amber-400 font-bold">{new Date(formDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -2378,25 +2427,28 @@ export default function ContentPlanner({
                 {/* Date Assignment */}
                 <div className="bg-indigo-950/20 border border-indigo-900/30 p-3.5 rounded-xl space-y-3">
                   <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 animate-pulse" /> Date Assigning System
+                    <Clock className="w-3.5 h-3.5 animate-pulse" /> Integrated Date & Time Editor
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Assigned Calendar Date
+                        Select Date & Time
                       </label>
                       <input
-                        type="date"
+                        type="datetime-local"
                         required
                         value={editDate}
                         onChange={(e) => setEditDate(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md p-2 text-xs text-white outline-none cursor-pointer"
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md p-2 text-xs text-white outline-none cursor-pointer font-mono font-bold"
                       />
                     </div>
                     <div className="text-[10px] text-slate-400 flex flex-col justify-center">
                       <p className="font-semibold text-slate-300 leading-tight">Live Synchronization</p>
                       <p className="mt-0.5 leading-relaxed text-slate-500 text-[9px]">
-                        Modifying this calendar date auto-calculates month grid indexes and year offsets.
+                        Selected: <span className="text-white font-bold">{editDate ? parseDateString(editDate).month : ''} Day {editDate ? parseDateString(editDate).day : ''}</span>
+                        {editDate && !isNaN(new Date(editDate).getTime()) && (
+                          <> at <span className="text-amber-400 font-bold">{new Date(editDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -2724,6 +2776,29 @@ export default function ContentPlanner({
                       {viewingPostPlan.description || 'No description assigned for this content node.'}
                     </p>
                   </div>
+
+                  {/* Campaign Promotion for normal videos */}
+                  {viewingPostPlan.type === 'Video' && (
+                    <div className="bg-gradient-to-r from-indigo-950/40 to-purple-950/30 border border-indigo-900/45 p-3.5 rounded-xl space-y-2 text-left">
+                      <span className="block text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" /> Promote Content Node
+                      </span>
+                      <p className="text-[10px] text-slate-400 leading-normal">
+                        This content node is currently a standard Video. You can instantly promote it to an integrated Campaign to enable analytical telemetry beacons, 3D emulator grids, and global deployment sheets.
+                      </p>
+                      <button
+                        onClick={() => {
+                          const updated = { ...viewingPostPlan, type: 'Campaign' as const };
+                          onUpdatePlan(updated);
+                          setViewingPostPlan(updated);
+                          addLog(`Planner: Successfully upgraded "${viewingPostPlan.title}" from normal Video to integrated Campaign Node`, 'success');
+                        }}
+                        className="mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] flex items-center gap-1.5 cursor-pointer transition-all shadow-md uppercase font-mono tracking-wider"
+                      >
+                        <Zap className="w-3 h-3 text-amber-300 animate-bounce" /> Enable Campaign Integration
+                      </button>
+                    </div>
+                  )}
 
                   {/* Upload video file inside modal if needed */}
                   <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-3 text-left">

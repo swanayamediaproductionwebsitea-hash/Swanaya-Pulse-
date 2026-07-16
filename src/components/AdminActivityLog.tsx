@@ -300,7 +300,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
         <Shield className="w-12 h-12 text-rose-500 animate-pulse" />
         <h3 className="text-lg font-bold text-white uppercase tracking-wider font-display">Access Denied</h3>
         <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-          The Admin Console is restricted strictly to root system administrators (<strong className="text-rose-400 font-mono">aadithyan</strong> or <strong className="text-rose-400 font-mono">each</strong>). Normal workspace accounts cannot access global telemetry or execute user password resets.
+          The Admin Console is restricted strictly to authorized system administrators (<strong className="text-rose-400 font-mono">aadithyan</strong> or <strong className="text-rose-400 font-mono">each</strong>). Normal workspace accounts cannot access global telemetry or execute user password resets.
         </p>
       </div>
     );
@@ -316,7 +316,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold font-display text-white uppercase tracking-wider">Root Admin Console</h3>
+              <h3 className="text-sm font-bold font-display text-white uppercase tracking-wider">System Administrator Console</h3>
               <p className="text-[10px] text-slate-400">Swanaya Workspace & Credentials Administrator Module</p>
             </div>
           </div>
@@ -613,8 +613,8 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
             <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3.5 flex items-start gap-2.5">
               <Shield className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
               <div className="text-[10.5px] leading-relaxed text-slate-400 font-mono">
-                <strong className="text-yellow-400 uppercase font-bold block mb-1">Root Overrides Active</strong>
-                As root administrator <span className="text-white font-bold">{currentUser}</span>, your console can directly alter password properties and inspect login credentials. Normal users are isolated inside their individual workspace scopes.
+                <strong className="text-yellow-400 uppercase font-bold block mb-1">Administrator Overrides Active</strong>
+                As system administrator <span className="text-white font-bold">{currentUser}</span>, your console can directly alter password properties and inspect login credentials. Normal users are isolated inside their individual workspace scopes.
               </div>
             </div>
           </div>

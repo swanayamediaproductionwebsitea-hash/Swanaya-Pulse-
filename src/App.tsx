@@ -235,7 +235,7 @@ export default function App() {
            },
            {
              id: 'l2',
-             text: 'Security: Credentials initialized for root administrator "each"',
+             text: 'Security: Credentials initialized for system administrator "each"',
              timestamp: '07:38:20',
              type: 'success'
            }

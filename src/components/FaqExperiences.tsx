@@ -47,7 +47,7 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
           {
             id: 'exp_2',
             username: 'each',
-            designation: 'Root Operator',
+            designation: 'System Administrator',
             rating: 5,
             title: 'Bulletproof Authentication and Auditing',
             text: 'As an admin, the capability to see real-time workspace logins, review security logs, and immediately dispatch alerts directly to employee dashboards has elevated our communication and compliance to enterprise grades.',
@@ -136,7 +136,7 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
     },
     {
       q: "How does the direct text message alert dispatcher work?",
-      a: "Root administrators ('aadithyan' and 'each') can access the Admin Console and write custom SMS or system-wide text alerts. Corresponding operators will immediately see these announcements as top banner alerts on their screen."
+      a: "System administrators ('aadithyan' and 'each') can access the Admin Console and write custom SMS or system-wide text alerts. Corresponding operators will immediately see these announcements as top banner alerts on their screen."
     },
     {
       q: "Who monitors and directs the digital workflow?",
