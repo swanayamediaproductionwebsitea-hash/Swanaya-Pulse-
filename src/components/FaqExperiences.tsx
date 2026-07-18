@@ -128,7 +128,7 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
     },
     {
       q: "What is Swanaya AdsPortal and how do we access it?",
-      a: "The Swanaya AdsPortal is our flagship campaign analytics node, available at https://swanaya-adsportal.netlify.app. It allows stakeholders and investors to monitor active advertising performance across key channels."
+      a: "The Swanaya AdsPortal is our flagship campaign analytics node, available at https://swanaya-skillos.netlify.app/. It allows stakeholders and investors to monitor active advertising performance across key channels."
     },
     {
       q: "Can normal creators see all media files and schedules?",

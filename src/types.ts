@@ -1,11 +1,13 @@
-export interface AttendanceRecord {
+export interface ContentDocument {
   id: string;
-  day: number; // 1 to 31
-  type: 'check_in' | 'check_out';
-  timestamp: string; // HH:MM:SS
-  dateTime: string;  // YYYY-MM-DD HH:MM
-  notes?: string;
-  username: string; // Track who checked in/out
+  title: string;
+  content: string;
+  templateType: 'Proposal' | 'Script' | 'Agreement' | 'Brief' | 'General';
+  lastModified: string;
+  modifiedBy: string;
+  googleDocId?: string;
+  googleDocUrl?: string;
+  hasWatermark: boolean;
 }
 
 export interface ContentPlan {
@@ -43,6 +45,7 @@ export interface RegisteredUser {
   bio?: string;
   designation?: string;
   profileImage?: string;
+  permissionLevel?: 'viewer' | 'editor' | 'administrator';
 }
 
 export interface AiTodoItem {

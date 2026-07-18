@@ -18,6 +18,43 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [experiences, setExperiences] = useState<any[]>([]);
 
+  // Testimonial Form State
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newReviewName, setNewReviewName] = useState('');
+  const [newReviewDesignation, setNewReviewDesignation] = useState('');
+  const [newReviewTitle, setNewReviewTitle] = useState('');
+  const [newReviewText, setNewReviewText] = useState('');
+  const [newReviewRating, setNewReviewRating] = useState(5);
+
+  const handleAddReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReviewName.trim() || !newReviewTitle.trim() || !newReviewText.trim()) {
+      alert('Please fill out all required fields.');
+      return;
+    }
+    const newExp = {
+      id: `exp_${Date.now()}`,
+      username: newReviewName.trim().toLowerCase(),
+      designation: newReviewDesignation.trim() || 'Content Operator',
+      rating: newReviewRating,
+      title: newReviewTitle.trim(),
+      text: newReviewText.trim(),
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    };
+    const updated = [newExp, ...experiences];
+    localStorage.setItem('swanaya_user_experiences', JSON.stringify(updated));
+    setExperiences(updated);
+
+    // Reset Form
+    setNewReviewName('');
+    setNewReviewDesignation('');
+    setNewReviewTitle('');
+    setNewReviewText('');
+    setNewReviewRating(5);
+    setShowReviewForm(false);
+    alert('Thank you! Your verified operator review has been submitted and registered successfully.');
+  };
+
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem('swanaya_user_experiences');
@@ -707,7 +744,7 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
               },
               {
                 q: "What is Swanaya AdsPortal and where is it hosted?",
-                a: "The Swanaya AdsPortal is our flagship campaign analytics and active advertising node, fully accessible online at https://swanaya-adsportal.netlify.app. It allows brand oversight and campaign tracking in high fidelity."
+                a: "The Swanaya AdsPortal is our flagship campaign analytics and active advertising node, fully accessible online at https://swanaya-skillos.netlify.app/. It allows brand oversight and campaign tracking in high fidelity."
               },
               {
                 q: "How secure is the platform operator framework?",
@@ -807,17 +844,125 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
             </div>
           </div>
 
-          <div className="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3.5 space-y-2">
-            <p className="text-[10px] text-slate-400 leading-normal">
-              Have user feedback or want to leave a testimonial? Operator accounts can submit and authorize reviews from the internal security and feedback module.
-            </p>
-            <button
-              onClick={onEnterPortal}
-              className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-[10px] uppercase font-mono tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-600/10"
-            >
-              <span>Login & Submit Review</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
+          <div className="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3.5 space-y-3">
+            <AnimatePresence mode="wait">
+              {!showReviewForm ? (
+                <motion.div
+                  key="cta"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="space-y-2"
+                >
+                  <p className="text-[10px] text-slate-400 leading-normal">
+                    Have feedback or want to leave a testimonial? Submit a verified review instantly right here to register your workspace experience.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setShowReviewForm(true)}
+                      className="py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-[10px] uppercase font-mono tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer shadow"
+                    >
+                      <span>Write Review</span>
+                    </button>
+                    <button
+                      onClick={onEnterPortal}
+                      className="py-2 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold rounded-lg text-[10px] uppercase font-mono tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer"
+                    >
+                      <span>Access Portal</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.form
+                  key="form"
+                  onSubmit={handleAddReview}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-3 text-left"
+                >
+                  <h4 className="text-[10px] font-bold text-white uppercase tracking-wider font-mono">Verified Experience Submission</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">Username *</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newReviewName}
+                        onChange={(e) => setNewReviewName(e.target.value)}
+                        placeholder="e.g. JohnDev"
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded p-1.5 text-[10px] text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">Role / Title</label>
+                      <input 
+                        type="text" 
+                        value={newReviewDesignation}
+                        onChange={(e) => setNewReviewDesignation(e.target.value)}
+                        placeholder="e.g. Creator"
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded p-1.5 text-[10px] text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">Testimonial Headline *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={newReviewTitle}
+                      onChange={(e) => setNewReviewTitle(e.target.value)}
+                      placeholder="e.g. Streamlined workflow"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded p-1.5 text-[10px] text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[8px] text-slate-400 font-bold uppercase mb-0.5">Review Message *</label>
+                    <textarea 
+                      required
+                      rows={2}
+                      value={newReviewText}
+                      onChange={(e) => setNewReviewText(e.target.value)}
+                      placeholder="Share your experience working with Swanaya platforms..."
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded p-1.5 text-[10px] text-white outline-none resize-none"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] text-slate-400 font-bold uppercase">Rating:</span>
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button
+                            type="button"
+                            key={star}
+                            onClick={() => setNewReviewRating(star)}
+                            className="p-0.5 cursor-pointer"
+                          >
+                            <Star className={`w-3.5 h-3.5 \${star <= newReviewRating ? 'text-amber-400 fill-amber-400' : 'text-slate-700'}`} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowReviewForm(false)}
+                        className="px-2.5 py-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-400 text-[9px] font-mono rounded"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-bold font-mono rounded shadow"
+                      >
+                        Submit
+                      </button>
+                    </div>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -854,7 +999,7 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
             <div className="pt-4 border-t border-indigo-950/40 flex items-center justify-between">
               <span className="text-[10px] font-mono text-slate-500">Status: Active & Live</span>
               <a 
-                href="https://swanaya-adsportal.netlify.app/" 
+                href="https://swanaya-skillos.netlify.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-mono font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
@@ -929,9 +1074,10 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
         </div>
 
         {/* Unified corporate bottom footer banner */}
-        <div className="border-t border-indigo-950/60 pt-5 text-center text-[10px] font-mono text-slate-600 space-y-1">
+        <div className="border-t border-indigo-950/60 pt-5 text-center text-[10px] font-mono text-slate-600 space-y-1.5">
           <p>© 2026 SWANAYA MEDIA ENTERPRISES. ALL PORTALS AND DIGITAL ASSETS SECURED UNDER DIRECT PROTOCOLS.</p>
           <p className="text-[9px]">DESIGNED AND MONITORED BY THE DIRECTOR & HOD OF MARKETINGS AND PRODUCTIONS AADITHYAN M MENON.</p>
+          <p className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase">LAST UPDATED ON 21:31 PM 17/07/2026 FRIDAY</p>
         </div>
       </div>
 

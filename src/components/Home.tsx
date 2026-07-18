@@ -323,14 +323,14 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
       } else if (norm.includes('security') || norm.includes('log') || norm.includes('telemetry')) {
         reply = "Security & Telemetry logs record all operators actions. You can browse them on the Security Tab. Want to take a look?";
         tabLink = 'security';
-      } else if (norm.includes('attendance') || norm.includes('clock') || norm.includes('check-in')) {
-        reply = "Our integrated 'Attendance Tracker' helps team members log daily check-ins, record shift notes, and check which dates have not been logged. Click to jump to Attendance!";
-        tabLink = 'attendance';
+      } else if (norm.includes('attendance') || norm.includes('clock') || norm.includes('check-in') || norm.includes('write') || norm.includes('docs') || norm.includes('watermark')) {
+        reply = "Our new 'Content Writer' module provides powerful template generators (proposals, briefs, scripts, agreements), instant diagonal company watermark protections, and complete Google Docs integration with direct exports. Click to jump to Content Writer!";
+        tabLink = 'writer';
       } else if (norm.includes('assistant') || norm.includes('ai') || norm.includes('caption') || norm.includes('hook')) {
         reply = "The 'AI Content Assistant' has copy-ready caption templates, viral hooks, and product ad frameworks. Let's head over to the AI Assist node!";
         tabLink = 'assistant';
       } else if (norm.includes('site map') || norm.includes('modules') || norm.includes('how many')) {
-        reply = "Swanaya contains 12 core modules spanning Calendar Scheduling, Client assets database, Campaign tracking (Google & Meta Ads), Attendance tracking, and AI help guides. Select any module on the interactive map card above to view detailed diagnostics!";
+        reply = "Swanaya contains core modules spanning Calendar Scheduling, Client assets database, Campaign tracking (Google & Meta Ads), Content Writer with Google Docs, and AI help guides. Select any module on the interactive map card above to view detailed diagnostics!";
       } else if (norm.includes('google ads') || norm.includes('google auth') || norm.includes('meta ads') || norm.includes('oauth')) {
         reply = "Swanaya Media tracks advertising analytics and campaigns. Access the 'Content Planner' or ask our 'AI Assistant' to craft optimized campaigns.";
       }

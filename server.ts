@@ -3,8 +3,8 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
-import { db } from "./src/db/index.ts";
-import { contentPlans, attendanceRecords, activityLogs, aiTodoItems } from "./src/db/schema.ts";
+import { db, withRetry } from "./src/db/index.ts";
+import { contentPlans, documents, activityLogs, aiTodoItems } from "./src/db/schema.ts";
 import { eq, desc } from "drizzle-orm";
 
 dotenv.config();
@@ -226,7 +226,7 @@ For each To-Do, provide:
 // Content Plans CRUD
 app.get("/api/plans", async (req, res) => {
   try {
-    const results = await db.select().from(contentPlans).orderBy(desc(contentPlans.createdAt));
+    const results = await withRetry(() => db.select().from(contentPlans).orderBy(desc(contentPlans.createdAt)));
     res.json(results);
   } catch (err: any) {
     console.error("Error fetching plans:", err);
@@ -237,7 +237,7 @@ app.get("/api/plans", async (req, res) => {
 app.post("/api/plans", async (req, res) => {
   try {
     const { title, type, description, month, day, year, assignedDate, videoUrl, videoName, videoSize, status, platform, createdBy } = req.body;
-    const inserted = await db.insert(contentPlans).values({
+    const inserted = await withRetry(() => db.insert(contentPlans).values({
       uid: createdBy || "each",
       title,
       type,
@@ -252,7 +252,7 @@ app.post("/api/plans", async (req, res) => {
       status,
       platform,
       createdBy: createdBy || "each"
-    }).returning();
+    }).returning());
     res.status(201).json(inserted[0]);
   } catch (err: any) {
     console.error("Error creating plan:", err);
@@ -264,7 +264,7 @@ app.put("/api/plans/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { title, type, description, month, day, year, assignedDate, videoUrl, videoName, videoSize, status, platform, createdBy } = req.body;
-    const updated = await db.update(contentPlans).set({
+    const updated = await withRetry(() => db.update(contentPlans).set({
       title,
       type,
       description,
@@ -278,7 +278,7 @@ app.put("/api/plans/:id", async (req, res) => {
       status,
       platform,
       createdBy
-    }).where(eq(contentPlans.id, Number(id))).returning();
+    }).where(eq(contentPlans.id, Number(id))).returning());
     res.json(updated[0]);
   } catch (err: any) {
     console.error("Error updating plan:", err);
@@ -289,7 +289,7 @@ app.put("/api/plans/:id", async (req, res) => {
 app.delete("/api/plans/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    await db.delete(contentPlans).where(eq(contentPlans.id, Number(id)));
+    await withRetry(() => db.delete(contentPlans).where(eq(contentPlans.id, Number(id))));
     res.json({ success: true });
   } catch (err: any) {
     console.error("Error deleting plan:", err);
@@ -297,50 +297,74 @@ app.delete("/api/plans/:id", async (req, res) => {
   }
 });
 
-// Attendance Records CRUD
-app.get("/api/attendance", async (req, res) => {
+// Documents CRUD
+app.get("/api/documents", async (req, res) => {
   try {
-    const results = await db.select().from(attendanceRecords).orderBy(desc(attendanceRecords.createdAt));
+    const results = await withRetry(() => db.select().from(documents).orderBy(desc(documents.createdAt)));
     res.json(results);
   } catch (err: any) {
-    console.error("Error fetching attendance:", err);
-    res.status(500).json({ error: "Failed to fetch attendance records" });
+    console.error("Error fetching documents:", err);
+    res.status(500).json({ error: "Failed to fetch documents" });
   }
 });
 
-app.post("/api/attendance", async (req, res) => {
+app.post("/api/documents", async (req, res) => {
   try {
-    const { day, type, timestamp, dateTime, notes, username } = req.body;
-    const inserted = await db.insert(attendanceRecords).values({
-      uid: username || "each",
-      day: Number(day),
-      type,
-      timestamp,
-      dateTime,
-      notes: notes || "",
-      username: username || "Unknown Operator"
-    }).returning();
-    res.status(201).json(inserted[0]);
+    const { id, title, content, templateType, lastModified, modifiedBy, googleDocId, googleDocUrl, hasWatermark } = req.body;
+    
+    const existing = await withRetry(() => db.select().from(documents).where(eq(documents.id, id)));
+    
+    if (existing.length > 0) {
+      const updated = await withRetry(() => db.update(documents).set({
+        title,
+        content,
+        templateType,
+        lastModified,
+        modifiedBy,
+        googleDocId,
+        googleDocUrl,
+        hasWatermark: !!hasWatermark
+      }).where(eq(documents.id, id)).returning());
+      res.json(updated[0]);
+    } else {
+      const inserted = await withRetry(() => db.insert(documents).values({
+        id,
+        title,
+        content,
+        templateType,
+        lastModified,
+        modifiedBy,
+        googleDocId,
+        googleDocUrl,
+        hasWatermark: !!hasWatermark
+      }).returning());
+      res.status(201).json(inserted[0]);
+    }
   } catch (err: any) {
-    console.error("Error creating attendance:", err);
-    res.status(500).json({ error: "Failed to create attendance record" });
+    console.error("Error saving document:", err);
+    res.status(500).json({ error: "Failed to save document" });
   }
 });
 
-app.delete("/api/attendance", async (req, res) => {
+app.delete("/api/documents", async (req, res) => {
   try {
-    await db.delete(attendanceRecords);
+    const { id } = req.query;
+    if (id) {
+      await withRetry(() => db.delete(documents).where(eq(documents.id, String(id))));
+    } else {
+      await withRetry(() => db.delete(documents));
+    }
     res.json({ success: true });
   } catch (err: any) {
-    console.error("Error clearing attendance:", err);
-    res.status(500).json({ error: "Failed to clear attendance records" });
+    console.error("Error deleting document:", err);
+    res.status(500).json({ error: "Failed to delete document" });
   }
 });
 
 // Activity Logs CRUD
 app.get("/api/logs", async (req, res) => {
   try {
-    const results = await db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt));
+    const results = await withRetry(() => db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)));
     res.json(results);
   } catch (err: any) {
     console.error("Error fetching logs:", err);
@@ -351,12 +375,12 @@ app.get("/api/logs", async (req, res) => {
 app.post("/api/logs", async (req, res) => {
   try {
     const { text, timestamp, type, uid } = req.body;
-    const inserted = await db.insert(activityLogs).values({
+    const inserted = await withRetry(() => db.insert(activityLogs).values({
       uid: uid || null,
       text,
       timestamp,
       type
-    }).returning();
+    }).returning());
     res.status(201).json(inserted[0]);
   } catch (err: any) {
     console.error("Error creating activity log:", err);
@@ -366,7 +390,7 @@ app.post("/api/logs", async (req, res) => {
 
 app.delete("/api/logs", async (req, res) => {
   try {
-    await db.delete(activityLogs);
+    await withRetry(() => db.delete(activityLogs));
     res.json({ success: true });
   } catch (err: any) {
     console.error("Error clearing logs:", err);
@@ -377,7 +401,7 @@ app.delete("/api/logs", async (req, res) => {
 // To-Do Items CRUD
 app.get("/api/todos", async (req, res) => {
   try {
-    const results = await db.select().from(aiTodoItems).orderBy(desc(aiTodoItems.createdAt));
+    const results = await withRetry(() => db.select().from(aiTodoItems).orderBy(desc(aiTodoItems.createdAt)));
     res.json(results);
   } catch (err: any) {
     console.error("Error fetching todos:", err);
@@ -388,13 +412,13 @@ app.get("/api/todos", async (req, res) => {
 app.post("/api/todos", async (req, res) => {
   try {
     const { text, platform, priority, completed, uid } = req.body;
-    const inserted = await db.insert(aiTodoItems).values({
+    const inserted = await withRetry(() => db.insert(aiTodoItems).values({
       uid: uid || "each",
       text,
       platform,
       priority,
       completed: !!completed
-    }).returning();
+    }).returning());
     res.status(201).json(inserted[0]);
   } catch (err: any) {
     console.error("Error creating todo:", err);
@@ -406,9 +430,9 @@ app.put("/api/todos/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { completed } = req.body;
-    const updated = await db.update(aiTodoItems).set({
+    const updated = await withRetry(() => db.update(aiTodoItems).set({
       completed: !!completed
-    }).where(eq(aiTodoItems.id, Number(id))).returning();
+    }).where(eq(aiTodoItems.id, Number(id))).returning());
     res.json(updated[0]);
   } catch (err: any) {
     console.error("Error updating todo:", err);
@@ -419,7 +443,7 @@ app.put("/api/todos/:id", async (req, res) => {
 app.delete("/api/todos/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    await db.delete(aiTodoItems).where(eq(aiTodoItems.id, Number(id)));
+    await withRetry(() => db.delete(aiTodoItems).where(eq(aiTodoItems.id, Number(id))));
     res.json({ success: true });
   } catch (err: any) {
     console.error("Error deleting todo:", err);

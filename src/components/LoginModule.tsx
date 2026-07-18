@@ -29,7 +29,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [regRole, setRegRole] = useState('Content Creator');
+  const [regRole, setRegRole] = useState('Content Maker');
+  const [regPermission, setRegPermission] = useState<'viewer' | 'editor' | 'administrator'>('editor');
   
   // Password Reset state
   const [resetMode, setResetMode] = useState<'none' | 'request' | 'verify'>('none');
@@ -73,7 +74,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             email: data.email || '',
             provider: data.provider || 'direct',
             uid: data.uid || docSnap.id,
-            profileImage: data.profileImage || ''
+            profileImage: data.profileImage || '',
+            designation: data.designation || 'Content Creator',
+            permissionLevel: data.permissionLevel || 'editor'
           });
         });
 
@@ -95,7 +98,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             password: user.password || '',
             email: user.email || '',
             provider: user.provider || 'direct',
-            uid: user.uid || ''
+            uid: user.uid || '',
+            designation: user.designation || 'Content Creator',
+            permissionLevel: user.permissionLevel || 'editor'
           }, { merge: true });
         }
       } catch (error) {
@@ -199,23 +204,18 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    // Tab restrictions enforce portal scope
-    if (portalTab === 'admin') {
-      if (
-        (cleanUser.toLowerCase() === 'each' && cleanPass === 'each') ||
-        (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan')
-      ) {
-        addLog(`Auth: Administrative login authorized for ${cleanUser}`, 'success');
-        localStorage.setItem('swanaya_has_logged_in', 'true');
-        onLoginSuccess(cleanUser.toLowerCase());
-        return;
-      } else {
-        setErrorMessage('Invalid administrative credentials. Admins may log in directly with "each" or "aadithyan".');
-        return;
-      }
+    // Direct check for Administrative logins
+    if (
+      (cleanUser.toLowerCase() === 'each' && cleanPass === 'each') ||
+      (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan')
+    ) {
+      addLog(`Auth: Administrative login authorized for ${cleanUser}`, 'success');
+      localStorage.setItem('swanaya_has_logged_in', 'true');
+      onLoginSuccess(cleanUser.toLowerCase());
+      return;
     }
 
-    // Partner tab login matching
+    // Direct check for registered partners/operators
     const matched = registeredUsers.find(
       u => u.username.toLowerCase() === cleanUser.toLowerCase() && u.password === cleanPass
     );
@@ -225,8 +225,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       localStorage.setItem('swanaya_has_logged_in', 'true');
       onLoginSuccess(matched.username);
     } else {
-      addLog(`Auth Error: Failed partner login attempt for "${cleanUser}"`, 'warning');
-      setErrorMessage('Partner credentials invalid. Please check your credentials or register a profile.');
+      addLog(`Auth Error: Failed login attempt for "${cleanUser}"`, 'warning');
+      setErrorMessage('Credentials invalid. Please check your admin or registered partner credentials.');
     }
   };
 
@@ -266,7 +266,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       username: cleanUser,
       password: regPassword,
       provider: 'direct',
-      designation: regRole
+      designation: regRole,
+      permissionLevel: regPermission
     };
 
     const updated = [...registeredUsers, newUser];
@@ -284,9 +285,10 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         password: regPassword,
         provider: 'direct',
         designation: regRole,
+        permissionLevel: regPermission,
         fullName: cleanUser,
         email: `${cleanUser.toLowerCase()}@swanayapartner.com`,
-        bio: `Registered member of the Swanaya Partner Portal holding the role of ${regRole}.`
+        bio: `Registered member of the Swanaya Partner Portal holding the role of ${regRole} with permission level ${regPermission}.`
       });
       addLog(`Auth: Successfully linked partner profile "${cleanUser}" to Firestore registry`, 'success');
     } catch (e) {
@@ -470,22 +472,22 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   return (
     <div className="w-full max-w-md mx-auto my-6 space-y-6">
       
-      {/* 1. BRAND HERO IMAGE OF CLIENT LOGIN AND REGISTRY */}
+      {/* 1. BRAND HERO IMAGE OF ADMINISTRATIVE SECURE PORTAL */}
       <div className="w-full rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950/60 p-1 shadow-2xl relative group">
         <div className="relative h-32 w-full rounded-xl overflow-hidden">
           <img 
             src="/src/assets/images/client_portal_login_1783849385880.jpg" 
-            alt="Swanaya Client Portal" 
+            alt="Swanaya Secure Portal" 
             className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all duration-700 filter saturate-[0.85]"
             referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
           <div className="absolute bottom-3 left-4 right-4 text-left">
             <span className="text-[9px] font-mono font-black text-indigo-400 uppercase tracking-widest bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-900/40">
-              Enterprise Gateway
+              Enterprise Secure Node
             </span>
             <h3 className="text-sm font-black text-white mt-1 uppercase tracking-tight font-display">
-              Client Hub & Partner Registry
+              Swanaya Secure Enterprise Portal
             </h3>
           </div>
         </div>
@@ -497,6 +499,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           type="button"
           onClick={() => {
             setIsRegisterMode(false);
+            setResetMode('none');
             setErrorMessage('');
             setSuccessMessage('');
           }}
@@ -507,12 +510,13 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           }`}
         >
           <LogIn className="w-3.5 h-3.5" />
-          <span>Client Login</span>
+          <span>Secure Login</span>
         </button>
         <button
           type="button"
           onClick={() => {
             setIsRegisterMode(true);
+            setResetMode('none');
             setErrorMessage('');
             setSuccessMessage('');
           }}
@@ -523,98 +527,198 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           }`}
         >
           <UserPlus className="w-3.5 h-3.5" />
-          <span>Registry Node</span>
+          <span>New Registration</span>
         </button>
       </div>
 
-      <div className="perspective-1000 relative">
+      <div className="relative">
         {/* Dynamic Profile Avatar Preview Frame - Fades in based on typed username */}
         <div className="flex flex-col items-center mb-4 min-h-[90px] justify-center">
           <div className="relative w-16 h-16 rounded-full border-2 border-indigo-500/60 overflow-hidden bg-slate-950/60 shadow-xl flex items-center justify-center transition-all duration-500 transform hover:scale-105">
-          {resolvedAvatar ? (
-            <img 
-              src={resolvedAvatar} 
-              alt="Resolved Avatar" 
-              className="w-full h-full object-cover animate-fade-in"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="flex flex-col items-center text-slate-500 p-2">
-              {isResolvingAvatar ? (
-                <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
-              ) : (
-                <Fingerprint className="w-8 h-8 text-indigo-500/40 animate-pulse" />
-              )}
-            </div>
-          )}
+            {resolvedAvatar ? (
+              <img 
+                src={resolvedAvatar} 
+                alt="Resolved Avatar" 
+                className="w-full h-full object-cover animate-fade-in"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex flex-col items-center text-slate-500 p-2">
+                {isResolvingAvatar ? (
+                  <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
+                ) : (
+                  <Fingerprint className="w-8 h-8 text-indigo-500/40 animate-pulse" />
+                )}
+              </div>
+            )}
+            {resolvedAvatar && (
+              <div className="absolute inset-0 border-2 border-emerald-500/50 rounded-full animate-ping pointer-events-none opacity-45" />
+            )}
+          </div>
           {resolvedAvatar && (
-            <div className="absolute inset-0 border-2 border-emerald-500/50 rounded-full animate-ping pointer-events-none opacity-45" />
+            <p className="text-[9px] font-mono font-bold text-emerald-400 uppercase tracking-widest mt-1.5 animate-pulse">
+              ✅ Profile Match Located
+            </p>
           )}
         </div>
-        {resolvedAvatar && (
-          <p className="text-[9px] font-mono font-bold text-emerald-400 uppercase tracking-widest mt-1.5 animate-pulse">
-            ✅ Profile Match Located
-          </p>
-        )}
-      </div>
 
-      <div 
-        className={`relative w-full transition-transform duration-700 transform-style-3d ${
-          isRegisterMode ? 'rotate-y-180' : ''
-        }`}
-        style={{ minHeight: '520px' }}
-      >
-        
-        {/* ==========================================
-            FRONT SIDE: PORTAL LOGINS (Admin & Partner)
-            ========================================== */}
-        <div className="absolute inset-0 w-full h-full backface-hidden bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between">
+        <div className="w-full bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between" style={{ minHeight: '380px' }}>
           
-          {resetMode === 'none' ? (
+          {isRegisterMode ? (
+            /* ==========================================
+               REGISTER VIEW: NEW REGISTRATION PORTAL
+               ========================================== */
             <div>
-              {/* Portal Segment Tabs */}
-              <div className="grid grid-cols-2 gap-1 bg-slate-950/60 p-1.5 rounded-xl border border-slate-850/70 mb-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPortalTab('admin');
-                    setErrorMessage('');
-                  }}
-                  className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    portalTab === 'admin' 
-                      ? 'bg-indigo-600 text-white shadow shadow-indigo-500/10' 
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Admin Node</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPortalTab('partner');
-                    setErrorMessage('');
-                  }}
-                  className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    portalTab === 'partner' 
-                      ? 'bg-indigo-600 text-white shadow shadow-indigo-500/10' 
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Partner Portal</span>
-                </button>
+              {/* Header */}
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">Create Operator Node</h2>
+                <p className="text-slate-400 text-[10px] font-mono uppercase tracking-wider">Register on the collaborative campaign directory</p>
               </div>
+   
+              {/* Form */}
+              <form onSubmit={handleRegister} className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Operator Username
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                      <User className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      autoComplete="new-username"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      placeholder="e.g. JohnMedia"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
 
+                {/* Specialized Designation Role */}
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Specialized Creator Designation
+                  </label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded-lg py-1.5 px-3 text-xs text-slate-300 outline-none cursor-pointer"
+                  >
+                    <option value="Content Maker">Content Maker</option>
+                    <option value="Senior Video Producer">Senior Video Producer</option>
+                    <option value="Visual Content Designer">Visual Content Designer</option>
+                    <option value="Brand Copy Strategist">Brand Copy Strategist</option>
+                    <option value="General Media Planner">General Media Planner</option>
+                    <option value="Content Creator">Content Creator</option>
+                    <option value="Client Stakeholder">Client Partner / Investor</option>
+                  </select>
+                </div>
+
+                {/* Collaborative Permission Level */}
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Collaborative Workspace Role</span>
+                    <span className="text-[9px] text-indigo-400 font-normal">Enforced in Content Planner</span>
+                  </label>
+                  <select
+                    value={regPermission}
+                    onChange={(e) => setRegPermission(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded-lg py-1.5 px-3 text-xs text-slate-300 outline-none cursor-pointer font-mono"
+                  >
+                    <option value="administrator">Administrator (Full Root Credentials)</option>
+                    <option value="editor">Editor / Content Maker (Can edit details)</option>
+                    <option value="viewer">Viewer (Read-only workspace access)</option>
+                  </select>
+                </div>
+   
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                        <Lock className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        type={showRegPassword ? "text" : "password"}
+                        required
+                        autoComplete="new-password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Min 4 chars"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+   
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Confirm Key
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        type={showRegConfirmPassword ? "text" : "password"}
+                        required
+                        autoComplete="new-password"
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Repeat password"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+   
+                {errorMessage && (
+                  <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
+                    {errorMessage}
+                  </div>
+                )}
+   
+                {successMessage && (
+                  <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
+                    {successMessage}
+                  </div>
+                )}
+   
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
+                >
+                  Register Access <Sparkles className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+          ) : resetMode === 'none' ? (
+            <div>
               {/* Headings */}
               <div className="text-center mb-5">
                 <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">
-                  {portalTab === 'admin' ? 'Administrative Access' : 'Partner Portal Access'}
+                  Secure Access Login
                 </h2>
                 <p className="text-slate-400 text-[10px] mt-1 font-mono uppercase tracking-wider">
-                  {portalTab === 'admin' 
-                    ? 'Secure gateway for enterprise administrators' 
-                    : 'Creator, Collaborator & Client Login Interface'}
+                  Secure gateway for authorized workspace operators
                 </p>
               </div>
 
@@ -633,7 +737,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       required
                       value={directUsername}
                       onChange={(e) => setDirectUsername(e.target.value)}
-                      placeholder={portalTab === 'admin' ? 'e.g. each' : 'Enter Partner Username'}
+                      placeholder="e.g. each"
                       className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
                     />
                   </div>
@@ -746,7 +850,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                         required
                         value={resetUsername}
                         onChange={(e) => setResetUsername(e.target.value)}
-                        placeholder="e.g. JohnMedia or each"
+                        placeholder="e.g. each"
                         className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
                       />
                     </div>
@@ -869,164 +973,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             </div>
           )}
 
-          {/* Card Footer toggle */}
-          {resetMode === 'none' && (
-            <div className="border-t border-slate-850 pt-4 text-center mt-4">
-              <p className="text-xs text-slate-400">
-                Partner Node not registered yet?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRegisterMode(true);
-                    setErrorMessage('');
-                    setSuccessMessage('');
-                  }}
-                  className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline cursor-pointer"
-                >
-                  Join Partner Registry
-                </button>
-              </p>
-            </div>
-          )}
-        </div>
- 
-        {/* ==========================================
-            BACK SIDE: PARTNER REGISTRATION PORTAL
-            ========================================== */}
-        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between">
-          <div>
-            {/* Header */}
-            <div className="text-center mb-4">
-              <div className="inline-flex p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl mb-2.5 border border-indigo-500/20">
-                <UserPlus className="w-6 h-6 animate-pulse" />
-              </div>
-              <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">Create Partner Node</h2>
-              <p className="text-slate-400 text-[10px] font-mono uppercase tracking-wider">Register on the collaborative campaign directory</p>
-            </div>
- 
-            {/* Form */}
-            <form onSubmit={handleRegister} className="space-y-3.5">
-              <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Partner Username
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <User className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    autoComplete="new-username"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
-                    placeholder="e.g. JohnMedia"
-                    className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Specialized Designation Role */}
-              <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Specialized Creator Designation
-                </label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded-lg py-1.5 px-3 text-xs text-slate-300 outline-none cursor-pointer"
-                >
-                  <option value="Senior Video Producer">Senior Video Producer</option>
-                  <option value="Visual Content Designer">Visual Content Designer</option>
-                  <option value="Brand Copy Strategist">Brand Copy Strategist</option>
-                  <option value="General Media Planner">General Media Planner</option>
-                  <option value="Content Creator">Content Creator</option>
-                  <option value="Client Stakeholder">Client Partner / Investor</option>
-                </select>
-              </div>
- 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
-                      <Lock className="w-3.5 h-3.5" />
-                    </span>
-                    <input
-                      type={showRegPassword ? "text" : "password"}
-                      required
-                      autoComplete="new-password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Min 4 chars"
-                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                    >
-                      {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
- 
-                <div>
-                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Confirm Key
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                    </span>
-                    <input
-                      type={showRegConfirmPassword ? "text" : "password"}
-                      required
-                      autoComplete="new-password"
-                      value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      placeholder="Repeat password"
-                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                    >
-                      {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
- 
-              {errorMessage && (
-                <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
-                  {errorMessage}
-                </div>
-              )}
- 
-              {successMessage && (
-                <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
-                  {successMessage}
-                </div>
-              )}
- 
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
-              >
-                Register Partner Access <Sparkles className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-
         </div>
 
-      </div>
-      
-      {/* Closes the perspective-1000 relative wrapper */}
       </div>
 
     </div>

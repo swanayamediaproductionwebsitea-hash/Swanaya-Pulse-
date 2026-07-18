@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
-  Home as HomeIcon, User, Search, X, Users
+  Home as HomeIcon, User, Search, X, Users, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ContentPlan, AttendanceRecord, ActivityLog } from './types';
+import { ContentPlan, ContentDocument, ActivityLog } from './types';
 import Background3D from './components/Background3D';
 import LoginModule from './components/LoginModule';
 import InteractiveLanding from './components/InteractiveLanding';
-import AttendanceTracker from './components/AttendanceTracker';
+import ContentWriter from './components/ContentWriter';
 import ContentPlanner from './components/ContentPlanner';
 import AdminActivityLog from './components/AdminActivityLog';
 import AssistantWidget from './components/AssistantWidget';
@@ -24,14 +24,14 @@ import FaqExperiences from './components/FaqExperiences';
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [plans, setPlans] = useState<ContentPlan[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'attendance' | 'security' | 'admin' | 'assistant' | 'profile' | 'client' | 'faq'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'security' | 'admin' | 'assistant' | 'profile' | 'client' | 'faq'>('home');
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
   const [userProfileTitle, setUserProfileTitle] = useState<string>('Content Creator');
+  const [currentUserPermission, setCurrentUserPermission] = useState<'viewer' | 'editor' | 'administrator'>('editor');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
     return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
@@ -95,15 +95,62 @@ export default function App() {
   };
 
   // Load current user's profile image & title
-  const loadCurrentUserProfile = () => {
+  const loadCurrentUserProfile = async () => {
     if (currentUser) {
+      const isSystemAdmin = currentUser.toLowerCase() === 'each' || currentUser.toLowerCase() === 'aadithyan';
+      if (isSystemAdmin) {
+        setCurrentUserPermission('administrator');
+        setUserProfileImage(null);
+        setUserProfileTitle('System Administrator');
+        return;
+      }
+
       const cachedImg = localStorage.getItem(`swanaya_profile_image_${currentUser}`);
       const cachedTitle = localStorage.getItem(`swanaya_profile_title_${currentUser}`);
       setUserProfileImage(cachedImg || null);
       setUserProfileTitle(cachedTitle || 'Content Creator');
+
+      // Look up permission level from local registered users list
+      const saved = localStorage.getItem('swanaya_registered_users');
+      let foundPerm: 'viewer' | 'editor' = 'editor';
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const found = parsed.find((u: any) => u.username.toLowerCase() === currentUser.toLowerCase());
+          if (found && found.permissionLevel) {
+            foundPerm = found.permissionLevel;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setCurrentUserPermission(foundPerm);
+
+      // Try fetching live from Firestore as well to keep in sync
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('./lib/firebase');
+        const userDocRef = doc(db, 'users', currentUser.toLowerCase());
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.permissionLevel) {
+            setCurrentUserPermission(data.permissionLevel);
+            // Sync back to local storage list
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              const updated = parsed.map((u: any) => u.username.toLowerCase() === currentUser.toLowerCase() ? { ...u, permissionLevel: data.permissionLevel } : u);
+              localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore offline or restricted:', err);
+      }
     } else {
       setUserProfileImage(null);
       setUserProfileTitle('Content Creator');
+      setCurrentUserPermission('editor');
     }
   };
 
@@ -178,31 +225,6 @@ export default function App() {
       }
     };
 
-    // Load attendance records
-    const fetchAttendance = async () => {
-      try {
-        const response = await fetch('/api/attendance');
-        if (response.ok) {
-          const data = await response.json();
-          const formatted = data.map((item: any) => ({ ...item, id: String(item.id) }));
-          setAttendanceRecords(formatted);
-          localStorage.setItem('swanaya_attendance', JSON.stringify(formatted));
-          return;
-        }
-      } catch (err) {
-        console.warn('Database offline, using cached attendance:', err);
-      }
-
-      const savedAttendance = localStorage.getItem('swanaya_attendance');
-      if (savedAttendance) {
-         try {
-           setAttendanceRecords(JSON.parse(savedAttendance));
-         } catch (e) {
-           console.error('Error parsing attendance', e);
-         }
-      }
-    };
-
     // Load activity logs
     const fetchLogs = async () => {
       try {
@@ -246,7 +268,6 @@ export default function App() {
     };
 
     fetchPlans();
-    fetchAttendance();
     fetchLogs();
   }, []);
 
@@ -304,61 +325,6 @@ export default function App() {
     setCurrentUser(null);
     localStorage.removeItem('swanaya_current_user');
     setLandingView('landing');
-  };
-
-  // 6. Attendance handlers with DB sync
-  const handleAddAttendance = async (day: number, type: 'check_in' | 'check_out', notes: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    const dateTime = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    const tempId = `a_${Date.now()}`;
-
-    const newRec: AttendanceRecord = {
-      id: tempId,
-      day,
-      type,
-      timestamp,
-      dateTime,
-      notes,
-      username: currentUser || 'Unknown Operator'
-    };
-
-    setAttendanceRecords((prev) => {
-      const updated = [...prev, newRec];
-      localStorage.setItem('swanaya_attendance', JSON.stringify(updated));
-      return updated;
-    });
-
-    addLog(`User Action: ${currentUser} registered ${type.toUpperCase()} log for Calendar Day ${day}`, 'action');
-
-    try {
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ day, type, timestamp, dateTime, notes, username: currentUser })
-      });
-      if (response.ok) {
-        const dbRec = await response.json();
-        setAttendanceRecords((prev) => 
-          prev.map((r) => r.id === tempId ? { ...r, id: String(dbRec.id) } : r)
-        );
-      }
-    } catch (err) {
-      console.error('Failed to sync attendance to database:', err);
-    }
-  };
-
-  const handleClearAttendance = async () => {
-    if (window.confirm('Are you sure you want to reset the entire attendance logs?')) {
-      setAttendanceRecords([]);
-      localStorage.removeItem('swanaya_attendance');
-      addLog('System Database: Reset attendance node logs successfully', 'warning');
-
-      try {
-        await fetch('/api/attendance', { method: 'DELETE' });
-      } catch (err) {
-        console.error('Failed to clear database attendance:', err);
-      }
-    }
   };
 
   // 7. Planner handlers with DB sync
@@ -535,8 +501,9 @@ export default function App() {
 
               <LoginModule onLoginSuccess={handleLoginSuccess} addLog={addLog} />
 
-              <div className="text-center text-[11px] text-slate-600 font-mono mt-8">
-                SWANAYA ENTERPRISES SECURE PORTAL © 2026 • WORKSPACE NODE ONLINE
+              <div className="text-center text-[11px] text-slate-600 font-mono mt-8 space-y-1">
+                <p>SWANAYA ENTERPRISES SECURE PORTAL © 2026 • WORKSPACE NODE ONLINE</p>
+                <p className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase">LAST UPDATED ON 21:31 PM 17/07/2026 FRIDAY</p>
               </div>
             </div>
           )
@@ -656,7 +623,18 @@ export default function App() {
                     )}
                   </div>
                   <div>
-                    <p className="text-[9px] text-slate-500 font-mono font-bold leading-none uppercase">{userProfileTitle}</p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="text-[9px] text-slate-500 font-mono font-bold leading-none uppercase">{userProfileTitle}</p>
+                      <span className={`text-[8px] font-mono font-bold px-1 rounded uppercase ${
+                        currentUserPermission === 'administrator'
+                          ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-500/50'
+                          : currentUserPermission === 'editor' 
+                            ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-900/40' 
+                            : 'bg-amber-950/60 text-amber-400 border border-amber-900/40'
+                      }`}>
+                        {currentUserPermission}
+                      </span>
+                    </div>
                     <p className="text-xs text-slate-200 font-bold leading-tight">{currentUser}</p>
                   </div>
                 </button>
@@ -755,20 +733,18 @@ export default function App() {
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  setActiveMainTab('attendance');
-                  addLog('System Navigation: Switched workspace to [Attendance Tracker]', 'info');
+                  setActiveMainTab('writer');
+                  addLog('System Navigation: Switched workspace to [Content & Document Writer]', 'info');
                 }}
-                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  (userProfileTitle === 'Client Stakeholder' || userProfileTitle === 'Client Partner / Investor') ? 'hidden' : 'flex'
-                } items-center gap-2 cursor-pointer ${
-                  activeMainTab === 'attendance'
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'writer'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
               >
-                <Calendar className="w-4 h-4" />
-                <span>Attendance Tracker</span>
-                {activeMainTab === 'attendance' && (
+                <FileText className="w-4 h-4" />
+                <span>Content Writer</span>
+                {activeMainTab === 'writer' && (
                   <motion.div
                     layoutId="activeTabUnderline"
                     className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
@@ -960,6 +936,7 @@ export default function App() {
                       onUpdatePlanStatus={handleUpdatePlanStatus} 
                       onUpdatePlan={handleUpdatePlan}
                       currentUser={currentUser || "aadithyan"}
+                      permissionLevel={currentUserPermission}
                       onDeletePlan={handleDeletePlan} 
                       addLog={addLog} 
                       searchQuery={searchQuery}
@@ -968,20 +945,18 @@ export default function App() {
                   </motion.div>
                 )}
 
-                {activeMainTab === 'attendance' && (
+                {activeMainTab === 'writer' && (
                   <motion.div
-                    key="attendance-tab"
+                    key="writer-tab"
                     initial={{ opacity: 0, y: 12, scale: 0.99 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -12, scale: 0.99 }}
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                     className="w-full h-full flex flex-col"
                   >
-                    <AttendanceTracker 
-                      records={attendanceRecords} 
-                      onAddRecord={handleAddAttendance} 
-                      onClearRecords={handleClearAttendance} 
-                      currentUser={currentUser || ''}
+                    <ContentWriter 
+                      currentUser={currentUser || 'each'}
+                      addLog={addLog}
                     />
                   </motion.div>
                 )}

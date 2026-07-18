@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Shield, Cpu, RefreshCw, Trash2, Search, HardDrive, Key, UserCheck, UserX, UserPlus, FileText, Check, AlertTriangle, LogIn, MessageSquare, Send, Smartphone, Info } from 'lucide-react';
+import { Terminal, Shield, Cpu, RefreshCw, Trash2, Search, HardDrive, Key, UserCheck, UserX, UserPlus, FileText, Check, AlertTriangle, LogIn, MessageSquare, Send, Smartphone, Info, Eye, EyeOff, UploadCloud } from 'lucide-react';
 import { ActivityLog } from '../types';
 
 interface AdminActivityLogProps {
@@ -14,6 +14,7 @@ interface UserProfile {
   designation: string;
   joined: string;
   password?: string;
+  permissionLevel?: 'viewer' | 'editor' | 'administrator';
 }
 
 export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLog }: AdminActivityLogProps) {
@@ -130,11 +131,39 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
   const [resetMessage, setResetMessage] = useState<string>('');
   const [resetError, setResetError] = useState<string>('');
 
+  // Password visibility tracking states
+  const [shownPasswords, setShownPasswords] = useState<Record<string, boolean>>({});
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [createJoinedDate, setCreateJoinedDate] = useState(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
+  const togglePasswordVisibility = (username: string) => {
+    setShownPasswords(prev => ({
+      ...prev,
+      [username]: !prev[username]
+    }));
+  };
+
   // New User Creation state inside Admin Console
   const [createUsername, setCreateUsername] = useState('');
-  const [createDesignation, setCreateDesignation] = useState('Editor');
+  const [createDesignation, setCreateDesignation] = useState('Content Maker');
+  const [createPermission, setCreatePermission] = useState<'viewer' | 'editor' | 'administrator'>('editor');
   const [createPassword, setCreatePassword] = useState('');
   const [createMessage, setCreateMessage] = useState('');
+
+  // Image Uploading in Admin Console state
+  const [imgUser, setImgUser] = useState<string>('');
+  const [imgPreview, setImgPreview] = useState<string | null>(null);
+  const [isImgDragging, setIsImgDragging] = useState(false);
+  const [imgSuccess, setImgSuccess] = useState('');
+  const [imgError, setImgError] = useState('');
+  const adminFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Dynamic metrics state
   const [cpuUsage, setCpuUsage] = useState(12);
@@ -229,7 +258,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
   };
 
   // Add user directly from console
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateMessage('');
 
@@ -247,11 +276,29 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
       return;
     }
 
+    let formattedDate = '';
+    try {
+      const parts = createJoinedDate.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } else {
+        const d = new Date(createJoinedDate);
+        formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    } catch (e) {
+      formattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
     const newUser: UserProfile = {
       username: usernameClean,
       designation: createDesignation,
-      joined: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      password: passwordClean
+      joined: formattedDate,
+      password: passwordClean,
+      permissionLevel: createPermission
     };
 
     const updated = [...usersList, newUser];
@@ -263,12 +310,62 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
     setCreatePassword('');
 
     if (addLog) {
-      addLog(`Admin Console: Created new user profile "${usernameClean}" [${createDesignation}]`, 'success');
+      addLog(`Admin Console: Created new user profile "${usernameClean}" [${createDesignation}] with permission [${createPermission}]`, 'success');
     }
+
+    // Sync to Firestore if possible
+    try {
+      const { doc: fsDoc, setDoc: fsSetDoc } = await import('firebase/firestore');
+      const { db: fsDb } = await import('../lib/firebase');
+      const userDocRef = fsDoc(fsDb, 'users', usernameClean.toLowerCase());
+      await fsSetDoc(userDocRef, {
+        username: usernameClean,
+        password: passwordClean,
+        provider: 'direct',
+        designation: createDesignation,
+        permissionLevel: createPermission,
+        fullName: usernameClean,
+        email: `${usernameClean.toLowerCase()}@swanayapartner.com`,
+        bio: `Provisioned by System Administrator. Designation: ${createDesignation}, Permission: ${createPermission}.`
+      });
+    } catch (fErr) {
+      console.warn("Firestore sync creation failed, local update saved:", fErr);
+    }
+
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  // Update/reallocate user permissions dynamically
+  const handleUpdatePermission = async (username: string, newPermission: 'viewer' | 'editor' | 'administrator') => {
+    const updated = usersList.map(u => {
+      if (u.username.toLowerCase() === username.toLowerCase()) {
+        return { ...u, permissionLevel: newPermission };
+      }
+      return u;
+    });
+
+    localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
+    setUsersList(updated);
+
+    if (addLog) {
+      addLog(`Admin Console: Reallocated user "${username}" workspace permission level to "${newPermission}"`, 'success');
+    }
+
+    // Sync back to Firestore
+    try {
+      const { doc: fsDoc, setDoc: fsSetDoc } = await import('firebase/firestore');
+      const { db: fsDb } = await import('../lib/firebase');
+      const userDocRef = fsDoc(fsDb, 'users', username.toLowerCase());
+      await fsSetDoc(userDocRef, { permissionLevel: newPermission }, { merge: true });
+    } catch (fErr) {
+      console.warn("Firestore sync permission failed, local update saved:", fErr);
+    }
+    
+    window.dispatchEvent(new Event('storage'));
   };
 
   // Delete/Purge user
-  const handleDeleteUser = (username: string) => {
+  const handleDeleteUser = async (username: string) => {
     if (!window.confirm(`Are you sure you want to permanently delete user "${username}"? They will lose access to their workspace.`)) {
       return;
     }
@@ -284,6 +381,18 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
     if (addLog) {
       addLog(`Admin Console: Revoked credentials and deleted user profile "${username}"`, 'warning');
     }
+
+    // Sync deletion to Firestore
+    try {
+      const { doc: fsDoc, deleteDoc: fsDeleteDoc } = await import('firebase/firestore');
+      const { db: fsDb } = await import('../lib/firebase');
+      const userDocRef = fsDoc(fsDb, 'users', username.toLowerCase());
+      await fsDeleteDoc(userDocRef);
+    } catch (fErr) {
+      console.warn("Firestore sync deletion failed:", fErr);
+    }
+
+    window.dispatchEvent(new Event('storage'));
   };
 
   const filteredLogs = logs.filter(log => {
@@ -427,8 +536,9 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                         <tr className="border-b border-slate-850 pb-2 text-[9px] text-slate-500 uppercase tracking-wider">
                           <th className="pb-2">Username</th>
                           <th className="pb-2">Designation</th>
+                          <th className="pb-2">Permission</th>
                           <th className="pb-2">Date Joined</th>
-                          <th className="pb-2">Password Hash</th>
+                          <th className="pb-2">Password</th>
                           <th className="pb-2 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -441,9 +551,33 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                                 {user.designation}
                               </span>
                             </td>
+                            <td className="py-2.5">
+                              <select
+                                value={user.permissionLevel || 'editor'}
+                                onChange={(e) => handleUpdatePermission(user.username, e.target.value as any)}
+                                className="bg-slate-900 border border-slate-800 text-[10px] text-slate-300 rounded px-1.5 py-0.5 outline-none cursor-pointer focus:border-indigo-500 font-mono font-bold"
+                              >
+                                <option value="viewer">Viewer</option>
+                                <option value="editor">Editor</option>
+                                <option value="administrator">Admin</option>
+                              </select>
+                            </td>
                             <td className="py-2.5 text-slate-400">{user.joined}</td>
-                            <td className="py-2.5 text-slate-500 font-mono tracking-widest text-[10px]">
-                              {user.password ? `${user.password.substring(0, 3)}***` : 'N/A'}
+                            <td className="py-2.5 text-slate-400 font-mono text-[10px]">
+                              <div className="flex items-center gap-2">
+                                <span className={shownPasswords[user.username] ? "text-yellow-400 font-bold" : "text-slate-600 tracking-wider"}>
+                                  {user.password ? (shownPasswords[user.username] ? user.password : "••••••••") : 'N/A'}
+                                </span>
+                                {user.password && (
+                                  <button
+                                    onClick={() => togglePasswordVisibility(user.username)}
+                                    className="p-1 hover:bg-slate-900 rounded text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                                    title={shownPasswords[user.username] ? "Hide Password" : "Show Password"}
+                                  >
+                                    {shownPasswords[user.username] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                  </button>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2.5 text-right">
                               <div className="flex items-center justify-end gap-1.5">
@@ -500,19 +634,31 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                       />
                     </div>
 
-                    <div>
+                    <div className="relative">
                       <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
                         New Security Password
                       </label>
-                      <input
-                        type="password"
-                        required
-                        disabled={!selectedUser}
-                        placeholder={selectedUser ? "Enter new plain-text pass" : "Select user first"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 focus:border-yellow-500 rounded px-2 py-1.5 text-xs text-white placeholder-slate-700 outline-none font-mono"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showResetPassword ? "text" : "password"}
+                          required
+                          disabled={!selectedUser}
+                          placeholder={selectedUser ? "Enter new plain-text pass" : "Select user first"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 focus:border-yellow-500 rounded pl-2 pr-8 py-1.5 text-xs text-white placeholder-slate-700 outline-none font-mono"
+                        />
+                        {selectedUser && (
+                          <button
+                            type="button"
+                            onClick={() => setShowResetPassword(!showResetPassword)}
+                            className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                            title={showResetPassword ? "Hide Password" : "Show Password"}
+                          >
+                            {showResetPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {resetMessage && (
@@ -568,6 +714,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                           onChange={(e) => setCreateDesignation(e.target.value)}
                           className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300 outline-none cursor-pointer"
                         >
+                          <option value="Content Maker">Content Maker</option>
                           <option value="Editor">Editor</option>
                           <option value="Designer">Designer</option>
                           <option value="Videographer">Videographer</option>
@@ -576,17 +723,55 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                       </div>
                     </div>
 
-                    <div>
+                    <div className="relative">
                       <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Secure Password
                       </label>
+                      <div className="relative">
+                        <input
+                          type={showCreatePassword ? "text" : "password"}
+                          required
+                          placeholder="Set plain password"
+                          value={createPassword}
+                          onChange={(e) => setCreatePassword(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded pl-2 pr-8 py-1.5 text-xs text-white placeholder-slate-700 outline-none font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCreatePassword(!showCreatePassword)}
+                          className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                          title={showCreatePassword ? "Hide Password" : "Show Password"}
+                        >
+                          {showCreatePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Workspace Permission Level
+                      </label>
+                      <select
+                        value={createPermission}
+                        onChange={(e) => setCreatePermission(e.target.value as any)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300 outline-none cursor-pointer font-sans"
+                      >
+                        <option value="viewer">Viewer (Read-only workspace access)</option>
+                        <option value="editor">Editor / Content Maker (Can edit details)</option>
+                        <option value="administrator">Administrator (Full Root Credentials)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Joined / Registration Date Option
+                      </label>
                       <input
-                        type="password"
+                        type="date"
                         required
-                        placeholder="Set plain password"
-                        value={createPassword}
-                        onChange={(e) => setCreatePassword(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded px-2 py-1.5 text-xs text-white placeholder-slate-700 outline-none font-mono"
+                        value={createJoinedDate}
+                        onChange={(e) => setCreateJoinedDate(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded px-2 py-1.5 text-xs text-white outline-none font-mono cursor-pointer"
                       />
                     </div>
 
@@ -603,6 +788,193 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                       Provision Account
                     </button>
                   </form>
+                </div>
+
+                {/* Operator Node Avatar Upload panel */}
+                <div className="bg-slate-950/40 border border-slate-850 rounded-xl p-4">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5 border-b border-slate-850 pb-2 mb-3">
+                    <UploadCloud className="w-4 h-4 text-indigo-400" /> Upload Profile Image
+                  </h4>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Select Target User
+                      </label>
+                      <select
+                        value={imgUser}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setImgUser(val);
+                          setImgSuccess('');
+                          setImgError('');
+                          if (val) {
+                            const cached = localStorage.getItem(`swanaya_profile_image_${val}`);
+                            setImgPreview(cached || null);
+                          } else {
+                            setImgPreview(null);
+                          }
+                        }}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs text-slate-300 outline-none cursor-pointer font-sans"
+                      >
+                        <option value="">-- SELECT RECIPIENT --</option>
+                        <option value="each">each (Admin)</option>
+                        <option value="aadithyan">aadithyan (Admin)</option>
+                        {usersList.map((u) => (
+                          <option key={u.username} value={u.username}>
+                            {u.username} ({u.designation})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {imgUser && (
+                      <div>
+                        <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Profile Avatar (Drag & Drop or Click to select)
+                        </label>
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setIsImgDragging(true);
+                          }}
+                          onDragLeave={() => setIsImgDragging(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsImgDragging(false);
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) {
+                              if (!file.type.startsWith('image/')) {
+                                setImgError('Profile picture must be an image file type');
+                                return;
+                              }
+                              if (file.size > 1024 * 1024) {
+                                setImgError('Image file size must be less than 1MB');
+                                return;
+                              }
+                              setImgError('');
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                setImgPreview(ev.target?.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          onClick={() => adminFileInputRef.current?.click()}
+                          className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-all ${
+                            isImgDragging
+                              ? 'border-indigo-500 bg-indigo-950/20'
+                              : imgPreview
+                              ? 'border-emerald-500/30 bg-emerald-950/5 hover:border-emerald-500/50'
+                              : 'border-slate-800 hover:border-slate-700 bg-slate-900/40'
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            ref={adminFileInputRef}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (!file.type.startsWith('image/')) {
+                                  setImgError('Profile picture must be an image file type');
+                                  return;
+                                }
+                                if (file.size > 1024 * 1024) {
+                                  setImgError('Image file size must be less than 1MB');
+                                  return;
+                                }
+                                setImgError('');
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  setImgPreview(ev.target?.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            accept="image/*"
+                          />
+                          {imgPreview ? (
+                            <div className="flex flex-col items-center gap-1.5">
+                              <img
+                                src={imgPreview}
+                                alt="Preview"
+                                className="w-10 h-10 rounded-full object-cover border border-slate-700"
+                              />
+                              <span className="text-[9px] text-emerald-400 font-mono font-bold uppercase">Image Loaded Successfully</span>
+                              <span className="text-[8px] text-slate-500">Click or drop to replace</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
+                              <UploadCloud className="w-5 h-5 text-slate-500 mx-auto" />
+                              <span className="text-[9px] text-slate-400 font-mono">Drag image here or click</span>
+                              <span className="text-[8px] text-slate-600 font-mono">MAX SIZE: 1MB</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {imgSuccess && (
+                      <p className="text-[10px] text-emerald-400 bg-emerald-950/20 p-1.5 rounded border border-emerald-900/20 font-mono text-center">
+                        {imgSuccess}
+                      </p>
+                    )}
+
+                    {imgError && (
+                      <p className="text-[10px] text-rose-400 bg-rose-950/20 p-1.5 rounded border border-rose-900/20 font-mono text-center">
+                        ⚠️ {imgError}
+                      </p>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={!imgUser || !imgPreview}
+                      onClick={async () => {
+                        if (!imgUser || !imgPreview) return;
+                        setImgSuccess('');
+                        setImgError('');
+
+                        try {
+                          // 1. Save locally in swanaya_profile_image_${username}
+                          localStorage.setItem(`swanaya_profile_image_${imgUser}`, imgPreview);
+
+                          // 2. If it's a registered user, update their entry in swanaya_registered_users list
+                          const savedUsers = localStorage.getItem('swanaya_registered_users');
+                          if (savedUsers) {
+                            const parsed = JSON.parse(savedUsers);
+                            const index = parsed.findIndex((u: any) => u.username.toLowerCase() === imgUser.toLowerCase());
+                            if (index !== -1) {
+                              parsed[index].profileImage = imgPreview;
+                              localStorage.setItem('swanaya_registered_users', JSON.stringify(parsed));
+                              setUsersList(parsed);
+                            }
+                          }
+
+                          // 3. Sync to Firestore if online
+                          try {
+                            const { doc: fsDoc, setDoc: fsSetDoc } = await import('firebase/firestore');
+                            const { db: fsDb } = await import('../lib/firebase');
+                            const userDocRef = fsDoc(fsDb, 'users', imgUser.toLowerCase());
+                            await fsSetDoc(userDocRef, { profileImage: imgPreview }, { merge: true });
+                          } catch (fErr) {
+                            console.warn("Firestore sync failed, local update saved:", fErr);
+                          }
+
+                          setImgSuccess(`Avatar successfully saved for user "${imgUser}"!`);
+                          if (addLog) {
+                            addLog(`Admin Console: Set custom avatar image for operator "${imgUser}"`, 'upload');
+                          }
+                          window.dispatchEvent(new Event('storage'));
+                        } catch (err) {
+                          setImgError('Failed to apply custom avatar image');
+                        }
+                      }}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-1.5 rounded text-xs transition-colors cursor-pointer uppercase font-mono tracking-wider flex items-center justify-center gap-1.5"
+                    >
+                      Apply & Sync Avatar
+                    </button>
+                  </div>
                 </div>
 
               </div>

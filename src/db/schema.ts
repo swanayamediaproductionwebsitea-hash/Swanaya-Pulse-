@@ -30,15 +30,16 @@ export const contentPlans = pgTable('content_plans', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const attendanceRecords = pgTable('attendance_records', {
-  id: serial('id').primaryKey(),
-  uid: text('uid').notNull(),
-  day: integer('day').notNull(),
-  type: text('type').notNull(),
-  timestamp: text('timestamp').notNull(),
-  dateTime: text('date_time').notNull(),
-  notes: text('notes'),
-  username: text('username').notNull(),
+export const documents = pgTable('documents', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  templateType: text('template_type').notNull(),
+  lastModified: text('last_modified').notNull(),
+  modifiedBy: text('modified_by').notNull(),
+  googleDocId: text('google_doc_id'),
+  googleDocUrl: text('google_doc_url'),
+  hasWatermark: boolean('has_watermark').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

@@ -8,6 +8,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
 import { launchGooglePicker } from '../lib/googlePicker';
+import { db } from '../lib/firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 interface ContentPlannerProps {
   plans: ContentPlan[];
@@ -17,6 +19,7 @@ interface ContentPlannerProps {
   onUpdatePlan: (plan: ContentPlan) => void;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   currentUser?: string;
+  permissionLevel?: 'viewer' | 'editor';
   searchQuery?: string;
   uiMode?: 'human' | 'ai';
 }
@@ -29,12 +32,12 @@ const MONTHS = [
 const PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'LinkedIn', 'Facebook'];
 const TYPES = ['Video', 'Image', 'Article', 'Campaign', 'Story'] as const;
 
-const getMonthDetails = (monthName: string) => {
+const getMonthDetails = (monthName: string, selectedYear: number = 2026) => {
   const monthIndex = MONTHS.indexOf(monthName);
   if (monthIndex === -1) return { totalDays: 30, startDayOfWeek: 0 };
-  const firstDay = new Date(2026, monthIndex, 1);
+  const firstDay = new Date(selectedYear, monthIndex, 1);
   const startDayOfWeek = firstDay.getDay(); // 0-6
-  const totalDays = new Date(2026, monthIndex + 1, 0).getDate();
+  const totalDays = new Date(selectedYear, monthIndex + 1, 0).getDate();
   return { totalDays, startDayOfWeek };
 };
 
@@ -125,10 +128,140 @@ export default function ContentPlanner({
   onUpdatePlan,
   addLog,
   currentUser = 'each',
+  permissionLevel = 'editor',
   searchQuery = '',
   uiMode = 'ai'
 }: ContentPlannerProps) {
   const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'instagram-interface'>('monthly');
+  
+  // Dynamic Year Changer state (supports range 2023-2026)
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
+
+  // Instagram Accounts Registry states
+  const [instagramAccounts, setInstagramAccounts] = useState<any[]>([]);
+  const [activeInstagramAccount, setActiveInstagramAccount] = useState<any>({
+    id: 'default',
+    handle: '@swanaya_enterprises',
+    name: 'Swanaya Media Enterprises',
+    followers: '45.2K',
+    bio: 'Official media workspace. Direct content planner, automation pipelines, and high-performance digital campaign logs. 🚀🎬✨',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
+    category: 'Media Production',
+    registeredYear: 2026
+  });
+
+  // Instagram Account Form states
+  const [newInstaHandle, setNewInstaHandle] = useState('');
+  const [newInstaName, setNewInstaName] = useState('');
+  const [newInstaBio, setNewInstaBio] = useState('');
+  const [newInstaFollowers, setNewInstaFollowers] = useState('10.5K');
+  const [newInstaCategory, setNewInstaCategory] = useState('Media Production');
+  const [newInstaRegYear, setNewInstaRegYear] = useState(2026);
+  const [newInstaAvatar, setNewInstaAvatar] = useState('https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=80');
+
+  // Sub-tab inside Instagram Hub (Default to 'registry' to show the registry immediately)
+  const [instaHubSubTab, setInstaHubSubTab] = useState<'settings' | 'registry'>('registry');
+
+  // Fetch Instagram accounts registry from Firestore
+  useEffect(() => {
+    const fetchInstagramAccounts = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'instagram_registry'));
+        const accounts: any[] = [];
+        querySnapshot.forEach((docSnap) => {
+          accounts.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        
+        if (accounts.length > 0) {
+          setInstagramAccounts(accounts);
+          // Set active to the first one
+          setActiveInstagramAccount(accounts[0]);
+        } else {
+          // Setup a default account in firestore if empty
+          const defaultAcc = {
+            handle: '@swanaya_enterprises',
+            name: 'Swanaya Media Enterprises',
+            followers: '45.2K',
+            bio: 'Official media workspace. Direct content planner, automation pipelines, and high-performance digital campaign logs. 🚀🎬✨',
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
+            category: 'Media Production',
+            registeredYear: 2026
+          };
+          const docRef = doc(collection(db, 'instagram_registry'), 'default_swanaya');
+          await setDoc(docRef, defaultAcc);
+          setInstagramAccounts([{ id: 'default_swanaya', ...defaultAcc }]);
+        }
+      } catch (err) {
+        console.warn('Firestore offline or failed to fetch instagram registry:', err);
+        setInstagramAccounts([{
+          id: 'default_local',
+          handle: '@swanaya_enterprises',
+          name: 'Swanaya Media Enterprises',
+          followers: '45.2K',
+          bio: 'Official media workspace. Direct content planner, automation pipelines, and high-performance digital campaign logs. 🚀🎬✨',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
+          category: 'Media Production',
+          registeredYear: 2026
+        }]);
+      }
+    };
+    fetchInstagramAccounts();
+  }, []);
+
+  const handleAddInstagramAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newInstaHandle.trim() || !newInstaName.trim()) return;
+
+    const cleanedHandle = newInstaHandle.startsWith('@') ? newInstaHandle.trim() : `@${newInstaHandle.trim()}`;
+    const newAcc = {
+      handle: cleanedHandle,
+      name: newInstaName.trim(),
+      followers: newInstaFollowers.trim() || '1.2K',
+      bio: newInstaBio.trim() || 'Digital Creator Profile',
+      avatar: newInstaAvatar,
+      category: newInstaCategory,
+      registeredYear: Number(newInstaRegYear)
+    };
+
+    const tempId = `insta_${Date.now()}`;
+    
+    // Add locally immediately
+    setInstagramAccounts(prev => [...prev, { id: tempId, ...newAcc }]);
+    addLog(`Instagram Registry: Registered new profile "${cleanedHandle}" for Year ${newInstaRegYear}`, 'success');
+
+    // Reset input states
+    setNewInstaHandle('');
+    setNewInstaName('');
+    setNewInstaBio('');
+
+    try {
+      const docRef = doc(collection(db, 'instagram_registry'), tempId);
+      await setDoc(docRef, newAcc);
+    } catch (err) {
+      console.error('Failed to save Instagram registry profile to Firestore:', err);
+    }
+  };
+
+  const handleDeleteInstagramAccount = async (id: string, handle: string) => {
+    if (instagramAccounts.length <= 1) {
+      alert("Cannot delete the last registered Instagram account. Keep at least one profile in the active registry.");
+      return;
+    }
+    
+    setInstagramAccounts(prev => prev.filter(acc => acc.id !== id));
+    addLog(`Instagram Registry: Purged profile "${handle}" from registry`, 'warning');
+
+    if (activeInstagramAccount.id === id) {
+      const remaining = instagramAccounts.filter(acc => acc.id !== id);
+      setActiveInstagramAccount(remaining[0]);
+    }
+
+    try {
+      await deleteDoc(doc(db, 'instagram_registry', id));
+    } catch (err) {
+      console.error('Failed to delete Instagram registry profile from Firestore:', err);
+    }
+  };
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
   const [plannerViewMode, setPlannerViewMode] = useState<'list' | 'calendar'>('list');
   const [viewingPostPlan, setViewingPostPlan] = useState<ContentPlan | null>(null);
@@ -412,6 +545,10 @@ export default function ContentPlanner({
   };
 
   const handleVideoUploadInModal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (permissionLevel === 'viewer') {
+      alert("Permission Denied: You have Read-Only (Viewer) access.");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('video/')) {
@@ -432,6 +569,10 @@ export default function ContentPlanner({
   };
 
   const handleVideoPickerInModal = () => {
+    if (permissionLevel === 'viewer') {
+      alert("Permission Denied: You have Read-Only (Viewer) access.");
+      return;
+    }
     addLog('Google Picker: Launching secure drive file selector in View Node...', 'info');
     launchGooglePicker(
       (file) => {
@@ -453,6 +594,10 @@ export default function ContentPlanner({
   };
 
   const handleStatusChange = (newStatus: ContentPlan['status']) => {
+    if (permissionLevel === 'viewer') {
+      alert("Permission Denied: You have Read-Only (Viewer) access.");
+      return;
+    }
     onUpdatePlanStatus(viewingPostPlan!.id, newStatus);
     setViewingPostPlan(prev => prev ? { ...prev, status: newStatus } : null);
     addLog(`System: Changed campaign [${viewingPostPlan!.title}] status to [${newStatus}] via Interactive View Node`, 'action');
@@ -491,7 +636,7 @@ export default function ContentPlanner({
 
   // Bidirectional Date Sync helpers
   const parseDateString = (dateStr: string) => {
-    if (!dateStr) return { year: 2026, month: 'October', day: 15 };
+    if (!dateStr) return { year: selectedYear, month: 'October', day: 15 };
     // Try standard Date parsing first for accuracy
     const cleanedStr = dateStr.replace(' ', 'T');
     const dateObj = new Date(cleanedStr);
@@ -503,7 +648,7 @@ export default function ContentPlanner({
       };
     }
     const parts = dateStr.split('-');
-    const y = parseInt(parts[0]) || 2026;
+    const y = parseInt(parts[0]) || selectedYear;
     const mIndex = (parseInt(parts[1]) || 10) - 1;
     const d = parseInt(parts[2]) || 15;
     return {
@@ -521,7 +666,7 @@ export default function ContentPlanner({
   };
 
   const formatPlanDateTime = (plan: ContentPlan) => {
-    const raw = plan.assignedDate || formatDateComponents(2026, plan.month, plan.day);
+    const raw = plan.assignedDate || formatDateComponents(selectedYear, plan.month, plan.day);
     const cleaned = raw.replace(' ', 'T');
     const dateObj = new Date(cleaned);
     if (!isNaN(dateObj.getTime())) {
@@ -570,12 +715,12 @@ export default function ContentPlanner({
     const dStr = String(formDay).padStart(2, '0');
     
     const currentTime = formDateTime.split('T')[1] || '12:00';
-    const newDateTime = `2026-${mStr}-${dStr}T${currentTime}`;
+    const newDateTime = `${selectedYear}-${mStr}-${dStr}T${currentTime}`;
     
-    if (formDateTime.slice(0, 10) !== `2026-${mStr}-${dStr}`) {
+    if (formDateTime.slice(0, 10) !== `${selectedYear}-${mStr}-${dStr}`) {
       setFormDateTime(newDateTime);
     }
-  }, [formMonth, formDay]);
+  }, [formMonth, formDay, selectedYear]);
 
   // Editing modal states
   const [editingPlan, setEditingPlan] = useState<ContentPlan | null>(null);
@@ -590,7 +735,7 @@ export default function ContentPlanner({
     setEditingPlan(plan);
     setEditTitle(plan.title);
     setEditDescription(plan.description);
-    setEditDate(ensureDateTimeString(plan.assignedDate || formatDateComponents(2026, plan.month, plan.day)));
+    setEditDate(ensureDateTimeString(plan.assignedDate || formatDateComponents(selectedYear, plan.month, plan.day)));
     setEditPlatform(plan.platform);
     setEditType(plan.type);
     setEditStatus(plan.status);
@@ -627,10 +772,23 @@ export default function ContentPlanner({
       d.setDate(d.getDate() + idx);
       const mStr = MONTHS[d.getMonth()] || 'October';
       const dNum = d.getDate();
-      initial[idx] = formatDateComponents(2026, mStr, dNum);
+      initial[idx] = formatDateComponents(2026, mStr, dNum); // Initially 2026 or fallback
     });
     return initial;
   });
+
+  // Keep template dates in sync with selectedYear
+  useEffect(() => {
+    const initial: Record<number, string> = {};
+    PRELOADED_TEMPLATES.forEach((_, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() + idx);
+      const mStr = MONTHS[d.getMonth()] || 'October';
+      const dNum = d.getDate();
+      initial[idx] = formatDateComponents(selectedYear, mStr, dNum);
+    });
+    setTemplateDates(initial);
+  }, [selectedYear]);
 
   const findNextOpenSlot = (monthName: string): number => {
     const occupiedDays = new Set(plans.filter(p => p.month === monthName).map(p => p.day));
@@ -645,13 +803,17 @@ export default function ContentPlanner({
   const handleAutoFindSlot = (idx: number) => {
     const currentSelectedMonth = selectedMonth;
     const openDay = findNextOpenSlot(currentSelectedMonth);
-    const dateStr = formatDateComponents(2026, currentSelectedMonth, openDay);
+    const dateStr = formatDateComponents(selectedYear, currentSelectedMonth, openDay);
     setTemplateDates(prev => ({ ...prev, [idx]: dateStr }));
     addLog(`Automated Assigner: Calculated optimal open slot on Day ${openDay} in ${currentSelectedMonth} for template #${idx + 1}`, 'info');
   };
 
   const handleDeployTemplate = (idx: number, tpl: typeof PRELOADED_TEMPLATES[0]) => {
-    const dateStr = templateDates[idx] || formatDateComponents(2026, MONTHS[new Date().getMonth()], new Date().getDate());
+    if (permissionLevel === 'viewer') {
+      alert("Permission Denied: You have Read-Only (Viewer) access. Please register or switch to an Editor account to create or modify plans.");
+      return;
+    }
+    const dateStr = templateDates[idx] || formatDateComponents(selectedYear, MONTHS[new Date().getMonth()], new Date().getDate());
     const { month, day, year } = parseDateString(dateStr);
 
     onAddPlan({
@@ -720,6 +882,10 @@ export default function ContentPlanner({
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (permissionLevel === 'viewer') {
+      alert("Permission Denied: You have Read-Only (Viewer) access. Please register or switch to an Editor account to create or modify plans.");
+      return;
+    }
     if (!title.trim()) return;
 
     onAddPlan({
@@ -755,6 +921,248 @@ export default function ContentPlanner({
     }
     setUploadedVideo(null);
     addLog('Media: Staged video removed from current form context', 'info');
+  };
+
+  const handleExportIndividualPDF = (plan: ContentPlan) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Pop-up blocked. Please enable pop-ups to export the PDF report.');
+      return;
+    }
+
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Swanaya Individual Campaign Node - ${plan.title}</title>
+          <meta charset="utf-8" />
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+            
+            body {
+              font-family: 'Inter', sans-serif;
+              color: #0f172a;
+              background-color: #ffffff;
+              margin: 0;
+              padding: 50px;
+              line-height: 1.6;
+              position: relative;
+            }
+
+            /* Premium Corporate watermark */
+            body::before {
+              content: "SWANAYA CORPORATION OFFICIAL";
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-28deg);
+              font-size: 56px;
+              font-weight: 900;
+              color: rgba(79, 70, 229, 0.05);
+              white-space: nowrap;
+              pointer-events: none;
+              z-index: -999;
+              letter-spacing: 0.15em;
+              font-family: 'Inter', sans-serif;
+              text-transform: uppercase;
+            }
+
+            .header {
+              border-bottom: 3px solid #4f46e5;
+              padding-bottom: 25px;
+              margin-bottom: 40px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+
+            .logo-text {
+              font-size: 26px;
+              font-weight: 900;
+              letter-spacing: -0.05em;
+              color: #1e1b4b;
+              text-transform: uppercase;
+              margin: 0;
+            }
+
+            .subtitle {
+              font-size: 11px;
+              color: #4f46e5;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.12em;
+              margin: 4px 0 0 0;
+            }
+
+            .meta {
+              text-align: right;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 10px;
+              color: #64748b;
+            }
+
+            .card {
+              border: 1px solid #e2e8f0;
+              border-radius: 16px;
+              padding: 30px;
+              background: #f8fafc;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+              margin-bottom: 30px;
+            }
+
+            .field-group {
+              margin-bottom: 20px;
+            }
+
+            .field-label {
+              font-size: 10px;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              color: #64748b;
+              font-weight: 700;
+              margin-bottom: 6px;
+            }
+
+            .field-value {
+              font-size: 15px;
+              color: #0f172a;
+              font-weight: 600;
+            }
+
+            .field-desc {
+              font-size: 13px;
+              color: #334155;
+              line-height: 1.7;
+              background: #ffffff;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #f1f5f9;
+            }
+
+            .badge {
+              display: inline-block;
+              padding: 4px 12px;
+              font-size: 10px;
+              font-weight: 700;
+              border-radius: 9999px;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+
+            .badge-primary {
+              background-color: #e0e7ff;
+              color: #4f46e5;
+            }
+
+            .badge-success {
+              background-color: #dcfce7;
+              color: #15803d;
+            }
+
+            .watermark-footer {
+              margin-top: 60px;
+              text-align: center;
+              font-size: 10px;
+              color: #94a3b8;
+              font-family: 'JetBrains Mono', monospace;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 15px;
+            }
+
+            .btn-print {
+              display: block;
+              width: fit-content;
+              margin: 40px auto 0 auto;
+              background-color: #4f46e5;
+              color: #ffffff;
+              font-size: 13px;
+              font-weight: 700;
+              padding: 12px 30px;
+              border-radius: 8px;
+              border: none;
+              cursor: pointer;
+              box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+              transition: all 0.2s;
+            }
+
+            @media print {
+              .btn-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1 class="logo-text">SWANAYA ENTERPRISES</h1>
+              <p class="subtitle">Individual Content Node Manifest</p>
+            </div>
+            <div class="meta">
+              <div>Registry ID: SNY-2026-${plan.id.slice(0, 8).toUpperCase()}</div>
+              <div>Generated: ${new Date().toLocaleDateString()}</div>
+              <div>Assigned: ${plan.month} Day ${plan.day}, 2026</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px;">
+              <div class="field-group">
+                <div class="field-label">Campaign Title</div>
+                <div class="field-value" style="font-size: 18px; color: #1e1b4b;">${plan.title}</div>
+              </div>
+              <div class="field-group" style="text-align: right;">
+                <div class="field-label">Status</div>
+                <span class="badge ${plan.status === 'Completed' ? 'badge-success' : 'badge-primary'}">${plan.status}</span>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+              <div class="field-group">
+                <div class="field-label">Platform Target</div>
+                <div class="field-value">${plan.platform}</div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Content Format</div>
+                <div class="field-value">${plan.type}</div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Deployment Date</div>
+                <div class="field-value">${plan.month} ${plan.day}, 2026</div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Content Memo / Description</div>
+              <div class="field-desc">${plan.description || 'No summary notes defined.'}</div>
+            </div>
+    `;
+
+    if (plan.videoName) {
+      htmlContent += `
+            <div class="field-group" style="margin-top: 25px;">
+              <div class="field-label">Staged Media Resource</div>
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #f1f5f9; padding: 10px; border-radius: 6px; color: #475569;">
+                File: ${plan.videoName} (${plan.videoSize || 'Staged size'})
+              </div>
+            </div>
+      `;
+    }
+
+    htmlContent += `
+          </div>
+
+          <div class="watermark-footer">
+            SECURE DEPLOYMENT MANIFEST • VERIFIED COMPLIANCE WATERMARK ENABLED • SWANAYA MEDIA
+          </div>
+
+          <button class="btn-print" onclick="window.print()">Print / Save PDF</button>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const handleExportPDF = () => {
@@ -1229,6 +1637,27 @@ export default function ContentPlanner({
           </div>
         </div>
 
+        {/* Collaborative Permission Banner */}
+        {permissionLevel === 'viewer' && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 text-left"
+          >
+            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg shrink-0 border border-amber-500/20">
+              <Plus className="w-5 h-5 rotate-45 animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-amber-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                🔒 Collaborative View-Only Session Enforced
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                You are currently logged into the <span className="font-bold text-white">Swanaya Partner Registry</span> with a <strong className="text-amber-400">Viewer</strong> role. You can view all content schedules, yearly overviews, and simulator assets in real-time. Writing, editing, or deleting items is restricted. To edit campaigns, please request upgrade permissions or register an <strong className="text-emerald-400">Editor</strong> account from the registry login portal.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* =========================================================================
             TAB 1: MONTHLY PLANNER
             ========================================================================= */}
@@ -1236,13 +1665,30 @@ export default function ContentPlanner({
           <div className="space-y-6">
             
             {/* Active Content Operator Banner */}
-            <div className="bg-slate-950/40 border border-slate-850 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs font-mono">
+             <div className="bg-slate-950/40 border border-slate-850 rounded-xl px-4 py-2.5 flex flex-wrap gap-3 items-center justify-between text-xs font-mono">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-slate-400">Secure Content Planner Node active for:</span>
                 <strong className="text-white font-bold">{currentUser}</strong>
               </div>
-              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">Active Session</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-slate-400">Active Planner Year:</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => {
+                    const yr = Number(e.target.value);
+                    setSelectedYear(yr);
+                    addLog(`System: Switched active calendar registry year to ${yr}`, 'action');
+                  }}
+                  className="bg-slate-900 border border-slate-800 text-indigo-400 text-xs font-bold rounded px-2 py-1 outline-none focus:border-indigo-500 cursor-pointer font-mono"
+                >
+                  <option value={2026}>2026 AD</option>
+                  <option value={2025}>2025 AD</option>
+                  <option value={2024}>2024 AD</option>
+                  <option value={2023}>2023 AD</option>
+                </select>
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider bg-slate-900 border border-slate-800 px-2 py-1 rounded">Active Session</span>
+              </div>
             </div>
 
             {/* Months Scroller */}
@@ -1382,14 +1828,17 @@ export default function ContentPlanner({
                                   )}
                                 </div>
                                 <div className="flex gap-1 items-center">
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); openEditModal(plan); }}
-                                    className="text-slate-500 hover:text-indigo-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer mr-0.5"
-                                    title="Edit Campaign details & Assigned Date"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  {permissionLevel !== 'viewer' && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); openEditModal(plan); }}
+                                      className="text-slate-500 hover:text-indigo-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer mr-0.5"
+                                      title="Edit Campaign details & Assigned Date"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                   <select
+                                    disabled={permissionLevel === 'viewer'}
                                     value={plan.status}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => {
@@ -1403,7 +1852,7 @@ export default function ContentPlanner({
                                       plan.status === 'Review' ? 'bg-amber-500/10 text-amber-400' :
                                       plan.status === 'Live' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
                                       'bg-slate-800 text-slate-300'
-                                    }`}
+                                    } ${permissionLevel === 'viewer' ? 'opacity-80 cursor-not-allowed' : ''}`}
                                   >
                                     <option value="Planned">Planned</option>
                                     <option value="In Progress">In Progress</option>
@@ -1411,13 +1860,15 @@ export default function ContentPlanner({
                                     <option value="Completed">Completed</option>
                                     <option value="Live">Live</option>
                                   </select>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); onDeletePlan(plan.id); }}
-                                    className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer"
-                                    title="Delete Plan"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  {permissionLevel !== 'viewer' && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); onDeletePlan(plan.id); }}
+                                      className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                                      title="Delete Plan"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -1468,7 +1919,7 @@ export default function ContentPlanner({
                     <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
                       <span className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500" />
-                        Interactive 2026 Calendar Node
+                        Interactive {selectedYear} Calendar Node
                       </span>
                       <span className="text-slate-600">Select day to view or add post</span>
                     </div>
@@ -1483,7 +1934,7 @@ export default function ContentPlanner({
 
                       {/* Empty padding offsets for current month */}
                       {(() => {
-                        const { startDayOfWeek, totalDays } = getMonthDetails(selectedMonth);
+                        const { startDayOfWeek, totalDays } = getMonthDetails(selectedMonth, selectedYear);
                         const cells = [];
                         
                         // Empty pads
@@ -1532,9 +1983,9 @@ export default function ContentPlanner({
                                   const mIdx = MONTHS.indexOf(selectedMonth) + 1;
                                   const formattedMonth = mIdx < 10 ? `0${mIdx}` : `${mIdx}`;
                                   const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
-                                  setFormDateTime(`2026-${formattedMonth}-${formattedDay}T12:00`);
+                                  setFormDateTime(`${selectedYear}-${formattedMonth}-${formattedDay}T12:00`);
                                   setActiveTab('entity-manager');
-                                  addLog(`System: Staged scheduler date [2026-${formattedMonth}-${formattedDay}] via calendar matrix`, 'action');
+                                  addLog(`System: Staged scheduler date [${selectedYear}-${formattedMonth}-${formattedDay}] via calendar matrix`, 'action');
                                 }
                               }}
                               className={`aspect-square p-1 border rounded-lg flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden group ${customStyle} ${
@@ -1984,9 +2435,14 @@ export default function ContentPlanner({
               </button>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
+                disabled={permissionLevel === 'viewer'}
+                className={`text-xs font-bold py-2 px-5 rounded-lg shadow-lg transition-all ${
+                  permissionLevel === 'viewer'
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none border border-slate-700'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20 cursor-pointer'
+                }`}
               >
-                Schedule & Stage Entry
+                {permissionLevel === 'viewer' ? '🔒 Read-Only Mode' : 'Schedule & Stage Entry'}
               </button>
             </div>
 
@@ -2041,7 +2497,7 @@ export default function ContentPlanner({
                       <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[1.5px]">
                         <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
                           <img 
-                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80" 
+                            src={activeInstagramAccount.avatar} 
                             alt="avatar" 
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
@@ -2050,10 +2506,10 @@ export default function ContentPlanner({
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-white leading-tight flex items-center gap-1">
-                          swanaya_enterprises
+                          {activeInstagramAccount.handle.replace('@', '')}
                           <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex items-center justify-center text-[6px] text-white">✓</span>
                         </p>
-                        <p className="text-[8px] text-slate-400">Swanaya Studios, Chennai</p>
+                        <p className="text-[8px] text-indigo-400 font-semibold">{activeInstagramAccount.category} • Est. {activeInstagramAccount.registeredYear}</p>
                       </div>
                     </div>
                     <button className="text-slate-400 hover:text-white text-xs font-bold font-mono tracking-widest px-1">•••</button>
@@ -2125,7 +2581,7 @@ export default function ContentPlanner({
                   {/* Caption */}
                   <div className="px-3.5 pb-2.5 bg-slate-950 text-left text-[11px] leading-relaxed">
                     <p className="text-slate-300">
-                      <span className="font-bold text-white mr-1.5">swanaya_enterprises</span>
+                      <span className="font-bold text-white mr-1.5">{activeInstagramAccount.handle.replace('@', '')}</span>
                       {instaCaption}
                     </p>
                   </div>
@@ -2182,180 +2638,439 @@ export default function ContentPlanner({
               {/* Right Column: Interaction Hub Toolkits */}
               <div className="lg:col-span-7 space-y-6">
                 
-                {/* 1. Campaign Plan Loader */}
-                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
-                    <FolderOpen className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulate Scheduled Campaigns</span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Select any of your current scheduled Instagram campaigns from the selector below. This instantly imports its title and description into the live Instagram mockup on the left for visualization.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                    <div className="sm:col-span-9">
-                      <select 
-                        onChange={(e) => {
-                          const selectedId = e.target.value;
-                          const found = plans.find(p => p.id === selectedId);
-                          if (found) {
-                            setInstaCaption(`${found.title} - ${found.description}`);
-                            addLog(`Instagram Simulator: Loaded scheduled campaign "${found.title}" into mockup`, 'info');
-                          }
-                        }}
-                        className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-all cursor-pointer font-mono"
-                      >
-                        <option value="">-- Choose scheduled campaign to preview --</option>
-                        {plans.map(p => (
-                          <option key={p.id} value={p.id}>
-                            [{p.month} Day {p.day}] - {p.title} ({p.platform})
-                          </option>
+                {/* SUB-TAB HEADER FOR INSTAGRAM HUB */}
+                <div className="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800/80 gap-1.5 w-full">
+                  <button
+                    onClick={() => setInstaHubSubTab('registry')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      instaHubSubTab === 'registry'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" /> Profiles Registry Node
+                  </button>
+                  <button
+                    onClick={() => setInstaHubSubTab('settings')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      instaHubSubTab === 'settings'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" /> Simulation & Hashtags
+                  </button>
+                </div>
+
+                {instaHubSubTab === 'registry' ? (
+                  <div className="space-y-6">
+                    {/* Active Selected Account Info */}
+                    <div className="bg-gradient-to-r from-indigo-950/40 to-slate-900/40 border border-indigo-500/20 rounded-2xl p-5 text-left space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-11 h-11 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 shrink-0">
+                          <img 
+                            src={activeInstagramAccount.avatar} 
+                            alt="active" 
+                            className="w-full h-full rounded-full object-cover bg-slate-950"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <h4 className="text-sm font-bold text-white font-mono">{activeInstagramAccount.name}</h4>
+                            <span className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center text-[7px] text-white">✓</span>
+                          </div>
+                          <p className="text-xs text-indigo-400 font-bold">{activeInstagramAccount.handle}</p>
+                        </div>
+                        <div className="ml-auto bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold px-2.5 py-1 rounded">
+                          Active Simulator Profile
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-3 text-center pt-2.5 border-t border-slate-850">
+                        <div className="bg-slate-950/60 p-2 border border-slate-900 rounded-xl">
+                          <p className="text-[8px] text-slate-500 uppercase tracking-wider font-mono">Followers</p>
+                          <p className="text-xs font-bold text-white mt-0.5">{activeInstagramAccount.followers}</p>
+                        </div>
+                        <div className="bg-slate-950/60 p-2 border border-slate-900 rounded-xl">
+                          <p className="text-[8px] text-slate-500 uppercase tracking-wider font-mono">Niche</p>
+                          <p className="text-xs font-bold text-amber-400 mt-0.5 truncate">{activeInstagramAccount.category}</p>
+                        </div>
+                        <div className="bg-slate-950/60 p-2 border border-slate-900 rounded-xl">
+                          <p className="text-[8px] text-slate-500 uppercase tracking-wider font-mono">Year Registered</p>
+                          <p className="text-xs font-bold text-emerald-400 mt-0.5">{activeInstagramAccount.registeredYear}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-300 leading-relaxed pt-2">
+                        <strong className="text-slate-400">Bio:</strong> {activeInstagramAccount.bio}
+                      </p>
+                    </div>
+
+                    {/* Registry List */}
+                    <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-850 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-indigo-400" />
+                          <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Instagram Registry Directory</span>
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-500 font-bold uppercase tracking-wider bg-slate-950 border border-slate-900 px-2 py-0.5 rounded">
+                          {instagramAccounts.length} Connected Profiles
+                        </span>
+                      </div>
+
+                      <div className="max-h-[220px] overflow-y-auto scrollbar-thin space-y-2 pr-1">
+                        {instagramAccounts.map((acc) => (
+                          <div 
+                            key={acc.id} 
+                            className={`flex items-center justify-between p-3 border rounded-xl transition-all ${
+                              activeInstagramAccount.id === acc.id 
+                                ? 'bg-indigo-950/20 border-indigo-500/50' 
+                                : 'bg-slate-950/40 border-slate-850 hover:border-slate-800 hover:bg-slate-950/80'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={acc.avatar} 
+                                alt={acc.handle} 
+                                className="w-8 h-8 rounded-full object-cover border border-slate-800 shrink-0"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs font-bold text-white font-mono">{acc.name}</span>
+                                  <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex items-center justify-center text-[5px] text-white">✓</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-mono">
+                                  {acc.handle} • {acc.followers} • <span className="text-indigo-400">{acc.category}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                onClick={() => {
+                                  setActiveInstagramAccount(acc);
+                                  addLog(`Instagram Simulator: Staged profile "${acc.handle}" into mockup frame`, 'action');
+                                }}
+                                className={`text-[10px] font-bold px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                                  activeInstagramAccount.id === acc.id
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800'
+                                }`}
+                              >
+                                {activeInstagramAccount.id === acc.id ? 'Active Mockup' : 'Load Profile'}
+                              </button>
+                              
+                              <button
+                                onClick={() => handleDeleteInstagramAccount(acc.id, acc.handle)}
+                                className="p-1 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
+                                title="Remove Profile"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         ))}
-                      </select>
+                      </div>
                     </div>
-                    
-                    <div className="sm:col-span-3">
-                      <button 
-                        onClick={() => {
-                          setInstaCaption('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
-                          addLog('Instagram Simulator: Reset preview caption to default boilerplate text', 'info');
-                        }}
-                        className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-300 text-xs font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer text-center"
-                      >
-                        Reset Caption
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
-                {/* 2. Hashtag Optimizer */}
-                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
-                    <Sparkles className="w-4 h-4 text-pink-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">AI Hashtag Optimizer</span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Optimize search discoverability and algorithmic engagement. Choose a niche theme below to generate a trending set of optimized, highly matching campaign hashtags.
-                  </p>
+                    {/* Form to Register Profile */}
+                    <form onSubmit={handleAddInstagramAccount} className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                      <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                        <Plus className="w-4 h-4 text-emerald-400 animate-pulse" />
+                        <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Register New Instagram Profile Node</span>
+                      </div>
 
-                  {/* Category Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {['Media', 'Technology', 'Fashion', 'Corporate', 'Creative'].map(cat => (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Handle Name</label>
+                          <input 
+                            type="text" 
+                            value={newInstaHandle}
+                            onChange={(e) => setNewInstaHandle(e.target.value)}
+                            placeholder="@swanaya_creatives" 
+                            className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-indigo-500 transition-all font-mono"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Display Name</label>
+                          <input 
+                            type="text" 
+                            value={newInstaName}
+                            onChange={(e) => setNewInstaName(e.target.value)}
+                            placeholder="Swanaya Creative Studios" 
+                            className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-indigo-500 transition-all font-mono"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Category / Niche</label>
+                          <select 
+                            value={newInstaCategory}
+                            onChange={(e) => setNewInstaCategory(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-indigo-500 transition-all cursor-pointer font-mono"
+                          >
+                            <option value="Media Production">Media Production</option>
+                            <option value="Tech / AI">Tech / AI</option>
+                            <option value="Creative Arts">Creative Arts</option>
+                            <option value="Lifestyle">Lifestyle</option>
+                            <option value="Business Portfolio">Business Portfolio</option>
+                            <option value="E-Commerce">E-Commerce</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Year Registered / Founded</label>
+                          <select 
+                            value={newInstaRegYear}
+                            onChange={(e) => setNewInstaRegYear(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-indigo-500 transition-all cursor-pointer font-mono"
+                          >
+                            <option value={2026}>2026 AD</option>
+                            <option value={2025}>2025 AD</option>
+                            <option value={2024}>2024 AD</option>
+                            <option value={2023}>2023 AD</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Followers Count</label>
+                          <input 
+                            type="text" 
+                            value={newInstaFollowers}
+                            onChange={(e) => setNewInstaFollowers(e.target.value)}
+                            placeholder="14.2K" 
+                            className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-indigo-500 transition-all font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Preset Profile Avatar</label>
+                          <div className="flex gap-2 items-center h-9">
+                            {[
+                              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
+                              'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=80',
+                              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=80',
+                              'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=80',
+                              'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&q=80&w=80'
+                            ].map((url, i) => (
+                              <button
+                                type="button"
+                                key={i}
+                                onClick={() => setNewInstaAvatar(url)}
+                                className={`w-7 h-7 rounded-full border overflow-hidden shrink-0 transition-transform ${
+                                  newInstaAvatar === url ? 'border-indigo-500 scale-110 ring-1 ring-indigo-500/50' : 'border-slate-800 hover:scale-105'
+                                }`}
+                              >
+                                <img src={url} alt="preset" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Profile Bio</label>
+                        <textarea 
+                          value={newInstaBio}
+                          onChange={(e) => setNewInstaBio(e.target.value)}
+                          placeholder="Introduce your brand, mission, or target audience..." 
+                          rows={2}
+                          className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-indigo-500 transition-all font-mono resize-none"
+                        />
+                      </div>
+
                       <button
-                        key={cat}
-                        onClick={() => setHashtagCategory(cat)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                          hashtagCategory === cat
-                            ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-md shadow-amber-500/5'
-                            : 'bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-800 hover:text-white'
-                        }`}
+                        type="submit"
+                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        {cat}
+                        <Plus className="w-4 h-4" /> Register Profile Node to Firestore Database
                       </button>
-                    ))}
+                    </form>
                   </div>
-
-                  {/* Hashtags display and apply button */}
-                  <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-850 space-y-3.5">
-                    <div className="flex flex-wrap gap-2">
-                      {hashtagCategory === 'Media' && [
-                        '#mediaproduction', '#swanaya', '#contentplanner', '#videoediting', '#agencylife', '#digitalmarketing', '#campaigns'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-blue-950/60 text-blue-300 border border-blue-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Technology' && [
-                        '#containerization', '#esbuild', '#typescript', '#clouddeploy', '#nodejs', '#webdevelopment', '#devops'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Fashion' && [
-                        '#editorial', '#aesthetic', '#vogue', '#outfitoftheday', '#colorgrading', '#brandshoot', '#runway'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-pink-950/60 text-pink-300 border border-pink-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Corporate' && [
-                        '#corporatelaunch', '#enterpriseworkflow', '#saas', '#b2bmarketing', '#productivity', '#collaboration', '#agile'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-slate-900 text-slate-300 border border-slate-800 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Creative' && [
-                        '#storyboarding', '#artdirection', '#conceptual', '#uiux', '#brandidentity', '#digitalart', '#motiongraphics'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-indigo-950/60 text-indigo-300 border border-indigo-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
+                ) : (
+                  <div className="space-y-6">
+                    {/* 1. Campaign Plan Loader */}
+                    <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                      <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                        <FolderOpen className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulate Scheduled Campaigns</span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Select any of your current scheduled Instagram campaigns from the selector below. This instantly imports its title and description into the live Instagram mockup on the left for visualization.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                        <div className="sm:col-span-9">
+                          <select 
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              const found = plans.find(p => p.id === selectedId);
+                              if (found) {
+                                setInstaCaption(`${found.title} - ${found.description}`);
+                                addLog(`Instagram Simulator: Loaded scheduled campaign "${found.title}" into mockup`, 'info');
+                              }
+                            }}
+                            className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-all cursor-pointer font-mono"
+                          >
+                            <option value="">-- Choose scheduled campaign to preview --</option>
+                            {plans.map(p => (
+                              <option key={p.id} value={p.id}>
+                                [{p.month} Day {p.day}] - {p.title} ({p.platform})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div className="sm:col-span-3">
+                          <button 
+                            onClick={() => {
+                              setInstaCaption('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
+                              addLog('Instagram Simulator: Reset preview caption to default boilerplate text', 'info');
+                            }}
+                            className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-300 text-xs font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer text-center"
+                          >
+                            Reset Caption
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex justify-between items-center pt-2.5 border-t border-slate-900">
-                      <span className="text-[9px] font-mono text-slate-500">Suggested density: 7 tags (Optimal for Instagram discovery)</span>
-                      <button
-                        onClick={() => {
-                          const tags = {
-                            'Media': ' #mediaproduction #swanaya #contentplanner #videoediting #agencylife #digitalmarketing #campaigns',
-                            'Technology': ' #containerization #esbuild #typescript #clouddeploy #nodejs #webdevelopment #devops',
-                            'Fashion': ' #editorial #aesthetic #vogue #outfitoftheday #colorgrading #brandshoot #runway',
-                            'Corporate': ' #corporatelaunch #enterpriseworkflow #saas #b2bmarketing #productivity #collaboration #agile',
-                            'Creative': ' #storyboarding #artdirection #conceptual #uiux #brandidentity #digitalart #motiongraphics'
-                          }[hashtagCategory] || '';
+                    {/* 2. Hashtag Optimizer */}
+                    <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                      <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                        <Sparkles className="w-4 h-4 text-pink-400" />
+                        <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">AI Hashtag Optimizer</span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Optimize search discoverability and algorithmic engagement. Choose a niche theme below to generate a trending set of optimized, highly matching campaign hashtags.
+                      </p>
 
-                          setInstaCaption(prev => {
-                            // Strip existing tags if already added
-                            const cleanText = prev.split('#')[0].trim();
-                            return `${cleanText} ${tags}`;
-                          });
-                          addLog(`Instagram Simulator: Applied trending [${hashtagCategory}] hashtags to caption`, 'success');
-                        }}
-                        className="bg-amber-400 text-slate-950 text-[10px] font-bold py-1.5 px-3 rounded hover:bg-amber-300 transition-colors cursor-pointer"
-                      >
-                        Apply to Mock Post Caption
-                      </button>
+                      {/* Category Buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        {['Media', 'Technology', 'Fashion', 'Corporate', 'Creative'].map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setHashtagCategory(cat)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                              hashtagCategory === cat
+                                ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-md shadow-amber-500/5'
+                                : 'bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Hashtags display and apply button */}
+                      <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-850 space-y-3.5">
+                        <div className="flex flex-wrap gap-2">
+                          {hashtagCategory === 'Media' && [
+                            '#mediaproduction', '#swanaya', '#contentplanner', '#videoediting', '#agencylife', '#digitalmarketing', '#campaigns'
+                          ].map((h, i) => (
+                            <span key={i} className="text-[10px] font-mono font-semibold bg-blue-950/60 text-blue-300 border border-blue-900/40 px-2.5 py-1 rounded">
+                              {h}
+                            </span>
+                          ))}
+
+                          {hashtagCategory === 'Technology' && [
+                            '#containerization', '#esbuild', '#typescript', '#clouddeploy', '#nodejs', '#webdevelopment', '#devops'
+                          ].map((h, i) => (
+                            <span key={i} className="text-[10px] font-mono font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-900/40 px-2.5 py-1 rounded">
+                              {h}
+                            </span>
+                          ))}
+
+                          {hashtagCategory === 'Fashion' && [
+                            '#editorial', '#aesthetic', '#vogue', '#outfitoftheday', '#colorgrading', '#brandshoot', '#runway'
+                          ].map((h, i) => (
+                            <span key={i} className="text-[10px] font-mono font-semibold bg-pink-950/60 text-pink-300 border border-pink-900/40 px-2.5 py-1 rounded">
+                              {h}
+                            </span>
+                          ))}
+
+                          {hashtagCategory === 'Corporate' && [
+                            '#corporatelaunch', '#enterpriseworkflow', '#saas', '#b2bmarketing', '#productivity', '#collaboration', '#agile'
+                          ].map((h, i) => (
+                            <span key={i} className="text-[10px] font-mono font-semibold bg-slate-900 text-slate-300 border border-slate-800 px-2.5 py-1 rounded">
+                              {h}
+                            </span>
+                          ))}
+
+                          {hashtagCategory === 'Creative' && [
+                            '#storyboarding', '#artdirection', '#conceptual', '#uiux', '#brandidentity', '#digitalart', '#motiongraphics'
+                          ].map((h, i) => (
+                            <span key={i} className="text-[10px] font-mono font-semibold bg-indigo-950/60 text-indigo-300 border border-indigo-900/40 px-2.5 py-1 rounded">
+                              {h}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2.5 border-t border-slate-900">
+                          <span className="text-[9px] font-mono text-slate-500">Suggested density: 7 tags (Optimal for Instagram discovery)</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const tags = {
+                                'Media': ' #mediaproduction #swanaya #contentplanner #videoediting #agencylife #digitalmarketing #campaigns',
+                                'Technology': ' #containerization #esbuild #typescript #clouddeploy #nodejs #webdevelopment #devops',
+                                'Fashion': ' #editorial #aesthetic #vogue #outfitoftheday #colorgrading #brandshoot #runway',
+                                'Corporate': ' #corporatelaunch #enterpriseworkflow #saas #b2bmarketing #productivity #collaboration #agile',
+                                'Creative': ' #storyboarding #artdirection #conceptual #uiux #brandidentity #digitalart #motiongraphics'
+                              }[hashtagCategory] || '';
+
+                              setInstaCaption(prev => {
+                                // Strip existing tags if already added
+                                const cleanText = prev.split('#')[0].trim();
+                                return `${cleanText} ${tags}`;
+                              });
+                              addLog(`Instagram Simulator: Applied trending [${hashtagCategory}] hashtags to caption`, 'success');
+                            }}
+                            className="bg-amber-400 text-slate-950 text-[10px] font-bold py-1.5 px-3 rounded hover:bg-amber-300 transition-colors cursor-pointer"
+                          >
+                            Apply to Mock Post Caption
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Predictive Performance Analytics */}
+                    <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
+                      <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
+                        <BarChart3 className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulated Reach & Algorithmic Impact</span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Based on hashtag density, posting time, and interactive engagement metrics (likes/bookmarks), simulate prospective algorithmic reach statistics.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
+                          <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Est. Impressions</p>
+                          <p className="text-lg font-extrabold text-white font-display mt-1">{(instaLikes * 12.4).toFixed(0)}</p>
+                          <span className="text-[8px] font-mono text-blue-400">Impression Multiplier: 12.4x</span>
+                        </div>
+
+                        <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
+                          <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Engagement Rate</p>
+                          <p className="text-lg font-extrabold text-amber-300 font-display mt-1">{((instaLikes / 4.2) + (instaBookmarks / 1.5)).toFixed(2)}%</p>
+                          <span className="text-[8px] font-mono text-emerald-400">Healthy Profile Average</span>
+                        </div>
+
+                        <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
+                          <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Estimated Shares</p>
+                          <p className="text-lg font-extrabold text-white font-display mt-1">{(instaBookmarks * 2.8).toFixed(0)}</p>
+                          <span className="text-[8px] font-mono text-pink-400">Bookmark Save-rate: High</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* 3. Predictive Performance Analytics */}
-                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
-                    <BarChart3 className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulated Reach & Algorithmic Impact</span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Based on hashtag density, posting time, and interactive engagement metrics (likes/bookmarks), simulate prospective algorithmic reach statistics.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
-                      <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Est. Impressions</p>
-                      <p className="text-lg font-extrabold text-white font-display mt-1">{(instaLikes * 12.4).toFixed(0)}</p>
-                      <span className="text-[8px] font-mono text-blue-400">Impression Multiplier: 12.4x</span>
-                    </div>
-
-                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
-                      <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Engagement Rate</p>
-                      <p className="text-lg font-extrabold text-amber-300 font-display mt-1">{((instaLikes / 4.2) + (instaBookmarks / 1.5)).toFixed(2)}%</p>
-                      <span className="text-[8px] font-mono text-emerald-400">Healthy Profile Average</span>
-                    </div>
-
-                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900">
-                      <p className="text-[9px] font-mono text-slate-500 uppercase tracking-wider">Estimated Shares</p>
-                      <p className="text-lg font-extrabold text-white font-display mt-1">{(instaBookmarks * 2.8).toFixed(0)}</p>
-                      <span className="text-[8px] font-mono text-pink-400">Bookmark Save-rate: High</span>
-                    </div>
-                  </div>
-                </div>
+                )}
 
               </div>
 
@@ -2787,13 +3502,20 @@ export default function ContentPlanner({
                         This content node is currently a standard Video. You can instantly promote it to an integrated Campaign to enable analytical telemetry beacons, 3D emulator grids, and global deployment sheets.
                       </p>
                       <button
+                        disabled={permissionLevel === 'viewer'}
                         onClick={() => {
+                          if (permissionLevel === 'viewer') {
+                            alert("Permission Denied: Viewers cannot modify campaign states.");
+                            return;
+                          }
                           const updated = { ...viewingPostPlan, type: 'Campaign' as const };
                           onUpdatePlan(updated);
                           setViewingPostPlan(updated);
                           addLog(`Planner: Successfully upgraded "${viewingPostPlan.title}" from normal Video to integrated Campaign Node`, 'success');
                         }}
-                        className="mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] flex items-center gap-1.5 cursor-pointer transition-all shadow-md uppercase font-mono tracking-wider"
+                        className={`mt-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] flex items-center gap-1.5 cursor-pointer transition-all shadow-md uppercase font-mono tracking-wider ${
+                          permissionLevel === 'viewer' ? 'opacity-50 cursor-not-allowed bg-slate-800 hover:bg-slate-800' : ''
+                        }`}
                       >
                         <Zap className="w-3 h-3 text-amber-300 animate-bounce" /> Enable Campaign Integration
                       </button>
@@ -2931,12 +3653,20 @@ export default function ContentPlanner({
                   )}
 
                   {/* Dismiss buttons */}
-                  <button
-                    onClick={() => setViewingPostPlan(null)}
-                    className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs cursor-pointer transition-colors"
-                  >
-                    Close View Node
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handleExportIndividualPDF(viewingPostPlan)}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/30 text-white font-bold py-2.5 px-4 rounded-xl text-xs cursor-pointer transition-all shadow-md flex items-center justify-center gap-2"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Export Individual PDF (Watermarked)
+                    </button>
+                    <button
+                      onClick={() => setViewingPostPlan(null)}
+                      className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs cursor-pointer transition-colors"
+                    >
+                      Close View Node
+                    </button>
+                  </div>
                 </div>
 
               </div>
