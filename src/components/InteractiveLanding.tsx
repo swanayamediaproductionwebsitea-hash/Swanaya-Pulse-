@@ -1587,7 +1587,7 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
         <div className="border-t border-indigo-950/60 pt-5 text-center text-[10px] font-mono text-slate-600 space-y-1.5">
           <p>© 2026 SWANAYA MEDIA ENTERPRISES. ALL PORTALS AND DIGITAL ASSETS SECURED UNDER DIRECT PROTOCOLS.</p>
           <p className="text-[9px]">DESIGNED AND MONITORED BY THE DIRECTOR & HOD OF MARKETINGS AND PRODUCTIONS AADITHYAN M MENON.</p>
-          <p className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase">LAST UPDATED ON 21:31 PM 17/07/2026 FRIDAY</p>
+          <p className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase">LAST UPDATED ON 10:00 PM 20/07/2026 MONDAY</p>
         </div>
       </div>
     </> )}

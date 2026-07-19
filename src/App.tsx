@@ -563,7 +563,7 @@ export default function App() {
           <div className="flex flex-col gap-6 py-6 flex-grow">
             
             {/* Header / Navigation bar */}
-            <header className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl z-10">
+            <header className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl z-10">
               
               {/* Branding and status */}
               <div className="flex items-center gap-3">

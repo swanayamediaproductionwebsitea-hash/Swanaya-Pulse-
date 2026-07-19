@@ -659,7 +659,6 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     <option value="Brand Copy Strategist">Brand Copy Strategist</option>
                     <option value="General Media Planner">General Media Planner</option>
                     <option value="Content Creator">Content Creator</option>
-                    <option value="Client Stakeholder">Client Partner / Investor</option>
                   </select>
                 </div>
 
