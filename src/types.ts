@@ -26,6 +26,7 @@ export interface ContentPlan {
   platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook';
   createdAt: string;
   createdBy?: string; // Track who created the plan
+  tags?: string; // Comma separated video tags
 }
 
 export interface ActivityLog {

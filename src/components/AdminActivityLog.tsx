@@ -538,7 +538,6 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                           <th className="pb-2">Designation</th>
                           <th className="pb-2">Permission</th>
                           <th className="pb-2">Date Joined</th>
-                          <th className="pb-2">Password</th>
                           <th className="pb-2 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -559,26 +558,9 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                               >
                                 <option value="viewer">Viewer</option>
                                 <option value="editor">Editor</option>
-                                <option value="administrator">Admin</option>
                               </select>
                             </td>
                             <td className="py-2.5 text-slate-400">{user.joined}</td>
-                            <td className="py-2.5 text-slate-400 font-mono text-[10px]">
-                              <div className="flex items-center gap-2">
-                                <span className={shownPasswords[user.username] ? "text-yellow-400 font-bold" : "text-slate-600 tracking-wider"}>
-                                  {user.password ? (shownPasswords[user.username] ? user.password : "••••••••") : 'N/A'}
-                                </span>
-                                {user.password && (
-                                  <button
-                                    onClick={() => togglePasswordVisibility(user.username)}
-                                    className="p-1 hover:bg-slate-900 rounded text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                                    title={shownPasswords[user.username] ? "Hide Password" : "Show Password"}
-                                  >
-                                    {shownPasswords[user.username] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                                  </button>
-                                )}
-                              </div>
-                            </td>
                             <td className="py-2.5 text-right">
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
@@ -758,7 +740,6 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                       >
                         <option value="viewer">Viewer (Read-only workspace access)</option>
                         <option value="editor">Editor / Content Maker (Can edit details)</option>
-                        <option value="administrator">Administrator (Full Root Credentials)</option>
                       </select>
                     </div>
 

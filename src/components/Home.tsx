@@ -321,8 +321,13 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
         reply = "Task Assignments and creators delegation live inside the 'Task Assignment' module. In that module, you can manually build, update, and manage campaigns, toggle statuses, and upload file assets.";
         tabLink = 'planner'; // In ContentPlanner component
       } else if (norm.includes('security') || norm.includes('log') || norm.includes('telemetry')) {
-        reply = "Security & Telemetry logs record all operators actions. You can browse them on the Security Tab. Want to take a look?";
-        tabLink = 'security';
+        if (currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each') {
+          reply = "Security & Telemetry logs record all operator actions. You can browse them under the Telemetry tab in the Admin Console.";
+          tabLink = 'admin';
+        } else {
+          reply = "Security & Telemetry logs are strictly restricted to system administrators and can only be viewed within the secure Admin Console.";
+          tabLink = undefined;
+        }
       } else if (norm.includes('attendance') || norm.includes('clock') || norm.includes('check-in') || norm.includes('write') || norm.includes('docs') || norm.includes('watermark')) {
         reply = "Our new 'Content Writer' module provides powerful template generators (proposals, briefs, scripts, agreements), instant diagonal company watermark protections, and complete Google Docs integration with direct exports. Click to jump to Content Writer!";
         tabLink = 'writer';
@@ -451,12 +456,21 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
                 <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" /> Ask AI
               </button>
             ) : (
-              <button
-                onClick={() => setActiveMainTab('security')}
-                className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Shield className="w-4 h-4 text-emerald-400" /> View Security Logs
-              </button>
+              (currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each') ? (
+                <button
+                  onClick={() => setActiveMainTab('admin')}
+                  className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Shield className="w-4 h-4 text-yellow-500 animate-pulse" /> View Admin Console
+                </button>
+              ) : (
+                <button
+                  onClick={() => setActiveMainTab('writer')}
+                  className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-4 h-4 text-indigo-400" /> Open Writer
+                </button>
+              )
             )}
           </div>
         </div>

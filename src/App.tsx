@@ -15,7 +15,6 @@ import AdminActivityLog from './components/AdminActivityLog';
 import AssistantWidget from './components/AssistantWidget';
 import Home from './components/Home';
 import ProfileSettings from './components/ProfileSettings';
-import SecurityLogs from './components/SecurityLogs';
 import RealTimeTicker from './components/RealTimeTicker';
 import PopupHub from './components/PopupHub';
 import ClientHub from './components/ClientHub';
@@ -26,7 +25,7 @@ export default function App() {
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'security' | 'admin' | 'assistant' | 'profile' | 'client' | 'faq'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'admin' | 'assistant' | 'profile' | 'client' | 'faq'>('home');
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
@@ -97,6 +96,13 @@ export default function App() {
   // Load current user's profile image & title
   const loadCurrentUserProfile = async () => {
     if (currentUser) {
+      if (currentUser.toLowerCase() === 'video') {
+        setCurrentUserPermission('viewer');
+        setUserProfileImage('https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=150');
+        setUserProfileTitle('Video Stream Observer');
+        return;
+      }
+
       const isSystemAdmin = currentUser.toLowerCase() === 'each' || currentUser.toLowerCase() === 'aadithyan';
       if (isSystemAdmin) {
         setCurrentUserPermission('administrator');
@@ -507,6 +513,48 @@ export default function App() {
               </div>
             </div>
           )
+        ) : currentUser.toLowerCase() === 'video' ? (
+          /* ==========================================
+             LOGGED IN STATE: Video Stream Console
+             ========================================== */
+          <div className="flex flex-col gap-6 py-6 flex-grow">
+            <header className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-xl z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-rose-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg shadow-rose-500/20 text-lg font-display animate-pulse">
+                  V
+                </div>
+                <div className="text-left">
+                  <h1 className="text-sm font-black uppercase tracking-tight text-white font-display">
+                    Swanaya Stream Feed
+                  </h1>
+                  <p className="text-[10px] text-rose-400 font-semibold tracking-wider uppercase animate-pulse">
+                    LIVE VIDEO CHANNEL ONLY
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-mono font-bold bg-slate-950 px-3 py-1.5 rounded-full border border-slate-850 flex items-center gap-1.5 text-slate-300">
+                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" /> LIVE RECEIVER
+                </span>
+                
+                <button
+                  onClick={handleLogout}
+                  className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/30 hover:border-rose-800/85 text-rose-300 rounded-lg py-1.5 px-3.5 transition-all text-xs flex items-center gap-1.5 cursor-pointer font-semibold shadow-md active:scale-95"
+                >
+                  <LogOut className="w-4 h-4" /> Logout
+                </button>
+              </div>
+            </header>
+
+            <main className="flex-grow flex flex-col justify-stretch">
+              <InteractiveLanding 
+                onEnterPortal={() => {}} 
+                registeredUsersCount={registeredUsersCount} 
+                isLoggedVideoOnly={true}
+              />
+            </main>
+          </div>
         ) : (
           
           /* ==========================================
@@ -752,31 +800,7 @@ export default function App() {
                   />
                 )}
               </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05, translateY: -1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setActiveMainTab('security');
-                  addLog('System Navigation: Switched workspace to [Security Logs]', 'info');
-                }}
-                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  (userProfileTitle === 'Client Stakeholder' || userProfileTitle === 'Client Partner / Investor') ? 'hidden' : 'flex'
-                } items-center gap-2 cursor-pointer ${
-                  activeMainTab === 'security'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Security Logs</span>
-                {activeMainTab === 'security' && (
-                  <motion.div
-                    layoutId="activeTabUnderline"
-                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </motion.button>
+
               <motion.button
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
@@ -957,22 +981,6 @@ export default function App() {
                     <ContentWriter 
                       currentUser={currentUser || 'each'}
                       addLog={addLog}
-                    />
-                  </motion.div>
-                )}
-
-                {activeMainTab === 'security' && (
-                  <motion.div
-                    key="security-tab"
-                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className="w-full h-full flex flex-col"
-                  >
-                    <SecurityLogs 
-                      logs={logs} 
-                      currentUser={currentUser || ''} 
                     />
                   </motion.div>
                 )}

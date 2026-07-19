@@ -16,7 +16,7 @@ interface LoginProps {
 
 export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [portalTab, setPortalTab] = useState<'admin' | 'partner'>('admin');
+  const [portalTab, setPortalTab] = useState<'client' | 'creator' | 'admin' | 'video'>('creator');
   
   const [directUsername, setDirectUsername] = useState('');
   const [directPassword, setDirectPassword] = useState('');
@@ -61,6 +61,55 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         }
       }
 
+      // Default preseeded users for the different login portals
+      const defaultUsers: RegisteredUser[] = [
+        {
+          username: 'client',
+          password: 'client',
+          email: 'client@swanayamedia.com',
+          provider: 'direct',
+          uid: 'uid_client',
+          profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
+          designation: 'Client Stakeholder',
+          permissionLevel: 'viewer'
+        },
+        {
+          username: 'partner',
+          password: 'partner',
+          email: 'partner@swanayamedia.com',
+          provider: 'direct',
+          uid: 'uid_partner',
+          profileImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
+          designation: 'Client Partner / Investor',
+          permissionLevel: 'viewer'
+        },
+        {
+          username: 'creator',
+          password: 'creator',
+          email: 'creator@swanayamedia.com',
+          provider: 'direct',
+          uid: 'uid_creator',
+          profileImage: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&q=80&w=150',
+          designation: 'Content Maker',
+          permissionLevel: 'editor'
+        },
+        {
+          username: 'video',
+          password: 'video',
+          email: 'videofeed@swanayamedia.com',
+          provider: 'direct',
+          uid: 'uid_video_feed',
+          profileImage: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=150',
+          designation: 'Video Stream Observer',
+          permissionLevel: 'viewer'
+        }
+      ];
+
+      // Merge defaults with localUsers (localUsers takes precedence if modified)
+      const mergedMap = new Map<string, RegisteredUser>();
+      defaultUsers.forEach(u => mergedMap.set(u.username.toLowerCase(), u));
+      localUsers.forEach(u => mergedMap.set(u.username.toLowerCase(), u));
+
       try {
         // Fetch from Firestore
         const usersCol = collection(db, 'users');
@@ -80,9 +129,6 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           });
         });
 
-        // Merge users by unique username
-        const mergedMap = new Map<string, RegisteredUser>();
-        localUsers.forEach(u => mergedMap.set(u.username.toLowerCase(), u));
         firestoreUsers.forEach(u => mergedMap.set(u.username.toLowerCase(), u));
 
         const mergedList = Array.from(mergedMap.values());
@@ -105,7 +151,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         }
       } catch (error) {
         console.error('Failed to sync profiles with Firestore', error);
-        setRegisteredUsers(localUsers);
+        setRegisteredUsers(Array.from(mergedMap.values()));
         handleFirestoreError(error, OperationType.LIST, 'users');
       }
     };
@@ -712,21 +758,143 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             </div>
           ) : resetMode === 'none' ? (
             <div>
-              {/* Headings */}
-              <div className="text-center mb-5">
-                <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">
-                  Secure Access Login
-                </h2>
-                <p className="text-slate-400 text-[10px] mt-1 font-mono uppercase tracking-wider">
-                  Secure gateway for authorized workspace operators
-                </p>
+              {/* Multiple Login Portal Selector Tab bar */}
+              <div className="grid grid-cols-4 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850 mb-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalTab('client');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                    setDirectUsername('client');
+                    setDirectPassword('client');
+                  }}
+                  className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
+                    portalTab === 'client'
+                      ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 font-black'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  Client
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalTab('creator');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                    setDirectUsername('creator');
+                    setDirectPassword('creator');
+                  }}
+                  className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
+                    portalTab === 'creator'
+                      ? 'bg-indigo-950/60 text-indigo-400 border border-indigo-500/30 font-black'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  Creator
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalTab('admin');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                    setDirectUsername('each');
+                    setDirectPassword('each');
+                  }}
+                  className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
+                    portalTab === 'admin'
+                      ? 'bg-amber-950/60 text-amber-400 border border-amber-500/30 font-black'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortalTab('video');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                    setDirectUsername('video');
+                    setDirectPassword('video');
+                  }}
+                  className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
+                    portalTab === 'video'
+                      ? 'bg-rose-950/60 text-rose-400 border border-rose-500/30 font-black'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  Video Hub
+                </button>
+              </div>
+
+              {/* Portal Info Card */}
+              <div className="bg-slate-950/50 border border-slate-850 rounded-xl p-3.5 mb-5 text-left space-y-1">
+                {portalTab === 'client' && (
+                  <>
+                    <p className="text-[10px] font-mono font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Client Oversight Portal
+                    </p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed">
+                      For client stakeholders, business sponsors, and investors. View campaign budgets, approve deliverables, and read operations checklists.
+                    </p>
+                    <p className="text-[8px] font-mono text-slate-500 pt-1">
+                      Quick Access: <span className="text-emerald-500 font-bold">username: client / password: client</span>
+                    </p>
+                  </>
+                )}
+                {portalTab === 'creator' && (
+                  <>
+                    <p className="text-[10px] font-mono font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                      Creative Team Workspace
+                    </p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed">
+                      For collaborative content creators, video directors, and copy strategists. Access the content planner, entity registries, and social planners.
+                    </p>
+                    <p className="text-[8px] font-mono text-slate-500 pt-1">
+                      Quick Access: <span className="text-indigo-500 font-bold">username: creator / password: creator</span>
+                    </p>
+                  </>
+                )}
+                {portalTab === 'admin' && (
+                  <>
+                    <p className="text-[10px] font-mono font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      Root Command Center
+                    </p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed">
+                      For primary system administrators (each, aadithyan). Complete read/write/edit clearance, logs dispatcher, and registry management.
+                    </p>
+                    <p className="text-[8px] font-mono text-slate-500 pt-1">
+                      Quick Access: <span className="text-amber-500 font-bold">username: each / password: each</span>
+                    </p>
+                  </>
+                )}
+                {portalTab === 'video' && (
+                  <>
+                    <p className="text-[10px] font-mono font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                      Video Stream Portal
+                    </p>
+                    <p className="text-[9px] text-slate-400 leading-relaxed">
+                      For public viewers and stream observers. Offers exclusive access to live stream broadcasts and telecasts from creators and client workspaces.
+                    </p>
+                    <p className="text-[8px] font-mono text-slate-500 pt-1">
+                      Quick Access: <span className="text-rose-500 font-bold">username: video / password: video</span>
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Form */}
               <form onSubmit={handleDirectLogin} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Username
+                    Portal Username
                   </label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
@@ -737,7 +905,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       required
                       value={directUsername}
                       onChange={(e) => setDirectUsername(e.target.value)}
-                      placeholder="e.g. each"
+                      placeholder="Enter portal username"
                       className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
                     />
                   </div>
@@ -799,9 +967,17 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                  className={`w-full text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider ${
+                    portalTab === 'client' 
+                      ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20' 
+                      : portalTab === 'admin' 
+                      ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20' 
+                      : portalTab === 'video'
+                      ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/20'
+                      : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'
+                  }`}
                 >
-                  Authorize Connection <ArrowRight className="w-4 h-4" />
+                  Authorize {portalTab === 'client' ? 'Client' : portalTab === 'admin' ? 'Admin' : portalTab === 'video' ? 'Video' : 'Creator'} Access <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
             </div>
