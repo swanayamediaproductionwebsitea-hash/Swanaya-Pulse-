@@ -45,9 +45,9 @@ export default function ClientHub({ currentUser, addLog }: ClientHubProps) {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [socials, setSocials] = useState<SocialProfile[]>([
-    { platform: 'Instagram', handle: '', followers: '45.2K', connected: false },
+    { platform: 'Instagram', handle: '@chaiwithadi', followers: '54.2K', connected: true },
     { platform: 'LinkedIn', handle: '', followers: '12.8K', connected: false },
-    { platform: 'YouTube', handle: '', followers: '120K', connected: false },
+    { platform: 'YouTube', handle: '@chaiwithadi', followers: '185K', connected: true },
     { platform: 'Twitter', handle: '', followers: '8.4K', connected: false }
   ]);
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
-  Home as HomeIcon, User, Search, X, Users, FileText
+  Home as HomeIcon, User, Search, X, Users, FileText, Bell, AlertTriangle, Share2, Send, Lock, Network
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan, ContentDocument, ActivityLog } from './types';
@@ -18,14 +18,14 @@ import ProfileSettings from './components/ProfileSettings';
 import RealTimeTicker from './components/RealTimeTicker';
 import PopupHub from './components/PopupHub';
 import ClientHub from './components/ClientHub';
-import FaqExperiences from './components/FaqExperiences';
+import AiTodo from './components/AiTodo';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'admin' | 'assistant' | 'profile' | 'client' | 'faq'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'admin' | 'assistant' | 'profile' | 'client' | 'tasks' | 'collaborate' | 'notifications'>('home');
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
@@ -34,6 +34,38 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
     return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
+  });
+
+  // Demo session states
+  const [isDemoUser, setIsDemoUser] = useState(false);
+  const [demoExpiresAt, setDemoExpiresAt] = useState<string | null>(null);
+  const [demoTimeLeft, setDemoTimeLeft] = useState<string>('');
+  const [limitWarning, setLimitWarning] = useState<string | null>(null);
+
+  // Collaboration Chat / Feed state
+  const [collabMessages, setCollabMessages] = useState<any[]>(() => {
+    const saved = localStorage.getItem('swanaya_collab_messages');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [
+      { id: 'c1', sender: 'System Node', text: 'Secure multi-user collaborative workspace channel established. Speak with content makers or administration.', timestamp: '10:15 AM', role: 'System' },
+      { id: 'c2', sender: 'creator', text: 'Just finished drafting the Instagram promotional reel. Feel free to review it inside the planner!', timestamp: '10:30 AM', role: 'Content Maker' },
+      { id: 'c3', sender: 'client', text: 'Approved! The brand copy aligns beautifully with our campaign goals.', timestamp: '10:45 AM', role: 'Client Stakeholder' }
+    ];
+  });
+
+  // Notification center state
+  const [unreadNotifications, setUnreadNotifications] = useState<any[]>(() => {
+    const saved = localStorage.getItem('swanaya_notifications');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [
+      { id: 'n1', title: 'Interactive Multi-User Ticker Online', message: 'Workspace collaboration session synced. Check active online operators in real-time.', time: 'Just Now', type: 'info', unread: true },
+      { id: 'n2', title: 'Content Entry Modified', message: 'Campaign operator synchronized draft status to [In Progress].', time: '20m ago', type: 'success', unread: true },
+      { id: 'n3', title: '72-Hour Expiration Node Safe', message: 'Demo creator restrictions applied to campaign directory. All edits are local simulations.', time: '1h ago', type: 'warning', unread: true },
+    ];
   });
 
   // Load any unread text dispatches from Admin
@@ -119,18 +151,28 @@ export default function App() {
       // Look up permission level from local registered users list
       const saved = localStorage.getItem('swanaya_registered_users');
       let foundPerm: 'viewer' | 'editor' = 'editor';
+      let localIsDemo = false;
+      let localExpiresAt: string | null = null;
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          const found = parsed.find((u: any) => u.username.toLowerCase() === currentUser.toLowerCase());
-          if (found && found.permissionLevel) {
-            foundPerm = found.permissionLevel;
+          const found = parsed.find((u: any) => u.username === currentUser || u.username.toLowerCase() === currentUser.toLowerCase());
+          if (found) {
+            if (found.permissionLevel) {
+              foundPerm = found.permissionLevel;
+            }
+            if (found.isDemo) {
+              localIsDemo = true;
+              localExpiresAt = found.demoExpiresAt || null;
+            }
           }
         } catch (e) {
           console.error(e);
         }
       }
       setCurrentUserPermission(foundPerm);
+      setIsDemoUser(localIsDemo);
+      setDemoExpiresAt(localExpiresAt);
 
       // Try fetching live from Firestore as well to keep in sync
       try {
@@ -142,12 +184,20 @@ export default function App() {
           const data = docSnap.data();
           if (data.permissionLevel) {
             setCurrentUserPermission(data.permissionLevel);
-            // Sync back to local storage list
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              const updated = parsed.map((u: any) => u.username.toLowerCase() === currentUser.toLowerCase() ? { ...u, permissionLevel: data.permissionLevel } : u);
-              localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
-            }
+          }
+          if (data.isDemo !== undefined) {
+            setIsDemoUser(data.isDemo);
+            setDemoExpiresAt(data.demoExpiresAt || null);
+          }
+          // Sync back to local storage list
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const updated = parsed.map((u: any) => 
+              u.username.toLowerCase() === currentUser.toLowerCase() 
+                ? { ...u, permissionLevel: data.permissionLevel, isDemo: data.isDemo, demoExpiresAt: data.demoExpiresAt } 
+                : u
+            );
+            localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
           }
         }
       } catch (err) {
@@ -197,6 +247,32 @@ export default function App() {
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Demo expiry timer logic
+  useEffect(() => {
+    if (!isDemoUser || !demoExpiresAt) {
+      setDemoTimeLeft('');
+      return;
+    }
+
+    const checkExpiry = () => {
+      const diff = new Date(demoExpiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setDemoTimeLeft('EXPIRED');
+        addLog('Demo Warning: Trial period has fully expired. Operator session terminated.', 'warning');
+        handleLogout();
+      } else {
+        const hrs = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        setDemoTimeLeft(`${hrs}h ${mins}m ${secs}s`);
+      }
+    };
+
+    checkExpiry();
+    const interval = setInterval(checkExpiry, 1000);
+    return () => clearInterval(interval);
+  }, [isDemoUser, demoExpiresAt]);
 
   // 2. Initialize and load states from database with localStorage fallback
   useEffect(() => {
@@ -335,6 +411,12 @@ export default function App() {
 
   // 7. Planner handlers with DB sync
   const handleAddPlan = async (newPlan: Omit<ContentPlan, 'id' | 'createdAt'>) => {
+    if (isDemoUser && plans.length >= 3) {
+      setLimitWarning('Demo Account Limit Reached: Demo trial accounts are restricted to a maximum of 3 scheduled content plans in the directory. Upgrading to full partner operator credentials unlocks unrestricted workspace entries.');
+      addLog('Demo Warning: Blocked campaign scheduling attempt due to 3-plan trial limit.', 'warning');
+      return;
+    }
+
     const tempId = `p_${Date.now()}`;
     const plan: ContentPlan = {
       ...newPlan,
@@ -509,52 +591,10 @@ export default function App() {
 
               <div className="text-center text-[11px] text-slate-600 font-mono mt-8 space-y-1">
                 <p>SWANAYA ENTERPRISES SECURE PORTAL © 2026 • WORKSPACE NODE ONLINE</p>
-                <p className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase">LAST UPDATED ON 21:31 PM 17/07/2026 FRIDAY</p>
+                <p className="text-[9px] text-indigo-400 font-bold tracking-wider uppercase">LAST UPDATED ON 10:00 PM 20/07/2026 MONDAY</p>
               </div>
             </div>
           )
-        ) : currentUser.toLowerCase() === 'video' ? (
-          /* ==========================================
-             LOGGED IN STATE: Video Stream Console
-             ========================================== */
-          <div className="flex flex-col gap-6 py-6 flex-grow">
-            <header className="bg-slate-900/50 backdrop-blur-md border border-slate-800 rounded-2xl p-4 flex justify-between items-center shadow-xl z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-rose-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg shadow-rose-500/20 text-lg font-display animate-pulse">
-                  V
-                </div>
-                <div className="text-left">
-                  <h1 className="text-sm font-black uppercase tracking-tight text-white font-display">
-                    Swanaya Stream Feed
-                  </h1>
-                  <p className="text-[10px] text-rose-400 font-semibold tracking-wider uppercase animate-pulse">
-                    LIVE VIDEO CHANNEL ONLY
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono font-bold bg-slate-950 px-3 py-1.5 rounded-full border border-slate-850 flex items-center gap-1.5 text-slate-300">
-                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" /> LIVE RECEIVER
-                </span>
-                
-                <button
-                  onClick={handleLogout}
-                  className="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/30 hover:border-rose-800/85 text-rose-300 rounded-lg py-1.5 px-3.5 transition-all text-xs flex items-center gap-1.5 cursor-pointer font-semibold shadow-md active:scale-95"
-                >
-                  <LogOut className="w-4 h-4" /> Logout
-                </button>
-              </div>
-            </header>
-
-            <main className="flex-grow flex flex-col justify-stretch">
-              <InteractiveLanding 
-                onEnterPortal={() => {}} 
-                registeredUsersCount={registeredUsersCount} 
-                isLoggedVideoOnly={true}
-              />
-            </main>
-          </div>
         ) : (
           
           /* ==========================================
@@ -563,7 +603,7 @@ export default function App() {
           <div className="flex flex-col gap-6 py-6 flex-grow">
             
             {/* Header / Navigation bar */}
-            <header className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl z-10">
+            <header className="bg-slate-900/40 backdrop-blur-2xl border border-slate-800/50 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl z-10 shadow-indigo-950/10">
               
               {/* Branding and status */}
               <div className="flex items-center gap-3">
@@ -729,6 +769,32 @@ export default function App() {
               </div>
             )}
 
+            {/* Active Demo Session Trial Countdown Alert */}
+            {isDemoUser && (
+              <motion.div
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-amber-500/10 border-l-4 border-amber-500 p-3.5 rounded-r-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 shadow-lg backdrop-blur-md mb-3"
+              >
+                <div className="flex items-start gap-2.5 text-left">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                  <div className="text-xs">
+                    <span className="font-bold font-mono text-amber-400 uppercase tracking-wider block mb-0.5">
+                      ⚠️ Active Trial Demo Mode Node
+                    </span>
+                    <p className="text-slate-300 leading-relaxed font-sans">
+                      This operator credentials session has been pre-seeded for trial validation. A strict 72-hour automated destruction countdown is active.
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 flex items-center gap-2 bg-amber-950/60 border border-amber-900/40 px-3 py-1.5 rounded-lg font-mono text-xs text-amber-400">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>DESTRUCTION COUNTDOWN:</span>
+                  <strong className="font-black text-white">{demoTimeLeft || '72h 00m 00s'}</strong>
+                </div>
+              </motion.div>
+            )}
+
             {/* Main Tab Navigation Menu */}
             <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 p-2 rounded-2xl flex flex-wrap justify-center sm:justify-start gap-2 shadow-lg z-10">
               <motion.button
@@ -847,22 +913,83 @@ export default function App() {
                   />
                 )}
               </motion.button>
+
               <motion.button
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  setActiveMainTab('faq');
-                  addLog('System Navigation: Switched workspace to [FAQ & Experiences]', 'info');
+                  setActiveMainTab('collaborate');
+                  addLog('System Navigation: Switched workspace to [Collaborative Feed]', 'info');
                 }}
                 className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeMainTab === 'faq'
+                  activeMainTab === 'collaborate'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
               >
-                <HelpCircle className="w-4 h-4 text-indigo-400" />
-                <span>FAQ & Reviews</span>
-                {activeMainTab === 'faq' && (
+                <Network className="w-4 h-4 text-emerald-400" />
+                <span>Collaborate</span>
+                {activeMainTab === 'collaborate' && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setActiveMainTab('notifications');
+                  // Mark all as read
+                  setUnreadNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+                  localStorage.setItem('swanaya_notifications', JSON.stringify(unreadNotifications.map(n => ({ ...n, unread: false }))));
+                  addLog('System Navigation: Switched workspace to [Notification Center]', 'info');
+                }}
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'notifications'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <div className="relative">
+                  <Bell className="w-4 h-4 text-amber-400" />
+                  {unreadNotifications.some(n => n.unread) && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  )}
+                </div>
+                <span>Notifications</span>
+                {unreadNotifications.some(n => n.unread) && (
+                  <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono font-bold leading-none shrink-0 scale-90">
+                    {unreadNotifications.filter(n => n.unread).length}
+                  </span>
+                )}
+                {activeMainTab === 'notifications' && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setActiveMainTab('tasks');
+                  addLog('System Navigation: Switched workspace to [Task Manager Hub]', 'info');
+                }}
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'tasks'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <span>Task Manager Hub</span>
+                {activeMainTab === 'tasks' && (
                   <motion.div
                     layoutId="activeTabUnderline"
                     className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
@@ -981,6 +1108,7 @@ export default function App() {
                     <ContentWriter 
                       currentUser={currentUser || 'each'}
                       addLog={addLog}
+                      isDemoUser={isDemoUser}
                     />
                   </motion.div>
                 )}
@@ -1050,19 +1178,260 @@ export default function App() {
                   </motion.div>
                 )}
 
-                {activeMainTab === 'faq' && (
+                {activeMainTab === 'tasks' && (
                   <motion.div
-                    key="faq-tab"
+                    key="tasks-tab"
                     initial={{ opacity: 0, y: 12, scale: 0.99 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -12, scale: 0.99 }}
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                     className="w-full h-full flex flex-col"
                   >
-                    <FaqExperiences 
-                      currentUser={currentUser || ''} 
+                    <AiTodo 
+                      onAddPlan={handleAddPlan}
+                      setActiveMainTab={setActiveMainTab}
                       addLog={addLog}
+                      currentUser={currentUser || ''}
+                      uiMode={uiMode}
                     />
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'collaborate' && (
+                  <motion.div
+                    key="collaborate-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-xl flex-grow flex flex-col md:flex-row gap-6">
+                      {/* Left: Online team members */}
+                      <div className="w-full md:w-64 shrink-0 bg-slate-950/60 border border-slate-850 rounded-xl p-4 flex flex-col gap-4">
+                        <div>
+                          <h3 className="text-xs font-black font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active Workspace Nodes
+                          </h3>
+                          <p className="text-[10px] text-slate-500 leading-relaxed font-sans text-left">
+                            These operators are currently connected to the secure collaborative Swanaya Campaign workspace.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2 flex-grow overflow-y-auto max-h-[220px] md:max-h-none">
+                          {[
+                            { name: 'each', role: 'System Admin', avatar: null, status: 'online' },
+                            { name: 'aadithyan', role: 'System Owner', avatar: null, status: 'online' },
+                            { name: 'creator', role: 'Content Maker', avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=150', status: 'online' },
+                            { name: 'client', role: 'Stakeholder', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150', status: 'online' },
+                            { name: currentUser, role: 'Active Operator', avatar: userProfileImage, status: 'online' }
+                          ].map((member, idx) => (
+                            <div key={idx} className="flex items-center gap-2.5 p-2 bg-slate-900/30 border border-slate-850/50 rounded-lg hover:border-indigo-500/30 transition-all">
+                              <div className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden border border-indigo-500/20 bg-slate-950 flex items-center justify-center">
+                                {member.avatar ? (
+                                  <img src={member.avatar} alt={member.name || ''} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <User className="w-4 h-4 text-indigo-400" />
+                                )}
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-950" />
+                              </div>
+                              <div className="text-left overflow-hidden">
+                                <p className="text-[11px] font-bold text-slate-200 truncate font-mono">{member.name}</p>
+                                <p className="text-[9px] text-slate-500 uppercase truncate">{member.role}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Right: Real-time Collaboration Feed Chat */}
+                      <div className="flex-grow flex flex-col bg-slate-950/40 border border-slate-850 rounded-xl p-4" style={{ minHeight: '380px' }}>
+                        <div className="border-b border-slate-850 pb-3 mb-4 flex justify-between items-center">
+                          <div className="text-left">
+                            <h2 className="text-sm font-black font-mono text-white uppercase tracking-wider flex items-center gap-1.5">
+                              <Network className="w-4 h-4 text-emerald-400" />
+                              Collaborate to Work Feed
+                            </h2>
+                            <p className="text-[10px] text-slate-500 font-sans">
+                              Transmit secure project feedback, planner coordination, and production requests.
+                            </p>
+                          </div>
+                          {isDemoUser && (
+                            <span className="bg-amber-950/60 border border-amber-900/40 text-amber-400 font-mono text-[9px] py-1 px-2.5 rounded-full uppercase tracking-wider">
+                              Demo Account
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Messages display */}
+                        <div className="flex-grow space-y-3.5 overflow-y-auto mb-4 pr-1 text-left max-h-[300px]">
+                          {collabMessages.map((msg: any) => (
+                            <div key={msg.id} className="flex gap-3 items-start">
+                              <div className="shrink-0 w-7 h-7 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xs text-indigo-400 font-black uppercase">
+                                {msg.sender ? msg.sender[0] : 'O'}
+                              </div>
+                              <div className="space-y-0.5">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-[11px] font-bold text-indigo-300 font-mono">{msg.sender}</span>
+                                  <span className="text-[9px] text-slate-500 font-mono">{msg.timestamp}</span>
+                                  <span className="text-[8px] font-mono px-1 bg-slate-900 border border-slate-850 text-slate-400 uppercase rounded">{msg.role}</span>
+                                </div>
+                                <p className="text-xs text-slate-300 bg-slate-900/60 border border-slate-900 rounded-xl px-3 py-2 leading-relaxed">
+                                  {msg.text}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Message Send Form */}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const form = e.currentTarget;
+                            const input = form.elements.namedItem('chatText') as HTMLInputElement;
+                            if (!input || !input.value.trim()) return;
+
+                            if (isDemoUser && collabMessages.length >= 6) {
+                              setLimitWarning('Demo Account Limit: Collaboration feed writes are restricted to 6 trial logs on demo nodes. Upgrade to full operator credentials for unlimited campaign broadcasts.');
+                              addLog('Demo Warning: Blocked workspace feed transmit due to trial record limits.', 'warning');
+                              return;
+                            }
+
+                            const text = input.value.trim();
+                            const newMsg = {
+                              id: `col_${Date.now()}`,
+                              sender: currentUser || 'Anonymous',
+                              text,
+                              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                              role: userProfileTitle
+                            };
+
+                            const updated = [...collabMessages, newMsg];
+                            setCollabMessages(updated);
+                            localStorage.setItem('swanaya_collab_messages', JSON.stringify(updated));
+                            input.value = '';
+                            addLog(`Collaboration: Transmitted workspace communication dispatch to node feed`, 'action');
+
+                            // Broadcast mock system reply after 1.5 seconds for incredible feel of active online chat!
+                            setTimeout(() => {
+                              const replies = [
+                                "Message received by main campaign node. Standing by for administrative authorization.",
+                                "Understood. Synchronizing update across active YouTube & TikTok pipelines.",
+                                "Approved by senior producer node. Campaign directory synced successfully."
+                              ];
+                              const randomReply = replies[Math.floor(Math.random() * replies.length)];
+                              const mockReply = {
+                                id: `col_reply_${Date.now()}`,
+                                sender: 'each',
+                                text: randomReply,
+                                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                role: 'System Admin'
+                              };
+                              const updatedWithReply = [...updated, mockReply];
+                              setCollabMessages(updatedWithReply);
+                              localStorage.setItem('swanaya_collab_messages', JSON.stringify(updatedWithReply));
+                              addLog(`Collaboration: Received automated response from System Admin node`, 'info');
+                            }, 1500);
+                          }}
+                          className="flex gap-2"
+                        >
+                          <input
+                            name="chatText"
+                            type="text"
+                            placeholder="Type a campaign message to transmit..."
+                            required
+                            className="flex-grow bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-sans"
+                          />
+                          <button
+                            type="submit"
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-4 py-2 transition-all text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer uppercase shrink-0"
+                          >
+                            Send <Send className="w-3.5 h-3.5" />
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'notifications' && (
+                  <motion.div
+                    key="notifications-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-xl flex-grow flex flex-col gap-4 text-left">
+                      <div className="border-b border-slate-850 pb-3 mb-2 flex justify-between items-center">
+                        <div>
+                          <h2 className="text-sm font-black font-mono text-white uppercase tracking-wider flex items-center gap-1.5">
+                            <Bell className="w-4 h-4 text-amber-400" />
+                            Notification Center
+                          </h2>
+                          <p className="text-[10px] text-slate-500 font-sans">
+                            Real-time platform action signals, system status alerts, and campaign synchronizations.
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setUnreadNotifications([]);
+                            localStorage.setItem('swanaya_notifications', JSON.stringify([]));
+                            addLog('Notifications: Cleared secure workspace alert feed', 'info');
+                          }}
+                          className="bg-slate-950/60 hover:bg-slate-950 border border-slate-850 hover:border-slate-800 text-[10px] text-slate-400 hover:text-white font-mono px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                        >
+                          Clear All Alerts
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5 overflow-y-auto max-h-[380px]">
+                        {unreadNotifications.length === 0 ? (
+                          <div className="py-12 text-center text-slate-500 font-mono text-xs">
+                            No active system notifications or alerts found. Feed is clear.
+                          </div>
+                        ) : (
+                          unreadNotifications.map((notif: any) => (
+                            <div
+                              key={notif.id}
+                              className={`p-4 rounded-xl border transition-all flex items-start gap-3.5 ${
+                                notif.type === 'warning'
+                                  ? 'bg-rose-950/10 border-rose-900/20'
+                                  : notif.type === 'success'
+                                  ? 'bg-emerald-950/10 border-emerald-900/20'
+                                  : 'bg-slate-950/30 border-slate-850'
+                              }`}
+                            >
+                              <div className={`p-2 rounded-lg shrink-0 ${
+                                notif.type === 'warning'
+                                  ? 'bg-rose-950/60 border border-rose-900/50 text-rose-400'
+                                  : notif.type === 'success'
+                                  ? 'bg-emerald-950/60 border border-emerald-900/50 text-emerald-400'
+                                  : 'bg-indigo-950/60 border border-indigo-900/50 text-indigo-400'
+                              }`}>
+                                {notif.type === 'warning' ? (
+                                  <AlertTriangle className="w-4 h-4" />
+                                ) : notif.type === 'success' ? (
+                                  <CheckCircle className="w-4 h-4" />
+                                ) : (
+                                  <Info className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="space-y-0.5 flex-grow">
+                                <div className="flex justify-between items-baseline">
+                                  <h3 className="text-xs font-bold text-slate-200 font-mono">{notif.title}</h3>
+                                  <span className="text-[9px] text-slate-500 font-mono">{notif.time}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 leading-relaxed font-sans">{notif.message}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1075,6 +1444,38 @@ export default function App() {
 
       {/* Globally Active AI and Secure Messenger Popups Floating Hub */}
       <PopupHub addLog={addLog} />
+
+      {/* Dynamic Limit Warning glassmorphic Modal */}
+      <AnimatePresence>
+        {limitWarning && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900/90 border border-slate-850 rounded-2xl max-w-md p-6 shadow-2xl relative text-center space-y-4"
+            >
+              <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 animate-bounce">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-black font-mono text-white uppercase tracking-wider">Demo Constraint Triggered</h3>
+                <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                  {limitWarning}
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => setLimitWarning(null)}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer uppercase tracking-wider font-bold"
+                >
+                  Confirm Operational Constraint
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

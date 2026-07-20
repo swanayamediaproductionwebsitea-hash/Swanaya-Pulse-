@@ -15,8 +15,9 @@ interface LoginProps {
 }
 
 export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [portalTab, setPortalTab] = useState<'client' | 'creator' | 'admin' | 'video'>('creator');
+  const [viewState, setViewState] = useState<'login' | 'register_standard' | 'register_demo'>('login');
+  const isRegisterMode = viewState !== 'login';
+  const [portalTab, setPortalTab] = useState<'client' | 'creator' | 'admin'>('creator');
   
   const [directUsername, setDirectUsername] = useState('');
   const [directPassword, setDirectPassword] = useState('');
@@ -31,6 +32,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [regRole, setRegRole] = useState('Content Maker');
   const [regPermission, setRegPermission] = useState<'viewer' | 'editor' | 'administrator'>('editor');
+  const [regIsDemo, setRegIsDemo] = useState(false);
   
   // Password Reset state
   const [resetMode, setResetMode] = useState<'none' | 'request' | 'verify'>('none');
@@ -102,6 +104,30 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           profileImage: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=150',
           designation: 'Video Stream Observer',
           permissionLevel: 'viewer'
+        },
+        {
+          username: 'demo_creator',
+          password: 'demo_creator',
+          email: 'democreator@swanayamedia.com',
+          provider: 'direct',
+          uid: 'uid_demo_creator',
+          profileImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=150',
+          designation: 'Demo Creator',
+          permissionLevel: 'editor',
+          isDemo: true,
+          demoExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          username: 'demo_client',
+          password: 'demo_client',
+          email: 'democlient@swanayamedia.com',
+          provider: 'direct',
+          uid: 'uid_demo_client',
+          profileImage: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=150',
+          designation: 'Demo Client',
+          permissionLevel: 'viewer',
+          isDemo: true,
+          demoExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
         }
       ];
 
@@ -125,7 +151,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             uid: data.uid || docSnap.id,
             profileImage: data.profileImage || '',
             designation: data.designation || 'Content Creator',
-            permissionLevel: data.permissionLevel || 'editor'
+            permissionLevel: data.permissionLevel || 'editor',
+            isDemo: data.isDemo || false,
+            demoExpiresAt: data.demoExpiresAt || ''
           });
         });
 
@@ -146,7 +174,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             provider: user.provider || 'direct',
             uid: user.uid || '',
             designation: user.designation || 'Content Creator',
-            permissionLevel: user.permissionLevel || 'editor'
+            permissionLevel: user.permissionLevel || 'editor',
+            isDemo: user.isDemo || false,
+            demoExpiresAt: user.demoExpiresAt || ''
           }, { merge: true });
         }
       } catch (error) {
@@ -261,18 +291,35 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    // Direct check for registered partners/operators
-    const matched = registeredUsers.find(
+    // Case-sensitive check for case mismatch to guide user
+    const existWithDiffCase = registeredUsers.find(
       u => u.username.toLowerCase() === cleanUser.toLowerCase() && u.password === cleanPass
     );
 
+    // Direct check for registered partners/operators
+    const matched = registeredUsers.find(
+      u => u.username === cleanUser && u.password === cleanPass
+    );
+
     if (matched) {
+      // If it is a demo account, check if it's expired
+      if (matched.isDemo && matched.demoExpiresAt) {
+        const expiryTime = new Date(matched.demoExpiresAt).getTime();
+        if (Date.now() > expiryTime) {
+          setErrorMessage('This demo account has expired (72-hour trial limit reached). Please register a new account.');
+          addLog(`Auth Error: Expired demo login attempt for "${cleanUser}"`, 'warning');
+          return;
+        }
+      }
       addLog(`Auth: Partner Portal connection established for ${matched.username}`, 'success');
       localStorage.setItem('swanaya_has_logged_in', 'true');
       onLoginSuccess(matched.username);
+    } else if (existWithDiffCase) {
+      setErrorMessage(`Credentials invalid. Username matches case-insensitively, but logins are exact & case-sensitive! You registered as "${existWithDiffCase.username}" but entered "${cleanUser}".`);
+      addLog(`Auth Error: Case mismatch login attempt for "${cleanUser}"`, 'warning');
     } else {
       addLog(`Auth Error: Failed login attempt for "${cleanUser}"`, 'warning');
-      setErrorMessage('Credentials invalid. Please check your admin or registered partner credentials.');
+      setErrorMessage('Credentials invalid. Please check your admin or registered partner credentials exactly (including upper/lowercase).');
     }
   };
 
@@ -313,7 +360,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       password: regPassword,
       provider: 'direct',
       designation: regRole,
-      permissionLevel: regPermission
+      permissionLevel: regPermission,
+      isDemo: regIsDemo,
+      demoExpiresAt: regIsDemo ? new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() : undefined
     };
 
     const updated = [...registeredUsers, newUser];
@@ -321,7 +370,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
     localStorage.setItem('swanaya_has_logged_in', 'true');
 
-    addLog(`Auth: New partner registry initialized for "${cleanUser}"`, 'success');
+    addLog(`Auth: New partner registry initialized for "${cleanUser}" ${regIsDemo ? '(DEMO TRIAL)' : ''}`, 'success');
 
     // Sync to Firestore
     try {
@@ -334,7 +383,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         permissionLevel: regPermission,
         fullName: cleanUser,
         email: `${cleanUser.toLowerCase()}@swanayapartner.com`,
-        bio: `Registered member of the Swanaya Partner Portal holding the role of ${regRole} with permission level ${regPermission}.`
+        bio: `Registered member of the Swanaya Partner Portal holding the role of ${regRole} with permission level ${regPermission}.`,
+        isDemo: regIsDemo,
+        demoExpiresAt: regIsDemo ? new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() : ''
       });
       addLog(`Auth: Successfully linked partner profile "${cleanUser}" to Firestore registry`, 'success');
     } catch (e) {
@@ -347,14 +398,14 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     // Switch login panel inputs
     setDirectUsername(cleanUser);
     setDirectPassword(regPassword);
-    setPortalTab('partner');
+    setPortalTab(regPermission === 'viewer' ? 'client' : 'creator');
 
     setRegUsername('');
     setRegPassword('');
     setRegConfirmPassword('');
     
     setTimeout(() => {
-      setIsRegisterMode(false);
+      setViewState('login');
       setSuccessMessage('');
     }, 2000);
   };
@@ -539,43 +590,6 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         </div>
       </div>
 
-      {/* 2. SEPARATE TOGGLE BUTTONS FOR LOGIN AND REGISTRY */}
-      <div className="flex justify-center gap-2 bg-slate-950/60 p-1.5 rounded-2xl border border-slate-850/80">
-        <button
-          type="button"
-          onClick={() => {
-            setIsRegisterMode(false);
-            setResetMode('none');
-            setErrorMessage('');
-            setSuccessMessage('');
-          }}
-          className={`flex-1 py-2.5 px-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 border ${
-            !isRegisterMode 
-              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/25 border-indigo-500/50' 
-              : 'bg-transparent text-slate-500 hover:text-slate-300 border-transparent'
-          }`}
-        >
-          <LogIn className="w-3.5 h-3.5" />
-          <span>Secure Login</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setIsRegisterMode(true);
-            setResetMode('none');
-            setErrorMessage('');
-            setSuccessMessage('');
-          }}
-          className={`flex-1 py-2.5 px-3 rounded-xl font-mono text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 border ${
-            isRegisterMode 
-              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/25 border-indigo-500/50' 
-              : 'bg-transparent text-slate-500 hover:text-slate-300 border-transparent'
-          }`}
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          <span>New Registration</span>
-        </button>
-      </div>
 
       <div className="relative">
         {/* Dynamic Profile Avatar Preview Frame - Fades in based on typed username */}
@@ -609,8 +623,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         </div>
 
         <div className="w-full bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between" style={{ minHeight: '380px' }}>
-          
-          {isRegisterMode ? (
+                {viewState === 'register_standard' ? (
             /* ==========================================
                REGISTER VIEW: NEW REGISTRATION PORTAL
                ========================================== */
@@ -673,7 +686,6 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     onChange={(e) => setRegPermission(e.target.value as any)}
                     className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded-lg py-1.5 px-3 text-xs text-slate-300 outline-none cursor-pointer font-mono"
                   >
-                    <option value="administrator">Administrator (Full Root Credentials)</option>
                     <option value="editor">Editor / Content Maker (Can edit details)</option>
                     <option value="viewer">Viewer (Read-only workspace access)</option>
                   </select>
@@ -734,7 +746,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     </div>
                   </div>
                 </div>
-   
+
                 {errorMessage && (
                   <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
                     {errorMessage}
@@ -751,14 +763,181 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                   type="submit"
                   className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
                 >
-                  Register Access <Sparkles className="w-4 h-4" />
+                  Register Partner Access <Sparkles className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewState('login');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                  }}
+                  className="w-full bg-slate-950/50 hover:bg-slate-950 border border-slate-850/80 hover:border-slate-700 text-slate-400 hover:text-white font-mono text-[10px] py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Return to Login Page
+                </button>
+              </form>
+            </div>
+          ) : viewState === 'register_demo' ? (
+            /* ==========================================
+               REGISTER VIEW: 72-HOUR DEMO REGISTRATION
+               ========================================== */
+            <div>
+              {/* Header */}
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-black font-display tracking-tight text-amber-400 uppercase flex items-center justify-center gap-1.5">
+                  <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" /> Create Demo Node
+                </h2>
+                <p className="text-slate-400 text-[10px] font-mono uppercase tracking-wider">
+                  Generate trial credentials valid for exactly 72 hours
+                </p>
+              </div>
+   
+              {/* Form */}
+              <form onSubmit={handleRegister} className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Demo Username
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                      <User className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      autoComplete="new-username"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      placeholder="e.g. DemoTester"
+                      className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Dropdown for Demo Role */}
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Demo Target Profile
+                  </label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => {
+                      const role = e.target.value;
+                      setRegRole(role);
+                      if (role === 'Demo Client') {
+                        setRegPermission('viewer');
+                      } else {
+                        setRegPermission('editor');
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-850 focus:border-amber-500 rounded-lg py-1.5 px-3 text-xs text-slate-300 outline-none cursor-pointer"
+                  >
+                    <option value="Demo Creator">Demo Creator (Creative Workspace Access)</option>
+                    <option value="Demo Client">Demo Client (Client Oversight Portal Access)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                        <Lock className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        type={showRegPassword ? "text" : "password"}
+                        required
+                        autoComplete="new-password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Min 4 chars"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-amber-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+   
+                  <div>
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Confirm Key
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        type={showRegConfirmPassword ? "text" : "password"}
+                        required
+                        autoComplete="new-password"
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Repeat password"
+                        className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-amber-500 rounded-lg py-1.5 pl-8 pr-8 text-xs text-white placeholder-slate-600 outline-none transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-amber-950/20 border border-amber-900/30 p-2.5 rounded-lg text-left">
+                  <p className="text-[9px] text-amber-300 leading-relaxed font-sans">
+                    <strong className="text-amber-400 uppercase tracking-wider block mb-0.5">⚠️ Limited Trial Bounds Enforced</strong>
+                    This demo trial automatically expires after exactly 72 hours. Services within the portal (e.g. Campaign Builder, Writer and Settings) will have temporary sandbox limits active. You must log in with the exact upper/lowercase username and password as you registered.
+                  </p>
+                </div>
+
+                {errorMessage && (
+                  <div className="bg-rose-950/40 border border-rose-900/30 text-rose-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
+                    {errorMessage}
+                  </div>
+                )}
+   
+                {successMessage && (
+                  <div className="bg-emerald-950/40 border border-emerald-900/30 text-emerald-300 text-[11px] rounded-lg p-2.5 text-center font-mono">
+                    {successMessage}
+                  </div>
+                )}
+   
+                <button
+                  type="submit"
+                  className="w-full bg-amber-600 hover:bg-amber-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
+                >
+                  Create 72h Demo Access <Sparkles className="w-4 h-4 text-amber-300" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewState('login');
+                    setErrorMessage('');
+                    setSuccessMessage('');
+                  }}
+                  className="w-full bg-slate-950/50 hover:bg-slate-950 border border-slate-850/80 hover:border-slate-700 text-slate-400 hover:text-white font-mono text-[10px] py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Return to Login Page
                 </button>
               </form>
             </div>
           ) : resetMode === 'none' ? (
             <div>
               {/* Multiple Login Portal Selector Tab bar */}
-              <div className="grid grid-cols-4 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850 mb-5">
+              <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850 mb-5">
                 <button
                   type="button"
                   onClick={() => {
@@ -791,7 +970,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       : 'text-slate-500 hover:text-slate-300 border border-transparent'
                   }`}
                 >
-                  Creator
+                  Creator Hub
                 </button>
                 <button
                   type="button"
@@ -808,24 +987,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       : 'text-slate-500 hover:text-slate-300 border border-transparent'
                   }`}
                 >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPortalTab('video');
-                    setErrorMessage('');
-                    setSuccessMessage('');
-                    setDirectUsername('video');
-                    setDirectPassword('video');
-                  }}
-                  className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
-                    portalTab === 'video'
-                      ? 'bg-rose-950/60 text-rose-400 border border-rose-500/30 font-black'
-                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                  }`}
-                >
-                  Video Hub
+                  Admin Central
                 </button>
               </div>
 
@@ -866,24 +1028,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       Root Command Center
                     </p>
                     <p className="text-[9px] text-slate-400 leading-relaxed">
-                      For primary system administrators (each, aadithyan). Complete read/write/edit clearance, logs dispatcher, and registry management.
-                    </p>
-                    <p className="text-[8px] font-mono text-slate-500 pt-1">
-                      Quick Access: <span className="text-amber-500 font-bold">username: each / password: each</span>
-                    </p>
-                  </>
-                )}
-                {portalTab === 'video' && (
-                  <>
-                    <p className="text-[10px] font-mono font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                      Video Stream Portal
-                    </p>
-                    <p className="text-[9px] text-slate-400 leading-relaxed">
-                      For public viewers and stream observers. Offers exclusive access to live stream broadcasts and telecasts from creators and client workspaces.
-                    </p>
-                    <p className="text-[8px] font-mono text-slate-500 pt-1">
-                      Quick Access: <span className="text-rose-500 font-bold">username: video / password: video</span>
+                      For primary system administrators. Complete read/write/edit clearance, logs dispatcher, and registry management.
                     </p>
                   </>
                 )}
@@ -971,13 +1116,45 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20' 
                       : portalTab === 'admin' 
                       ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20' 
-                      : portalTab === 'video'
-                      ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/20'
                       : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'
                   }`}
                 >
-                  Authorize {portalTab === 'client' ? 'Client' : portalTab === 'admin' ? 'Admin' : portalTab === 'video' ? 'Video' : 'Creator'} Access <ArrowRight className="w-4 h-4" />
+                  Authorize {portalTab === 'client' ? 'Client' : portalTab === 'admin' ? 'Admin' : 'Creator'} Access <ArrowRight className="w-4 h-4" />
                 </button>
+
+                <div className="border-t border-slate-850/80 pt-4 mt-4 space-y-2 text-left">
+                  <span className="text-[9px] font-mono font-black text-slate-500 uppercase tracking-widest block text-center">
+                    New Operator Registration & Sandbox Access
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewState('register_standard');
+                        setRegIsDemo(false);
+                        setErrorMessage('');
+                        setSuccessMessage('');
+                      }}
+                      className="bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/30 hover:border-indigo-500/50 text-indigo-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-indigo-400 mb-0.5 animate-pulse" />
+                      <span>Register Partner</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setViewState('register_demo');
+                        setRegIsDemo(true);
+                        setErrorMessage('');
+                        setSuccessMessage('');
+                      }}
+                      className="bg-amber-950/40 hover:bg-amber-900/40 border border-amber-900/30 hover:border-amber-500/50 text-amber-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 mb-0.5" />
+                      <span>Register Demo</span>
+                    </button>
+                  </div>
+                </div>
               </form>
             </div>
           ) : (

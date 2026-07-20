@@ -1326,7 +1326,7 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
                           <User className="w-3.5 h-3.5 text-indigo-400" />
                         </div>
                         <div>
-                          <span className="block text-xs font-bold text-slate-200">@{exp.username}</span>
+                          <span className="block text-xs font-bold text-slate-200">@{exp.username.toLowerCase() === 'aadithyan' ? 'system_owner' : exp.username.toLowerCase() === 'each' ? 'system_admin' : exp.username}</span>
                           <span className="block text-[9px] text-indigo-400 font-mono font-medium">{exp.designation || 'Creator'}</span>
                         </div>
                       </div>

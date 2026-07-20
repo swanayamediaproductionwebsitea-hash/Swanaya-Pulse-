@@ -47,6 +47,8 @@ export interface RegisteredUser {
   designation?: string;
   profileImage?: string;
   permissionLevel?: 'viewer' | 'editor' | 'administrator';
+  isDemo?: boolean;
+  demoExpiresAt?: string;
 }
 
 export interface AiTodoItem {

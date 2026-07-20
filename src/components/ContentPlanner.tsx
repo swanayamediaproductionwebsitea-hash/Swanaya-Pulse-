@@ -633,6 +633,25 @@ export default function ContentPlanner({
   };
 
   const [formDateTime, setFormDateTime] = useState<string>(getInitialDateTimeString);
+  const [isAssigned, setIsAssigned] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  const getBestUploadTiming = (platform: ContentPlan['platform']) => {
+    switch (platform) {
+      case 'YouTube':
+        return { text: "Thursday or Friday between 2:00 PM - 5:00 PM (Local)", time: "15:00" };
+      case 'Instagram':
+        return { text: "Wednesday at 11:00 AM or Friday at 10:00 AM", time: "11:00" };
+      case 'TikTok':
+        return { text: "Tuesday at 9:00 AM or Thursday at 12:00 PM", time: "09:00" };
+      case 'LinkedIn':
+        return { text: "Tuesday through Thursday between 9:00 AM - 12:00 PM", time: "10:00" };
+      case 'Facebook':
+        return { text: "Monday through Wednesday at 12:00 PM", time: "12:00" };
+      default:
+        return { text: "Weekdays at 12:00 PM", time: "12:00" };
+    }
+  };
 
   const ensureDateTimeString = (dateStr: string) => {
     if (!dateStr) return '';
@@ -1653,7 +1672,7 @@ export default function ContentPlanner({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Plus className="w-3.5 h-3.5 animate-pulse" /> Add Registry Item
+              <Plus className="w-3.5 h-3.5 animate-pulse" /> Add Planning
             </button>
 
             <button
@@ -2307,35 +2326,60 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
-                {/* Unified Date & Time Picker */}
-                <div className="bg-indigo-950/15 border border-indigo-900/30 p-4 rounded-xl space-y-3 mt-1">
-                  <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 animate-pulse" /> Integrated Date & Time Selector
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Select Date & Time
-                      </label>
-                      <div className="relative flex items-center">
-                        <input
-                          type="datetime-local"
-                          required
-                          value={formDateTime}
-                          onChange={(e) => handleDateTimeChange(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2 text-xs text-white outline-none cursor-pointer font-mono font-bold transition-all hover:border-slate-700"
-                        />
+                {/* Unified Date & Time Picker Replacement */}
+                <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-3 mt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" /> Campaign Scheduling Assignment
+                    </span>
+                    {isAssigned ? (
+                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">
+                        🟢 Assigned
+                      </span>
+                    ) : (
+                      <span className="bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold animate-pulse">
+                        🔴 Unassigned
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950 border border-slate-900 rounded-lg flex flex-col items-center justify-center min-h-[90px] text-center gap-3">
+                    {isAssigned ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-slate-200">
+                          Assigned to publish on:{' '}
+                          <span className="text-emerald-400 font-bold font-mono">
+                            {formMonth} {formDay}, {selectedYear}
+                          </span>{' '}
+                          at{' '}
+                          <span className="text-amber-400 font-bold font-mono">
+                            {formDateTime && !isNaN(new Date(formDateTime).getTime())
+                              ? new Date(formDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : '12:00 PM'}
+                          </span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowAssignModal(true)}
+                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer flex items-center gap-1 mx-auto"
+                        >
+                          ✏️ Edit Assignment Date & Time
+                        </button>
                       </div>
-                    </div>
-                    <div className="text-[9.5px] text-slate-400 flex flex-col justify-center leading-relaxed">
-                      <p className="font-bold text-indigo-400">Integrated Scheduling Engine</p>
-                      <p className="mt-0.5">
-                        Selected: <span className="text-white font-bold">{formMonth} Day {formDay}</span>
-                        {formDateTime && !isNaN(new Date(formDateTime).getTime()) && (
-                          <> at <span className="text-amber-400 font-bold">{new Date(formDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></>
-                        )}
-                      </p>
-                    </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          This content plan has not been assigned to a calendar schedule yet.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowAssignModal(true)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer mx-auto shadow-md transition-all active:scale-95"
+                        >
+                          🟢 Assign Content to Date
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2469,25 +2513,47 @@ export default function ContentPlanner({
 
               </div>
 
-            <div className="pt-4 border-t border-slate-800/60 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab('monthly')}
-                className="bg-slate-950 hover:bg-slate-900 text-slate-300 text-xs py-2 px-4 rounded-lg border border-slate-800 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={permissionLevel === 'viewer'}
-                className={`text-xs font-bold py-2 px-5 rounded-lg shadow-lg transition-all ${
-                  permissionLevel === 'viewer'
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none border border-slate-700'
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20 cursor-pointer'
-                }`}
-              >
-                {permissionLevel === 'viewer' ? '🔒 Read-Only Mode' : 'Schedule & Stage Entry'}
-              </button>
+            <div className="pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+              {!isAssigned ? (
+                <div className="text-rose-400 text-xs font-bold font-mono px-3.5 py-2 bg-rose-950/20 border border-rose-900/40 rounded-xl flex items-center gap-1.5 w-full sm:w-auto">
+                  <span>🔴 Content is Unassigned - Please assign content to date!</span>
+                </div>
+              ) : (
+                <div className="text-emerald-400 text-xs font-bold font-mono px-3.5 py-2 bg-emerald-950/20 border border-emerald-900/40 rounded-xl flex items-center gap-1.5 w-full sm:w-auto">
+                  <span>🟢 Ready to publish on {formMonth} {formDay}</span>
+                </div>
+              )}
+              
+              <div className="flex gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('monthly')}
+                  className="bg-slate-950 hover:bg-slate-900 text-slate-300 text-xs py-2 px-4 rounded-lg border border-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                {!isAssigned ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAssignModal(true)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 px-5 rounded-lg shadow-lg shadow-emerald-500/20 cursor-pointer transition-all flex items-center gap-1.5"
+                  >
+                    🟢 Assign Content
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={permissionLevel === 'viewer'}
+                    className={`text-xs font-bold py-2 px-5 rounded-lg shadow-lg transition-all ${
+                      permissionLevel === 'viewer'
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none border border-slate-700'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20 cursor-pointer'
+                    }`}
+                  >
+                    {permissionLevel === 'viewer' ? '🔒 Read-Only Mode' : '📅 Schedule Content Plan'}
+                  </button>
+                )}
+              </div>
             </div>
 
           </form>
@@ -3807,6 +3873,103 @@ export default function ContentPlanner({
                       <span>Initiate Upload & Save</span>
                     </>
                   )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {/* ASSIGN DATE & TIME MODAL POPUP (POPO) */}
+        {showAssignModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 space-y-5"
+            >
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400" /> Assign Content Schedule Date
+                </h3>
+                <button 
+                  type="button" 
+                  onClick={() => setShowAssignModal(false)}
+                  className="text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Dynamic Best Timing Suggestions */}
+              <div className="bg-indigo-950/30 border border-indigo-900/50 p-4 rounded-xl space-y-2.5">
+                <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                  💡 Peak Engagement Hours (Best Timing to Upload)
+                </span>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  For <span className="text-indigo-400 font-bold">{formPlatform}</span>, the optimal audience activity hours are generally:
+                </p>
+                <p className="text-xs text-amber-400 font-black font-mono bg-slate-950/50 px-3 py-1.5 rounded-lg border border-slate-850">
+                  ✨ {getBestUploadTiming(formPlatform).text}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentVal = formDateTime;
+                    const datePart = currentVal.split('T')[0] || new Date().toISOString().slice(0, 10);
+                    const optimalTime = getBestUploadTiming(formPlatform).time;
+                    handleDateTimeChange(`${datePart}T${optimalTime}`);
+                    addLog(`Optimal Timings: Applied peak upload hour (${optimalTime}) for ${formPlatform}`, 'success');
+                  }}
+                  className="text-[10px] bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 font-bold py-1.5 px-3 rounded-lg cursor-pointer border border-indigo-800/40 flex items-center gap-1.5"
+                >
+                  ⚡ Apply Peak Time ({getBestUploadTiming(formPlatform).time})
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Select Target Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={formDateTime}
+                  onChange={(e) => handleDateTimeChange(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-3 text-sm text-white font-mono font-bold cursor-pointer transition-all hover:border-slate-700"
+                />
+              </div>
+
+              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-850 flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Scheduled Slots</p>
+                  <p className="text-xs text-white font-bold">{formMonth} {formDay}, {selectedYear}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Target Slot</p>
+                  <p className="text-xs text-amber-400 font-bold font-mono">
+                    {formDateTime ? new Date(formDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '12:00 PM'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(false)}
+                  className="bg-slate-950 hover:bg-slate-900 text-slate-300 text-xs py-2 px-4 rounded-lg border border-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAssigned(true);
+                    setShowAssignModal(false);
+                    addLog(`Scheduler: Assigned content slot to ${formMonth} ${formDay} at ${new Date(formDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 'success');
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 px-5 rounded-lg shadow-lg shadow-emerald-500/20 cursor-pointer"
+                >
+                  Confirm & Assign
                 </button>
               </div>
             </motion.div>

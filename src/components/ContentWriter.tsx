@@ -9,6 +9,7 @@ import { launchGooglePicker } from '../lib/googlePicker';
 interface ContentWriterProps {
   currentUser: string;
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
+  isDemoUser?: boolean;
 }
 
 const TEMPLATES = {
@@ -105,7 +106,7 @@ All final approved video renders and copy assets shall belong to the Client. Dra
   }
 };
 
-export default function ContentWriter({ currentUser, addLog }: ContentWriterProps) {
+export default function ContentWriter({ currentUser, addLog, isDemoUser = false }: ContentWriterProps) {
   const [documents, setDocuments] = useState<ContentDocument[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   
@@ -243,6 +244,12 @@ export default function ContentWriter({ currentUser, addLog }: ContentWriterProp
   };
 
   const handleCreateNew = async () => {
+    if (isDemoUser && documents.length >= 2) {
+      alert('Demo Account Limit Reached: Demo trial accounts are restricted to a maximum of 2 active draft documents in the workspace. Upgrade to full partner operator credentials to unlock unrestricted content generation.');
+      addLog('Demo Warning: Blocked document creation attempt due to 2-document trial limit.', 'warning');
+      return;
+    }
+
     const newId = String(Date.now());
     const newDoc: ContentDocument = {
       id: newId,

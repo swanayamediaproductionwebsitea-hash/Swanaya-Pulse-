@@ -260,7 +260,9 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
                       <div className="shrink-0 w-4 h-4 rounded-full bg-slate-900 flex items-center justify-center border border-slate-800">
                         <User className="w-2.5 h-2.5 text-indigo-400" />
                       </div>
-                      <span className="text-slate-300 font-bold">{exp.username}</span>
+                      <span className="text-slate-300 font-bold">
+                        {exp.username.toLowerCase() === 'aadithyan' ? 'system_owner' : exp.username.toLowerCase() === 'each' ? 'system_admin' : exp.username}
+                      </span>
                       <span className="text-slate-600">•</span>
                       <span className="text-slate-500 uppercase tracking-tight">{exp.designation}</span>
                     </div>
