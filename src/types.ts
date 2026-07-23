@@ -26,6 +26,7 @@ export interface ContentPlan {
   platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook';
   createdAt: string;
   createdBy?: string; // Track who created the plan
+  assignee?: string; // Operator/Event Planner assigned
   tags?: string; // Comma separated video tags
 }
 
@@ -58,5 +59,9 @@ export interface AiTodoItem {
   priority: 'High' | 'Medium' | 'Low';
   completed: boolean;
   createdAt: string;
+  assignee?: string;
+  visibility?: 'public' | 'private';
 }
+
+
 

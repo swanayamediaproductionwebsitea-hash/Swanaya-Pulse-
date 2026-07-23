@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ContentPlan } from '../types';
 import AiTodo from './AiTodo';
+import { db } from '../lib/firebase';
 
 interface HomeProps {
   plans: ContentPlan[];
@@ -17,6 +18,7 @@ interface HomeProps {
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   currentUser: string;
   uiMode?: 'human' | 'ai';
+  currentUserPermission: 'viewer' | 'editor' | 'administrator';
 }
 
 interface PlatformConfig {
@@ -227,7 +229,8 @@ const SITE_MODULES: ModuleNode[] = [
   }
 ];
 
-export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, currentUser, uiMode = 'ai' }: HomeProps) {
+export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, currentUser, uiMode = 'ai', currentUserPermission }: HomeProps) {
+
   // Google Auth Simulation State
   const [googleConnected, setGoogleConnected] = useState<boolean>(() => {
     return localStorage.getItem('swanaya_google_oauth_linked') === 'true';
@@ -321,7 +324,7 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
         reply = "Task Assignments and creators delegation live inside the 'Task Assignment' module. In that module, you can manually build, update, and manage campaigns, toggle statuses, and upload file assets.";
         tabLink = 'planner'; // In ContentPlanner component
       } else if (norm.includes('security') || norm.includes('log') || norm.includes('telemetry')) {
-        if (currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each') {
+        if (currentUser?.toLowerCase() === 'aadithyan') {
           reply = "Security & Telemetry logs record all operator actions. You can browse them under the Telemetry tab in the Admin Console.";
           tabLink = 'admin';
         } else {
@@ -388,331 +391,79 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
   })();
 
   return (
-    <div className="space-y-6">
-
-      {/* Hero Welcome banner */}
-      <div className={`relative border rounded-2xl p-6 overflow-hidden shadow-2xl transition-all duration-500 ${
-        uiMode === 'ai' 
-          ? 'bg-gradient-to-r from-slate-900 via-indigo-950/45 to-slate-900 border-slate-800'
-          : 'bg-slate-900/80 border-slate-800'
-      }`}>
-        <div className="absolute top-0 right-0 p-8 opacity-5">
-          {uiMode === 'ai' ? (
-            <Sparkles className="w-64 h-64 text-indigo-400 animate-pulse" />
-          ) : (
-            <HomeIcon className="w-64 h-64 text-slate-500" />
-          )}
-        </div>
-        
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2.5">
-              {uiMode === 'ai' ? (
-                <>
-                  <span className="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <Sparkles className="w-3 h-3 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
-                    AI Integrated Autopilot Mode
-                  </span>
-                  <span className="h-1.5 w-1.5 bg-indigo-400 rounded-full animate-ping" />
-                </>
-              ) : (
-                <>
-                  <span className="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-                    <HomeIcon className="w-3 h-3 text-slate-400" />
-                    Standard Human Operator Mode
-                  </span>
-                  <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                </>
-              )}
-            </div>
-            <h2 className="text-2xl md:text-3xl font-extrabold font-display text-white tracking-tight leading-none uppercase">
-              {uiMode === 'ai' ? 'Swanique AI Command Node' : 'Swanique Operator Workspace'}
-            </h2>
-            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-              {uiMode === 'ai' ? (
-                <>
-                  Welcome back, <strong className="text-indigo-300 font-bold">Aadithyan M. Menon</strong>. Predictive social suggestions, co-pilots, and server-side Gemini intelligence models are fully integrated.
-                </>
-              ) : (
-                <>
-                  Welcome back, <strong className="text-slate-300 font-bold">Aadithyan M. Menon</strong>. Ready to coordinate strict manual campaign schedules, log crew attendance, and track secure operations.
-                </>
-              )}
-            </p>
-          </div>
-
-          <div className="flex gap-2 self-stretch md:self-auto shrink-0">
-            <button
-              onClick={() => setActiveMainTab('planner')}
-              className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/10 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Calendar className="w-4 h-4" /> Open Scheduler
-            </button>
+    <div className="p-6 space-y-6">
+      <div className="space-y-6">
+        <div className={`relative border rounded-2xl p-6 overflow-hidden shadow-2xl transition-all duration-500 ${
+          uiMode === 'ai' 
+            ? 'bg-gradient-to-r from-slate-900 via-indigo-950/45 to-slate-900 border-slate-800'
+            : 'bg-slate-900/80 border-slate-800'
+        }`}>
+          <div className="absolute top-0 right-0 p-8 opacity-5">
             {uiMode === 'ai' ? (
-              <button
-                onClick={() => setActiveMainTab('assistant')}
-                className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" /> Ask AI
-              </button>
+              <Sparkles className="w-64 h-64 text-indigo-400 animate-pulse" />
             ) : (
-              (currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each') ? (
-                <button
-                  onClick={() => setActiveMainTab('admin')}
-                  className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Shield className="w-4 h-4 text-yellow-500 animate-pulse" /> View Admin Console
-                </button>
-              ) : (
-                <button
-                  onClick={() => setActiveMainTab('writer')}
-                  className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <FileText className="w-4 h-4 text-indigo-400" /> Open Writer
-                </button>
-              )
+              <HomeIcon className="w-64 h-64 text-slate-500" />
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Google Auth & Media Formats Selector & Site Map Chatbot */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left column (5 cols): Platform Selector */}
-        <div className="lg:col-span-5 space-y-6 flex flex-col">
           
-          {/* Module 2: Campaign Media Platform & Format Selector */}
-          <div className="bg-slate-950/45 border border-slate-800/80 rounded-2xl p-5 space-y-4 flex-grow flex flex-col justify-between">
-            <div className="space-y-1 border-b border-slate-850 pb-3">
-              <div className="flex items-center gap-2">
-                <Youtube className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">Format & Platform Selector</h3>
-              </div>
-              <p className="text-[10px] text-slate-500">Select base parameters and deploy draft campaign plan</p>
-            </div>
-
-            <div className="space-y-4">
-              {/* Platforms grid */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider">Select Social Channel / Platform</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {Object.keys(PLATFORM_CONFIGS).map(platName => {
-                    const cfg = PLATFORM_CONFIGS[platName];
-                    const active = selectedPlatform === platName;
-                    return (
-                      <button
-                        key={platName}
-                        onClick={() => setSelectedPlatform(platName)}
-                        className={`py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-tight uppercase cursor-pointer transition-all border ${
-                          active 
-                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-md' 
-                            : 'bg-slate-950/60 border-slate-850 text-slate-500 hover:text-slate-300'
-                        }`}
-                      >
-                        {platName}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Formats Selector */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] font-mono font-bold text-slate-500 uppercase tracking-wider">Select Content Type / Format</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3 gap-1.5">
-                  {activePlatformConfig?.formats.map(format => {
-                    const active = selectedFormat === format;
-                    return (
-                      <button
-                        key={format}
-                        onClick={() => setSelectedFormat(format)}
-                        className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold tracking-tight uppercase cursor-pointer transition-all border flex items-center justify-center gap-1.5 ${
-                          active 
-                            ? 'bg-slate-900 border-indigo-500 text-indigo-400 shadow' 
-                            : 'bg-slate-950/40 border-slate-900 text-slate-600 hover:text-slate-400'
-                        }`}
-                      >
-                        {format === 'Video' && <Film className="w-3 h-3 text-red-500" />}
-                        {format === 'Reels' && <Youtube className="w-3 h-3 text-red-500" />}
-                        {format === 'Ads' && <BarChart3 className="w-3 h-3 text-sky-400" />}
-                        {format === 'Poster' && <Image className="w-3 h-3 text-emerald-400" />}
-                        {format === 'Story' && <Compass className="w-3 h-3 text-pink-400" />}
-                        {format === 'Carousel' && <Layers className="w-3 h-3 text-indigo-400" />}
-                        <span>{format}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Dynamic advice panel based on choice */}
-              {FORMAT_TIPS[selectedFormat] && (
-                <div className="bg-slate-900/60 border border-slate-850 p-3.5 rounded-xl space-y-2 text-left">
-                  <div className="flex items-center gap-1.5 border-b border-slate-850 pb-1.5">
-                    <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${activePlatformConfig.color}`} />
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider font-mono">
-                      {selectedPlatform} • {selectedFormat} Recommendations
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                {uiMode === 'ai' ? (
+                  <>
+                    <span className="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+                      AI Integrated Autopilot Mode
                     </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[9px] font-mono">
-                    <div>
-                      <span className="text-slate-500 block">Aspect Ratio:</span>
-                      <strong className="text-slate-200">{FORMAT_TIPS[selectedFormat].aspect}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">Optimal Hour:</span>
-                      <strong className="text-slate-200">{FORMAT_TIPS[selectedFormat].timing}</strong>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-slate-500 block">Target CTR:</span>
-                      <strong className="text-emerald-400">{FORMAT_TIPS[selectedFormat].ctr}</strong>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-slate-400 italic leading-relaxed border-t border-slate-850/60 pt-2 font-mono">
-                    <span className="font-bold text-indigo-400 uppercase tracking-tight text-[9px] block">Strategic Advice:</span>
-                    {FORMAT_TIPS[selectedFormat].advice}
-                  </p>
-                </div>
-              )}
-
-              {/* Quick Draft Form */}
-              <form onSubmit={handleDeployDraft} className="space-y-3 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">Campaign Title</label>
-                    <input
-                      type="text"
-                      required
-                      value={draftTitle}
-                      onChange={(e) => setDraftTitle(e.target.value)}
-                      placeholder="e.g., Summer Brand Refresh"
-                      className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded p-1.5 text-[10px] text-white placeholder-slate-700 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-1">Target Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={draftDate}
-                      onChange={(e) => setDraftDate(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500 rounded p-1.5 text-[10px] text-white outline-none cursor-pointer"
-                    />
-                  </div>
-                </div>
-                
-                <button
-                  type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10px] py-2 rounded-lg cursor-pointer transition-colors shadow active:scale-[0.98] flex items-center justify-center gap-1"
-                >
-                  <Calendar className="w-3.5 h-3.5" /> Deploy Draft Plan to Calendar
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Data Visualization module */}
-          <div className="bg-slate-950/45 border border-slate-800/80 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
-            <div className="space-y-1 border-b border-slate-850 pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-indigo-400" />
-                  <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">Content Status Metrics</h3>
-                </div>
-                {statusDistribution.isDemo && (
-                  <span className="text-[8px] font-mono font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
-                    Demo Mode
-                  </span>
+                    <span className="h-1.5 w-1.5 bg-indigo-400 rounded-full animate-ping" />
+                  </>
+                ) : (
+                  <>
+                    <span className="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                      <HomeIcon className="w-3 h-3 text-slate-400" />
+                      Standard Human Operator Mode
+                    </span>
+                    <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  </>
                 )}
               </div>
-              <p className="text-[10px] text-slate-500">Live breakdown of campaigns by completion status</p>
-            </div>
-
-            {/* Pie Chart container */}
-            <div className="relative h-44 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusDistribution.data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {statusDistribution.data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke="#090d16" strokeWidth={2} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-slate-950/95 border border-slate-800 px-2.5 py-1.5 rounded-lg text-[10px] font-mono shadow-xl">
-                            <span className="font-bold text-white block uppercase mb-0.5">{data.name}</span>
-                            <span className="text-slate-400">Plans: <strong className="text-white font-bold">{data.value}</strong></span>
-                            {statusDistribution.total > 0 && (
-                              <span className="text-slate-500 block text-[9px]">
-                                {((data.value / statusDistribution.total) * 100).toFixed(0)}% of total
-                              </span>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-
-              {/* Central total text */}
-              <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-tight">
-                  {statusDistribution.isDemo ? 'Demo Total' : 'Total Plans'}
-                </span>
-                <span className="text-xl font-black font-display text-white">
-                  {statusDistribution.isDemo ? 14 : statusDistribution.total}
-                </span>
-              </div>
-            </div>
-
-            {/* Visual breakdown details & Legend */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {statusDistribution.data.map((item) => {
-                const pct = statusDistribution.isDemo
-                  ? ((item.value / 14) * 100).toFixed(0)
-                  : statusDistribution.total > 0 
-                    ? ((item.value / statusDistribution.total) * 100).toFixed(0) 
-                    : '0';
-
-                return (
-                  <div key={item.name} className="bg-slate-900/40 border border-slate-850/60 rounded-lg p-2 flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-tight truncate">{item.name}</span>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] font-mono font-bold text-white">{item.value}</span>
-                      <span className="text-[8px] font-mono text-slate-500 block leading-none">{pct}%</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {statusDistribution.isDemo && (
-              <p className="text-[9px] font-mono text-slate-500 text-center leading-relaxed">
-                💡 No active plans logged. Use the **Selector** above or the **Scheduler** tab to deploy campaigns and build live statistics.
+              <h2 className="text-2xl md:text-3xl font-extrabold font-display text-white tracking-tight leading-none uppercase">
+                {uiMode === 'ai' ? 'Swanique AI Command Node' : 'Swanique Operator Workspace'}
+              </h2>
+              <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                {uiMode === 'ai' ? (
+                  <>
+                    Welcome back, <strong className="text-indigo-300 font-bold">Aadithyan M. Menon</strong>. Predictive social suggestions, co-pilots, and server-side Gemini intelligence models are fully integrated.
+                  </>
+                ) : (
+                  <>
+                    Welcome back, <strong className="text-slate-300 font-bold">Aadithyan M. Menon</strong>. Ready to coordinate strict manual campaign schedules, log crew attendance, and track secure operations.
+                  </>
+                )}
               </p>
-            )}
+            </div>
+
+            <div className="flex gap-2 self-stretch md:self-auto shrink-0">
+              <button
+                onClick={() => setActiveMainTab('planner')}
+                className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/10 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Calendar className="w-4 h-4" /> Open Scheduler
+              </button>
+              {uiMode === 'ai' && (
+                <button
+                  onClick={() => setActiveMainTab('assistant')}
+                  className="flex-1 sm:flex-initial bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" /> Ask AI
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right column (7 cols): AI Task Planner & Strategic To-Do engine */}
-        <div className="lg:col-span-7">
+        {/* Main Grid: AI Task Planner & Strategic To-Do engine */}
+        <div className="grid grid-cols-1">
           <AiTodo 
             onAddPlan={onAddPlan} 
             setActiveMainTab={setActiveMainTab} 
@@ -721,9 +472,7 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
             uiMode={uiMode}
           />
         </div>
-
       </div>
-
     </div>
   );
 }

@@ -127,7 +127,7 @@ export default function ContentPlanner({
   onDeletePlan,
   onUpdatePlan,
   addLog,
-  currentUser = 'each',
+  currentUser = 'aadithyan',
   permissionLevel = 'editor',
   searchQuery = '',
   uiMode = 'ai'
@@ -213,7 +213,7 @@ export default function ContentPlanner({
   const [multi3dGlow, setMulti3dGlow] = useState<number>(40);
   const [multi3dPerspective, setMulti3dPerspective] = useState<number>(800);
 
-  const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each';
+  const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan';
   const visiblePlans = plans;
 
   // Instagram Hub Live Simulator states
@@ -390,7 +390,7 @@ export default function ContentPlanner({
       aiSeoKeywords: aiSuggestions?.seoKeywords,
       aiSeoDescription: aiSuggestions?.seoDescription,
       tags: assignerTags.trim(),
-      createdBy: currentUser || 'each'
+      createdBy: currentUser || 'aadithyan'
     };
 
     setAssignedTasks(prev => [newTask, ...prev]);
@@ -579,6 +579,7 @@ export default function ContentPlanner({
   const [formDay, setFormDay] = useState<number>(new Date().getDate());
   const [formPlatform, setFormPlatform] = useState<ContentPlan['platform']>('YouTube');
   const [formStatus, setFormStatus] = useState<ContentPlan['status']>('Planned');
+  const [formAssignee, setFormAssignee] = useState('');
 
   // Bidirectional Date Sync helpers
   const parseDateString = (dateStr: string) => {
@@ -695,6 +696,7 @@ export default function ContentPlanner({
   const [editPlatform, setEditPlatform] = useState<ContentPlan['platform']>('YouTube');
   const [editType, setEditType] = useState<ContentPlan['type']>('Video');
   const [editStatus, setEditStatus] = useState<ContentPlan['status']>('Planned');
+  const [editAssignee, setEditAssignee] = useState('');
 
   const openEditModal = (plan: ContentPlan) => {
     setEditingPlan(plan);
@@ -704,6 +706,7 @@ export default function ContentPlanner({
     setEditPlatform(plan.platform);
     setEditType(plan.type);
     setEditStatus(plan.status);
+    setEditAssignee(plan.assignee || '');
   };
 
   const saveEditedPlan = (e: React.FormEvent) => {
@@ -722,7 +725,8 @@ export default function ContentPlanner({
       year,
       platform: editPlatform,
       type: editType,
-      status: editStatus
+      status: editStatus,
+      assignee: editAssignee
     };
 
     onUpdatePlan(updated);
@@ -901,7 +905,7 @@ export default function ContentPlanner({
         videoUrl: finalUrl,
         videoName: finalName,
         videoSize: finalSize,
-        createdBy: currentUser || 'each',
+        createdBy: currentUser || 'aadithyan',
         tags: videoFormTags.trim()
       });
 
@@ -952,10 +956,11 @@ export default function ContentPlanner({
       assignedDate: formDateTime,
       platform: formPlatform,
       status: formStatus,
+      assignee: formAssignee,
       videoUrl: uploadedVideo?.url,
       videoName: uploadedVideo?.name,
       videoSize: uploadedVideo?.size,
-      createdBy: currentUser || 'each'
+      createdBy: currentUser || 'aadithyan'
     });
 
     // Reset Form
@@ -1542,6 +1547,7 @@ export default function ContentPlanner({
                   </td>
                   <td>
                     <div class="plan-title">${plan.title}</div>
+                    ${plan.assignee ? `<div style="font-size: 10px; color: #059669; margin-top: 3px; font-weight: bold;">Assignee: ${plan.assignee}</div>` : ''}
                     <div style="font-size: 10px; color: #64748b; margin-top: 3px;">${plan.description}</div>
                   </td>
                   <td>
@@ -1927,6 +1933,11 @@ export default function ContentPlanner({
                               </div>
 
                               <h4 className="text-sm font-bold text-white mb-1 font-display group-hover:text-indigo-300 transition-colors">{plan.title}</h4>
+                              {plan.assignee && (
+                                <p className="text-[10px] font-mono text-emerald-400 mb-1 border border-emerald-900/30 bg-emerald-950/20 inline-block px-1.5 py-0.5 rounded">
+                                  Assignee: {plan.assignee}
+                                </p>
+                              )}
                               <p className="text-xs text-slate-400 line-clamp-2 mb-2">{plan.description}</p>
                               {plan.tags && (
                                 <div className="flex flex-wrap gap-1 mb-3">
@@ -2397,6 +2408,19 @@ export default function ContentPlanner({
                     <option value="Review">Review</option>
                     <option value="Completed">Completed</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Operator / Event Planner Assignee
+                  </label>
+                  <input
+                    type="text"
+                    value={formAssignee}
+                    onChange={(e) => setFormAssignee(e.target.value)}
+                    placeholder="Enter assignee username or role"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
+                  />
                 </div>
               </div>
 
@@ -3267,22 +3291,36 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
-                {/* Status */}
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Workflow Pipeline State
-                  </label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
-                  >
-                    <option value="Planned">Planned</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Review">Review</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Live">Live</option>
-                  </select>
+                {/* Status and Assignee */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Workflow Pipeline State
+                    </label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as any)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
+                    >
+                      <option value="Planned">Planned</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Review">Review</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Live">Live</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Assigned Operator
+                    </label>
+                    <input
+                      type="text"
+                      value={editAssignee}
+                      onChange={(e) => setEditAssignee(e.target.value)}
+                      placeholder="Username or role"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
                 </div>
 
                 {/* Buttons */}

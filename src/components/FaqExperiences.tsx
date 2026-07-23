@@ -46,7 +46,7 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
           },
           {
             id: 'exp_2',
-            username: 'each',
+            username: 'aadithyan',
             designation: 'System Administrator',
             rating: 5,
             title: 'Bulletproof Authentication and Auditing',
@@ -136,7 +136,7 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
     },
     {
       q: "How does the direct text message alert dispatcher work?",
-      a: "System administrators ('aadithyan' and 'each') can access the Admin Console and write custom SMS or system-wide text alerts. Corresponding operators will immediately see these announcements as top banner alerts on their screen."
+      a: "System administrators ('aadithyan') can access the Admin Console and write custom SMS or system-wide text alerts. Corresponding operators will immediately see these announcements as top banner alerts on their screen."
     },
     {
       q: "Who monitors and directs the digital workflow?",
@@ -261,7 +261,7 @@ export default function FaqExperiences({ currentUser, addLog }: FaqExperiencesPr
                         <User className="w-2.5 h-2.5 text-indigo-400" />
                       </div>
                       <span className="text-slate-300 font-bold">
-                        {exp.username.toLowerCase() === 'aadithyan' ? 'system_owner' : exp.username.toLowerCase() === 'each' ? 'system_admin' : exp.username}
+                        {exp.username.toLowerCase() === 'aadithyan' ? 'system_owner' : exp.username}
                       </span>
                       <span className="text-slate-600">•</span>
                       <span className="text-slate-500 uppercase tracking-tight">{exp.designation}</span>

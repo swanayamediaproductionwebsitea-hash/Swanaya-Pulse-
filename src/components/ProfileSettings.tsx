@@ -6,8 +6,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { RegisteredUser } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import ClientHub from './ClientHub';
 
 interface ProfileSettingsProps {
   currentUser: string;
@@ -40,6 +40,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, 
   const [isDragging, setIsDragging] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [settingsSubTab, setSettingsSubTab] = useState<'profile' | 'clientHub'>('profile');
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   // Load existing profile from Firestore or LocalStorage
   useEffect(() => {
@@ -260,7 +261,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, 
       </div>
 
       <AnimatePresence mode="wait">
-        {settingsSubTab === 'profile' ? (
+        {settingsSubTab === 'profile' && (
           <motion.div
             key="profile-form-parameters"
             initial={{ opacity: 0, y: 10 }}
@@ -649,16 +650,6 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, 
           </div>
         </form>
       </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="profile-client-hub-matrix"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ClientHub currentUser={currentUser} addLog={addLog} />
           </motion.div>
         )}
       </AnimatePresence>

@@ -6,8 +6,8 @@ import {
   LogIn, Copy, Check, Terminal, Mail, Eye, EyeOff
 } from 'lucide-react';
 import { RegisteredUser } from '../types';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, doc, setDoc, getDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType, auth } from '../lib/firebase';
+import { collection, doc, setDoc, getDoc, deleteDoc, getDocs, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
 
 interface LoginProps {
   onLoginSuccess: (username: string) => void;
@@ -205,17 +205,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     }
 
     // Special cases
-    if (activeUser === 'each') {
-      const cached = localStorage.getItem('swanaya_profile_image_each');
-      if (cached) {
-        setResolvedAvatar(cached);
-      } else {
-        setResolvedAvatar('https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150');
-      }
-      return;
-    }
     if (activeUser === 'aadithyan') {
-      const cached = localStorage.getItem('swanaya_profile_image_aadithyan');
+      const cached = localStorage.getItem(`swanaya_profile_image_${activeUser}`);
       if (cached) {
         setResolvedAvatar(cached);
       } else {
@@ -281,10 +272,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     }
 
     // Direct check for Administrative logins
-    if (
-      (cleanUser.toLowerCase() === 'each' && cleanPass === 'each') ||
-      (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan')
-    ) {
+    if (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan') {
       addLog(`Auth: Administrative login authorized for ${cleanUser}`, 'success');
       localStorage.setItem('swanaya_has_logged_in', 'true');
       onLoginSuccess(cleanUser.toLowerCase());
@@ -334,7 +322,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    if (cleanUser.toLowerCase() === 'each' || cleanUser.toLowerCase() === 'aadithyan') {
+    if (cleanUser.toLowerCase() === 'aadithyan') {
       setErrorMessage('Username is reserved for Admin nodes.');
       return;
     }
@@ -423,7 +411,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     }
 
     // Find if user exists (admins or registered)
-    const isAdmin = cleanUser === 'each' || cleanUser === 'aadithyan';
+    const isAdmin = cleanUser === 'aadithyan';
     const isRegistered = registeredUsers.some(u => u.username.toLowerCase() === cleanUser);
 
     if (!isAdmin && !isRegistered) {
@@ -517,7 +505,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       }
 
       // 2. Perform password updates
-      if (cleanUser === 'each' || cleanUser === 'aadithyan') {
+      if (cleanUser === 'aadithyan') {
         // Special internal admin password overrides are cached locally
         addLog(`Security: Local credential reset executed for Admin Node [${cleanUser}]`, 'success');
       }
@@ -551,7 +539,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         setResetMode('none');
         setDirectUsername(cleanUser);
         setDirectPassword(newPassword);
-        setPortalTab(cleanUser === 'each' || cleanUser === 'aadithyan' ? 'admin' : 'partner');
+        setPortalTab(cleanUser === 'aadithyan' ? 'admin' : 'partner');
         setResetUsername('');
         setEnteredCode('');
         setNewPassword('');
@@ -565,6 +553,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       setIsResetPending(false);
     }
   };
+
 
   return (
     <div className="w-full max-w-md mx-auto my-6 space-y-6">
@@ -623,7 +612,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         </div>
 
         <div className="w-full bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-7 shadow-2xl flex flex-col justify-between" style={{ minHeight: '380px' }}>
-                {viewState === 'register_standard' ? (
+          {viewState === 'register_standard' ? (
             /* ==========================================
                REGISTER VIEW: NEW REGISTRATION PORTAL
                ========================================== */
@@ -763,7 +752,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                   type="submit"
                   className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
                 >
-                  Register Partner Access <Sparkles className="w-4 h-4" />
+                  Create Workspace <Sparkles className="w-4 h-4" />
                 </button>
 
                 <button
@@ -918,8 +907,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                   type="submit"
                   className="w-full bg-amber-600 hover:bg-amber-500 text-white font-mono font-bold text-xs py-2.5 rounded-lg shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
                 >
-                  Create 72h Demo Access <Sparkles className="w-4 h-4 text-amber-300" />
+                  Join Workspace <Sparkles className="w-4 h-4 text-amber-300" />
                 </button>
+
 
                 <button
                   type="button"
@@ -978,8 +968,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     setPortalTab('admin');
                     setErrorMessage('');
                     setSuccessMessage('');
-                    setDirectUsername('each');
-                    setDirectPassword('each');
+                    setDirectUsername('aadithyan');
+                    setDirectPassword('aadithyan');
                   }}
                   className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
                     portalTab === 'admin'
@@ -1122,6 +1112,8 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                   Authorize {portalTab === 'client' ? 'Client' : portalTab === 'admin' ? 'Admin' : 'Creator'} Access <ArrowRight className="w-4 h-4" />
                 </button>
 
+
+
                 <div className="border-t border-slate-850/80 pt-4 mt-4 space-y-2 text-left">
                   <span className="text-[9px] font-mono font-black text-slate-500 uppercase tracking-widest block text-center">
                     New Operator Registration & Sandbox Access
@@ -1138,7 +1130,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       className="bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/30 hover:border-indigo-500/50 text-indigo-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold"
                     >
                       <UserPlus className="w-3.5 h-3.5 text-indigo-400 mb-0.5 animate-pulse" />
-                      <span>Register Partner</span>
+                      <span>Create Workspace</span>
                     </button>
                     <button
                       type="button"
@@ -1151,7 +1143,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                       className="bg-amber-950/40 hover:bg-amber-900/40 border border-amber-900/30 hover:border-amber-500/50 text-amber-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-400 mb-0.5" />
-                      <span>Register Demo</span>
+                      <span>Join Workspace</span>
                     </button>
                   </div>
                 </div>
@@ -1202,7 +1194,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                         required
                         value={resetUsername}
                         onChange={(e) => setResetUsername(e.target.value)}
-                        placeholder="e.g. each"
+                        placeholder="e.g. aadithyan"
                         className="w-full bg-slate-950/80 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg py-2 pl-9 pr-4 text-xs text-white placeholder-slate-600 outline-none transition-all"
                       />
                     </div>

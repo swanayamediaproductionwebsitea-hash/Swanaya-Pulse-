@@ -9,16 +9,15 @@ import { ContentPlan, ContentDocument, ActivityLog } from './types';
 import Background3D from './components/Background3D';
 import LoginModule from './components/LoginModule';
 import InteractiveLanding from './components/InteractiveLanding';
-import ContentWriter from './components/ContentWriter';
 import ContentPlanner from './components/ContentPlanner';
-import AdminActivityLog from './components/AdminActivityLog';
 import AssistantWidget from './components/AssistantWidget';
 import Home from './components/Home';
 import ProfileSettings from './components/ProfileSettings';
 import RealTimeTicker from './components/RealTimeTicker';
 import PopupHub from './components/PopupHub';
-import ClientHub from './components/ClientHub';
 import AiTodo from './components/AiTodo';
+import AdminActivityLog from './components/AdminActivityLog';
+import ContentWriter from './components/ContentWriter';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -135,7 +134,7 @@ export default function App() {
         return;
       }
 
-      const isSystemAdmin = currentUser.toLowerCase() === 'each' || currentUser.toLowerCase() === 'aadithyan';
+      const isSystemAdmin = currentUser.toLowerCase() === 'aadithyan';
       if (isSystemAdmin) {
         setCurrentUserPermission('administrator');
         setUserProfileImage(null);
@@ -339,7 +338,7 @@ export default function App() {
            },
            {
              id: 'l2',
-             text: 'Security: Credentials initialized for system administrator "each"',
+             text: 'Security: Credentials initialized for system administrator "aadithyan"',
              timestamp: '07:38:20',
              type: 'success'
            }
@@ -400,7 +399,14 @@ export default function App() {
   };
 
   // 5. Authentication logout handler
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const { auth } = await import('./lib/firebase');
+      const { signOut } = await import('firebase/auth');
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Google logout failed or skipped:', e);
+    }
     if (currentUser) {
       addLog(`Security: Active session destroyed for operator "${currentUser}"`, 'warning');
     }
@@ -420,7 +426,7 @@ export default function App() {
     const tempId = `p_${Date.now()}`;
     const plan: ContentPlan = {
       ...newPlan,
-      createdBy: newPlan.createdBy || currentUser || 'each',
+      createdBy: newPlan.createdBy || currentUser || 'aadithyan',
       id: tempId,
       createdAt: new Date().toISOString()
     };
@@ -848,7 +854,7 @@ export default function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('writer');
-                  addLog('System Navigation: Switched workspace to [Content & Document Writer]', 'info');
+                  addLog('System Navigation: Switched workspace to [Content Writer]', 'info');
                 }}
                 className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   activeMainTab === 'writer'
@@ -866,30 +872,31 @@ export default function App() {
                   />
                 )}
               </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05, translateY: -1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setActiveMainTab('client');
-                  addLog('System Navigation: Switched workspace to [Client Hub]', 'info');
-                }}
-                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeMainTab === 'client'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span>Client Hub</span>
-                {activeMainTab === 'client' && (
-                  <motion.div
-                    layoutId="activeTabUnderline"
-                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </motion.button>
+              {(currentUser?.toLowerCase() === 'aadithyan' || currentUserPermission === 'administrator' || currentUserPermission === 'editor') && (
+                <motion.button
+                  whileHover={{ scale: 1.05, translateY: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setActiveMainTab('admin');
+                    addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
+                  }}
+                  className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    activeMainTab === 'admin'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 text-yellow-500" />
+                  <span>Admin Console</span>
+                  {activeMainTab === 'admin' && (
+                    <motion.div
+                      layoutId="activeTabUnderline"
+                      className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
+              )}
               <motion.button
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
@@ -1022,32 +1029,7 @@ export default function App() {
                 )}
               </motion.button>
 
-              {(currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'each') && (
-                <motion.button
-                  whileHover={{ scale: 1.05, translateY: -1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setActiveMainTab('admin');
-                    addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
-                  }}
-                  className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                    activeMainTab === 'admin'
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4 text-yellow-500" />
-                  <span>Admin Console</span>
-                  {activeMainTab === 'admin' && (
-                    <motion.div
-                      layoutId="activeTabUnderline"
-                      className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                </motion.button>
-              )}
-            </div>
+                          </div>
 
             {/* Main Interactive Tab Views with motion animations */}
             <main className="flex-grow flex flex-col justify-stretch min-h-[450px]">
@@ -1068,6 +1050,7 @@ export default function App() {
                       addLog={addLog}
                       currentUser={currentUser || "aadithyan"}
                       uiMode={uiMode}
+                      currentUserPermission={currentUserPermission}
                     />
                   </motion.div>
                 )}
@@ -1106,7 +1089,7 @@ export default function App() {
                     className="w-full h-full flex flex-col"
                   >
                     <ContentWriter 
-                      currentUser={currentUser || 'each'}
+                      currentUser={currentUser || ''}
                       addLog={addLog}
                       isDemoUser={isDemoUser}
                     />
@@ -1123,14 +1106,14 @@ export default function App() {
                     className="w-full h-full flex flex-col"
                   >
                     <AdminActivityLog 
-                      logs={logs} 
-                      onClearLogs={handleClearLogs} 
-                      currentUser={currentUser || ''} 
+                      logs={logs}
+                      onClearLogs={handleClearLogs}
+                      currentUser={currentUser || ''}
                       addLog={addLog}
                     />
                   </motion.div>
                 )}
-
+                
                 {activeMainTab === 'assistant' && (
                   <motion.div
                     key="assistant-tab"
@@ -1144,22 +1127,7 @@ export default function App() {
                   </motion.div>
                 )}
 
-                {activeMainTab === 'client' && (
-                  <motion.div
-                    key="client-tab"
-                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className="w-full h-full flex flex-col"
-                  >
-                    <ClientHub 
-                      currentUser={currentUser || ''} 
-                      addLog={addLog}
-                    />
-                  </motion.div>
-                )}
-
+                
                 {activeMainTab === 'profile' && (
                   <motion.div
                     key="profile-tab"
@@ -1221,7 +1189,6 @@ export default function App() {
 
                         <div className="space-y-2 flex-grow overflow-y-auto max-h-[220px] md:max-h-none">
                           {[
-                            { name: 'each', role: 'System Admin', avatar: null, status: 'online' },
                             { name: 'aadithyan', role: 'System Owner', avatar: null, status: 'online' },
                             { name: 'creator', role: 'Content Maker', avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=150', status: 'online' },
                             { name: 'client', role: 'Stakeholder', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150', status: 'online' },
@@ -1324,7 +1291,7 @@ export default function App() {
                               const randomReply = replies[Math.floor(Math.random() * replies.length)];
                               const mockReply = {
                                 id: `col_reply_${Date.now()}`,
-                                sender: 'each',
+                                sender: 'aadithyan',
                                 text: randomReply,
                                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                                 role: 'System Admin'

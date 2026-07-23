@@ -3,7 +3,15 @@ import {
   Sparkles, CheckSquare, Square, Trash2, CalendarPlus, Plus, 
   HelpCircle, RefreshCw, Layers, CheckCircle2, AlertCircle, Play
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AiTodoItem, ContentPlan } from '../types';
+
+const resourceData = [
+  { name: 'Aadithyan', workload: 85 },
+  { name: 'Each', workload: 60 },
+  { name: 'Sara', workload: 90 },
+  { name: 'John', workload: 45 },
+];
 
 interface AiTodoProps {
   onAddPlan: (plan: Omit<ContentPlan, 'id' | 'createdAt'>) => void;
@@ -18,6 +26,8 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
   const [newTodoText, setNewTodoText] = useState('');
   const [newTodoPlatform, setNewTodoPlatform] = useState<any>('Instagram');
   const [newTodoPriority, setNewTodoPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
+  const [newTodoAssignee, setNewTodoAssignee] = useState<string>('');
+  const [newTodoVisibility, setNewTodoVisibility] = useState<'public' | 'private'>('public');
   const [selectedTodoDetail, setSelectedTodoDetail] = useState<AiTodoItem | null>(null);
 
   // AI Generation states
@@ -102,7 +112,9 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
       platform: newTodoPlatform,
       priority: newTodoPriority,
       completed: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      assignee: newTodoAssignee || currentUser,
+      visibility: newTodoVisibility
     };
 
     setTodos((prev) => {
@@ -453,6 +465,21 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
               </p>
             </div>
           </div>
+          
+          <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800 my-4">
+            <h4 className="text-[10px] font-bold text-slate-300 uppercase mb-2">Staff Resource Allocation</h4>
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resourceData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 10}} />
+                  <YAxis tick={{fill: '#94a3b8', fontSize: 10}} />
+                  <Tooltip contentStyle={{backgroundColor: '#0f172a', border: 'none'}} />
+                  <Bar dataKey="workload" fill="#4f46e5" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
           <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${
             uiMode === 'ai' 
               ? 'border-indigo-500/20 bg-indigo-950/40 text-indigo-400' 
@@ -560,14 +587,14 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
           </div>
 
           <div className="max-h-[290px] overflow-y-auto pr-1 space-y-2 scrollbar-thin">
-            {todos.length === 0 ? (
+            {todos.filter(t => t.visibility !== 'private' || t.assignee === currentUser || currentUser === 'aadithyan' || currentUser === 'administrator').length === 0 ? (
               <div className="text-center py-12 border border-dashed border-slate-850 rounded-2xl text-slate-500 font-mono space-y-1.5">
                 <AlertCircle className="w-7 h-7 mx-auto text-slate-700 animate-bounce" />
                 <p className="text-xs font-bold uppercase text-slate-400">Workspace checklist empty</p>
                 <p className="text-[9px] text-slate-600">Enter a target theme above or manual task to initialize actions</p>
               </div>
             ) : (
-              todos.map((todo) => {
+              todos.filter(t => t.visibility !== 'private' || t.assignee === currentUser || currentUser === 'aadithyan' || currentUser === 'administrator').map((todo) => {
                 const isDeploying = deployTaskId === todo.id;
                 
                 let platformColor = 'bg-slate-900 border-slate-800 text-slate-400';
@@ -614,16 +641,22 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
                           >
                             {todo.text}
                           </p>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center flex-wrap gap-1.5 mt-1">
                             <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${platformColor} uppercase tracking-wider font-bold`}>
                               {todo.platform}
                             </span>
                             <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${priorityColor} uppercase font-bold`}>
                               {todo.priority} Priority
                             </span>
+                            <span className="text-[8px] font-mono px-1.5 py-0.5 rounded border bg-slate-800 text-slate-300 border-slate-700 uppercase">
+                              Assignee: {todo.assignee || 'Everyone'}
+                            </span>
+                            <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border uppercase ${todo.visibility === 'private' ? 'bg-rose-950/40 text-rose-400 border-rose-900/40' : 'bg-emerald-950/40 text-emerald-400 border-emerald-900/40'}`}>
+                              {todo.visibility || 'public'}
+                            </span>
                             <button
                               onClick={() => setSelectedTodoDetail(todo)}
-                              className="text-[8px] font-mono font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
+                              className="text-[8px] font-mono font-bold text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer ml-1"
                             >
                               [View Deliverables]
                             </button>
@@ -734,7 +767,7 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-[9px] font-mono">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[9px] font-mono">
           <div className="flex items-center gap-1">
             <span className="text-slate-500">Platform:</span>
             <select
@@ -752,7 +785,7 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
             </select>
           </div>
 
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center gap-1">
             <span className="text-slate-500">Priority:</span>
             <select
               value={newTodoPriority}
@@ -762,6 +795,29 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
               <option value="High">High</option>
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500">Assign To:</span>
+            <input
+              type="text"
+              placeholder="Everyone"
+              value={newTodoAssignee}
+              onChange={(e) => setNewTodoAssignee(e.target.value)}
+              className="bg-slate-950 border border-slate-850 text-slate-300 rounded px-1.5 py-0.5 outline-none text-[9px] w-20"
+            />
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <span className="text-slate-500">Visibility:</span>
+            <select
+              value={newTodoVisibility}
+              onChange={(e) => setNewTodoVisibility(e.target.value as any)}
+              className="bg-slate-950 border border-slate-850 text-slate-300 rounded px-1.5 py-0.5 outline-none cursor-pointer text-[9px]"
+            >
+              <option value="public">Public</option>
+              <option value="private">Private</option>
             </select>
           </div>
         </div>
