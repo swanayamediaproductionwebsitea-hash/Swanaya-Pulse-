@@ -684,18 +684,20 @@ export default function App() {
               </div>
 
               {/* Center status and time */}
-              <div className="hidden xl:flex items-center gap-6 text-xs font-mono">
-                <div className="flex items-center gap-2 border-r border-slate-800 pr-5">
+              <div className="hidden xl:flex items-center gap-5 text-xs font-mono">
+                <div className="flex items-center gap-2 border-r border-slate-800 pr-4">
                   <Clock className="w-4 h-4 text-indigo-400" />
                   <span className="text-slate-300 font-bold">{liveTime || 'LOADING...'}</span>
                 </div>
-                <div className="flex items-center gap-2 border-r border-slate-800 pr-5">
-                  <Wifi className="w-4 h-4 text-emerald-400" />
-                  <span className="text-slate-400">Node Status: <strong className="text-emerald-400 font-bold">ONLINE</strong></span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 text-[11px] font-mono shadow-sm">
+                  <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Isolated Workspace: <strong className="text-white font-bold">@{currentUser || 'Guest'}</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Database className="w-4 h-4 text-purple-400" />
-                  <span className="text-slate-400">Active Registry: <strong className="text-white font-bold">{plans.length} items</strong></span>
+                  <span className="text-slate-400">Workspace Plans: <strong className="text-white font-bold">{
+                    plans.filter(p => !p.createdBy || p.createdBy.toLowerCase() === (currentUser?.toLowerCase() || '') || currentUser === 'aadithyan' || currentUser === 'administrator').length
+                  } items</strong></span>
                 </div>
               </div>
 

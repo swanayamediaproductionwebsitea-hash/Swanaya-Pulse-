@@ -13,7 +13,7 @@ export interface ContentDocument {
 export interface ContentPlan {
   id: string;
   title: string;
-  type: 'Video' | 'Image' | 'Article' | 'Campaign' | 'Story';
+  type: 'Video' | 'Image' | 'Article' | 'Campaign' | 'Story' | string;
   description: string;
   month: string; // "January" ... "December"
   day: number;   // 1 to 31
@@ -23,7 +23,7 @@ export interface ContentPlan {
   videoName?: string;
   videoSize?: string;
   status: 'Planned' | 'In Progress' | 'Completed' | 'Review' | 'Live';
-  platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook';
+  platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook' | string;
   createdAt: string;
   createdBy?: string; // Track who created the plan
   assignee?: string; // Operator/Event Planner assigned
@@ -34,7 +34,7 @@ export interface ActivityLog {
   id: string;
   text: string;
   timestamp: string; // HH:MM:SS
-  type: 'info' | 'success' | 'warning' | 'action' | 'upload';
+  type: 'info' | 'success' | 'warning' | 'action' | 'upload' | 'error';
 }
 
 export interface RegisteredUser {

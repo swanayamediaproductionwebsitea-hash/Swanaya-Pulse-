@@ -4,7 +4,7 @@ import { ContentDocument } from '../types';
 
 interface ContentWriterProps {
   currentUser: string;
-  addLog: (msg: string, type: 'info' | 'success' | 'warning' | 'error') => void;
+  addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload' | 'error') => void;
   isDemoUser?: boolean;
 }
 

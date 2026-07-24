@@ -6,7 +6,7 @@ interface AdminActivityLogProps {
   logs: ActivityLog[];
   onClearLogs: () => void;
   currentUser: string;
-  addLog: (msg: string, type: 'info' | 'success' | 'warning' | 'error') => void;
+  addLog: (msg: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload' | 'error') => void;
 }
 
 export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLog }: AdminActivityLogProps) {

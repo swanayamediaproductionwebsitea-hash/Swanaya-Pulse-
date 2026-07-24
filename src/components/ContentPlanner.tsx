@@ -3,7 +3,7 @@ import {
   Plus, Calendar, Film, Image, FileText, CheckCircle, Clock, Trash2, Zap,
   Video, Eye, Play, X, UploadCloud, ChevronRight, BarChart3, AlertCircle, Sparkles, Filter, Edit2,
   ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send,
-  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle
+  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle, Lock, ShieldCheck, GripVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
@@ -161,15 +161,75 @@ export default function ContentPlanner({
       {
         id: '2',
         handle: '@chai_with_aadi',
-        name: 'Chai with Aadithyan',
+        name: 'Chai with Aadithyan (Instagram)',
         followers: '108K',
         bio: 'Weekly podcasts about future design paradigms, tech automation, and digital media craft. Hosted by Aadithyan. ☕🎙️💡',
         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=80',
         category: 'Tech Podcast',
-        registeredYear: 2025
+        registeredYear: 2026
       },
       {
         id: '3',
+        handle: '@come_along_title',
+        name: 'Come Along with Title',
+        followers: '82.5K',
+        bio: 'Exclusive behind-the-scenes title sequences, cinematic storyboards, and episodic creative previews. 🎬✨🎨',
+        avatar: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&q=80&w=80',
+        category: 'Creative Series',
+        registeredYear: 2026
+      },
+      {
+        id: '4',
+        handle: '@instagram_meta_ads',
+        name: 'Instagram Meta Ads',
+        followers: '250K',
+        bio: 'Meta Ads Manager & Sponsored Campaign Registry. Direct automated multi-format ad deployment. 📣📊🎯',
+        avatar: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&q=80&w=80',
+        category: 'Sponsored Meta Ads',
+        registeredYear: 2026
+      },
+      {
+        id: '5',
+        handle: '@facebook_ad_registry',
+        name: 'Facebook Ad Registry',
+        followers: '1.2M',
+        bio: 'Official Facebook & Meta Transparency Ad Archive and Verified Ad Registry. 🛡️📑🌐',
+        avatar: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=80',
+        category: 'Ad Transparency Registry',
+        registeredYear: 2026
+      },
+      {
+        id: '6',
+        handle: '@instagram_reels_official',
+        name: 'Instagram Reels Studio',
+        followers: '320K',
+        bio: 'Dedicated short-form video portal, trending audio syncs, and viral reel series. 🎬⚡🔥',
+        avatar: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=80',
+        category: 'Reels Creator Studio',
+        registeredYear: 2026
+      },
+      {
+        id: '7',
+        handle: '@instagram_carousels_hub',
+        name: 'Instagram Carousel Studio',
+        followers: '95K',
+        bio: 'Multi-slide visual storyboards, carousel infographic sequences, and swipeable tutorials. 🎠📊✨',
+        avatar: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=80',
+        category: 'Carousel Infographics',
+        registeredYear: 2026
+      },
+      {
+        id: '8',
+        handle: '@instagram_single_images',
+        name: 'Instagram Single Image Showcase',
+        followers: '68K',
+        bio: 'High-res single image photography, visual aesthetics, and brand poster showcase. 🖼️🎨✨',
+        avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=80',
+        category: 'Visual Showcase',
+        registeredYear: 2026
+      },
+      {
+        id: '9',
         handle: '@chai',
         name: 'Chai Masterclass',
         followers: '12K',
@@ -213,10 +273,112 @@ export default function ContentPlanner({
   const [multi3dGlow, setMulti3dGlow] = useState<number>(40);
   const [multi3dPerspective, setMulti3dPerspective] = useState<number>(800);
 
-  const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan';
-  const visiblePlans = plans;
+  const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'administrator';
+  const [workspaceMode, setWorkspaceMode] = useState<'private' | 'all'>('private');
+
+  // Filter plans for individual workspace isolation: users can ONLY see content they created or assigned to them
+  const visiblePlans = plans.filter(p => {
+    if (isSystemAdmin && workspaceMode === 'all') return true;
+    if (!p.createdBy) return true;
+    const cleanUser = currentUser?.toLowerCase() || '';
+    const isOwner = p.createdBy?.toLowerCase() === cleanUser;
+    const isAssigned = p.assignee?.toLowerCase() === cleanUser;
+    return isOwner || isAssigned;
+  });
+
+  // Drag & Drop States
+  const [draggedPlanId, setDraggedPlanId] = useState<string | null>(null);
+  const [dragOverPlanId, setDragOverPlanId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+
+  // Drag & Drop Handlers for Reordering and Calendar Rescheduling
+  const handleDragStartPlan = (e: React.DragEvent, planId: string) => {
+    if (permissionLevel === 'viewer') return;
+    e.dataTransfer.setData('text/plain', planId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedPlanId(planId);
+  };
+
+  const handleDragOverPlan = (e: React.DragEvent, planId: string) => {
+    if (permissionLevel === 'viewer' || !draggedPlanId || draggedPlanId === planId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverPlanId(planId);
+  };
+
+  const handleDropOnPlan = (e: React.DragEvent, targetPlan: ContentPlan) => {
+    e.preventDefault();
+    if (permissionLevel === 'viewer' || !draggedPlanId) return;
+
+    const sourcePlan = plans.find(p => p.id === draggedPlanId);
+    if (!sourcePlan || sourcePlan.id === targetPlan.id) {
+      setDraggedPlanId(null);
+      setDragOverPlanId(null);
+      return;
+    }
+
+    // Reorder/swap source and target plan dates
+    const updatedSource: ContentPlan = {
+      ...sourcePlan,
+      day: targetPlan.day,
+      month: targetPlan.month,
+      assignedDate: targetPlan.assignedDate
+    };
+    const updatedTarget: ContentPlan = {
+      ...targetPlan,
+      day: sourcePlan.day,
+      month: sourcePlan.month,
+      assignedDate: sourcePlan.assignedDate
+    };
+
+    onUpdatePlan(updatedSource);
+    onUpdatePlan(updatedTarget);
+
+    addLog(`Drag & Drop: Swapped position/schedule of "${sourcePlan.title}" (Day ${sourcePlan.day}) and "${targetPlan.title}" (Day ${targetPlan.day})`, 'action');
+
+    setDraggedPlanId(null);
+    setDragOverPlanId(null);
+  };
+
+  const handleDragOverDay = (e: React.DragEvent, dayNum: number) => {
+    if (permissionLevel === 'viewer' || !draggedPlanId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDay(dayNum);
+  };
+
+  const handleDropOnCalendarDay = (e: React.DragEvent, dayNum: number) => {
+    e.preventDefault();
+    if (permissionLevel === 'viewer' || !draggedPlanId) return;
+
+    const sourcePlan = plans.find(p => p.id === draggedPlanId);
+    if (sourcePlan && sourcePlan.day !== dayNum) {
+      let updatedAssignedDate = sourcePlan.assignedDate;
+      if (updatedAssignedDate) {
+        const mIdx = MONTHS.indexOf(selectedMonth) + 1;
+        const formattedMonth = mIdx < 10 ? `0${mIdx}` : `${mIdx}`;
+        const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+        const timePart = updatedAssignedDate.includes('T') ? updatedAssignedDate.split('T')[1] : '12:00';
+        updatedAssignedDate = `${selectedYear}-${formattedMonth}-${formattedDay}T${timePart}`;
+      }
+
+      const updatedPlan: ContentPlan = {
+        ...sourcePlan,
+        day: dayNum,
+        month: selectedMonth,
+        assignedDate: updatedAssignedDate
+      };
+
+      onUpdatePlan(updatedPlan);
+      addLog(`Drag & Drop: Rescheduled "${sourcePlan.title}" to ${selectedMonth} Day ${dayNum}`, 'action');
+    }
+
+    setDraggedPlanId(null);
+    setDragOverDay(null);
+  };
 
   // Instagram Hub Live Simulator states
+  const [instaSelectorMode, setInstaSelectorMode] = useState<'reels' | 'image' | 'carousel' | 'meta_ads' | 'ad_registry' | 'chai_with_aadi' | 'come_along_title'>('reels');
   const [instaCaption, setInstaCaption] = useState('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
   const [newInstaComment, setNewInstaComment] = useState('');
   const [instaComments, setInstaComments] = useState<{ id: string; user: string; text: string; time: string }[]>([
@@ -265,7 +427,14 @@ export default function ContentPlanner({
     localStorage.setItem('swanaya_assigned_tasks', JSON.stringify(assignedTasks));
   }, [assignedTasks]);
 
-  const visibleAssignedTasks = assignedTasks;
+  const visibleAssignedTasks = assignedTasks.filter(task => {
+    if (isSystemAdmin && workspaceMode === 'all') return true;
+    if (!task.createdBy) return true;
+    const cleanUser = currentUser?.toLowerCase() || '';
+    const isOwner = task.createdBy?.toLowerCase() === cleanUser;
+    const isAssigned = task.role?.toLowerCase() === cleanUser || (task as any).assignee?.toLowerCase() === cleanUser;
+    return isOwner || isAssigned;
+  });
 
   const handleAiAutofill = async () => {
     if (!assignerTaskName.trim()) {
@@ -1622,7 +1791,7 @@ export default function ContentPlanner({
       <div>
         
         {/* Title Block */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/60 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/60 mb-4">
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-xl border transition-all ${
               uiMode === 'ai' 
@@ -1695,6 +1864,49 @@ export default function ContentPlanner({
               <Instagram className="w-3.5 h-3.5 text-pink-400 animate-pulse" /> Instagram Hub
             </button>
           </div>
+        </div>
+
+        {/* Individual Workspace Privacy & Switcher Banner */}
+        <div className="mb-6 p-3 rounded-xl bg-slate-950/80 border border-indigo-900/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs shadow-inner">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-indigo-950/80 border border-indigo-500/30 text-indigo-400 shrink-0">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono font-bold text-white text-xs">Private Workspace: <span className="text-indigo-300 font-extrabold">@{currentUser}</span></span>
+                <span className="bg-emerald-950/90 border border-emerald-800/60 text-emerald-400 font-mono text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Strict Workspace Isolation Active
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-normal">
+                Your content plans, assigned tasks, and schedules are strictly private to your account (@{currentUser}). Other operators or clients cannot view your workspace items.
+              </p>
+            </div>
+          </div>
+
+          {isSystemAdmin && (
+            <div className="flex items-center bg-slate-900 p-1 rounded-lg border border-slate-800 shrink-0 self-end md:self-auto">
+              <button
+                type="button"
+                onClick={() => setWorkspaceMode('private')}
+                className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  workspaceMode === 'private' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Lock className="w-3 h-3" /> My Private Workspace
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkspaceMode('all')}
+                className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  workspaceMode === 'all' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Eye className="w-3 h-3" /> All Workspaces (Admin View)
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Collaborative Permission Banner */}
@@ -1828,8 +2040,19 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
+                {/* Drag and drop helper tip */}
+                <div className="flex items-center justify-between bg-indigo-950/40 border border-indigo-900/50 px-3 py-1.5 rounded-lg text-xs font-mono text-indigo-300">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <GripVertical className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                    Drag & Drop Enabled:
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {plannerViewMode === 'list' ? 'Drag items to reorder schedule or drag onto calendar days' : 'Drag posts to any date cell on the grid to reschedule'}
+                  </span>
+                </div>
+
                 {plannerViewMode === 'list' ? (
-                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
                     <AnimatePresence mode="popLayout">
                       {filteredPlans.length === 0 ? (
                         <motion.div 
@@ -1855,7 +2078,11 @@ export default function ContentPlanner({
                           )}
                         </motion.div>
                       ) : (
-                        filteredPlans.map((plan, index) => (
+                        filteredPlans.map((plan, index) => {
+                          const isBeingDragged = draggedPlanId === plan.id;
+                          const isBeingTargeted = dragOverPlanId === plan.id;
+
+                          return (
                           <motion.div 
                             key={plan.id}
                             layout
@@ -1863,7 +2090,16 @@ export default function ContentPlanner({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, x: -15 }}
                             transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.15), ease: 'easeOut' }}
-                            className="bg-slate-950/50 border border-slate-800/85 hover:border-slate-700/80 hover:bg-slate-950/80 rounded-xl p-4 transition-all hover:scale-[1.01] shadow-md flex flex-col justify-between cursor-pointer group"
+                            draggable={permissionLevel !== 'viewer'}
+                            onDragStart={(e) => handleDragStartPlan(e, plan.id)}
+                            onDragOver={(e) => handleDragOverPlan(e, plan.id)}
+                            onDrop={(e) => handleDropOnPlan(e, plan)}
+                            onDragEnd={() => { setDraggedPlanId(null); setDragOverPlanId(null); }}
+                            className={`bg-slate-950/50 border border-slate-800/85 hover:border-slate-700/80 hover:bg-slate-950/80 rounded-xl p-4 transition-all hover:scale-[1.01] shadow-md flex flex-col justify-between cursor-pointer group relative ${
+                              isBeingDragged ? 'opacity-40 border-dashed border-indigo-500 scale-[0.98]' : ''
+                            } ${
+                              isBeingTargeted ? 'ring-2 ring-indigo-500 bg-indigo-950/70 border-indigo-400 shadow-xl scale-[1.02] z-10' : ''
+                            }`}
                             onClick={() => {
                               setViewingPostPlan(plan);
                               addLog(`Interactive Node: Opened detailed 3D View for "${plan.title}"`, 'action');
@@ -1872,6 +2108,15 @@ export default function ContentPlanner({
                             <div>
                               <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex flex-wrap gap-1.5 items-center">
+                                  {permissionLevel !== 'viewer' && (
+                                    <div 
+                                      className="text-slate-600 group-hover:text-indigo-400 p-0.5 rounded cursor-grab active:cursor-grabbing transition-colors"
+                                      title="Click & Drag to reorder item position or drag onto calendar date"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </div>
+                                  )}
                                   <span className="font-mono text-[10px] font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded-full">
                                     {searchQuery ? `${plan.month} ` : ''}Day {plan.day} • {plan.platform}
                                   </span>
@@ -1983,7 +2228,8 @@ export default function ContentPlanner({
                               </div>
                             )}
                           </motion.div>
-                        ))
+                          );
+                        })
                       )}
                     </AnimatePresence>
                   </div>
@@ -2023,6 +2269,7 @@ export default function ContentPlanner({
                           const dayPlans = filteredPlans.filter(p => p.day === dayNum);
                           const hasPlans = dayPlans.length > 0;
                           const isToday = new Date().getDate() === dayNum && MONTHS[new Date().getMonth()] === selectedMonth;
+                          const isCalendarTargeted = dragOverDay === dayNum;
                           
                           // Determine platform indicator border
                           let customStyle = "bg-slate-950/20 border-slate-900 hover:border-slate-800 hover:bg-slate-900/40";
@@ -2046,6 +2293,9 @@ export default function ContentPlanner({
                               whileHover={{ scale: 1.04, y: -1 }}
                               whileTap={{ scale: 0.96 }}
                               key={`day-${dayNum}`}
+                              onDragOver={(e) => handleDragOverDay(e, dayNum)}
+                              onDragLeave={() => setDragOverDay(null)}
+                              onDrop={(e) => handleDropOnCalendarDay(e, dayNum)}
                               onClick={() => {
                                 if (hasPlans) {
                                   setViewingPostPlan(dayPlans[0]);
@@ -2064,6 +2314,8 @@ export default function ContentPlanner({
                               }}
                               className={`aspect-square p-1 border rounded-lg flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden group ${customStyle} ${
                                 isToday ? 'ring-1 ring-emerald-500 border-emerald-500/50' : ''
+                              } ${
+                                isCalendarTargeted ? 'ring-2 ring-indigo-400 bg-indigo-950/80 border-indigo-400 scale-[1.05] z-20 shadow-lg shadow-indigo-500/20' : ''
                               }`}
                             >
                               {/* Day Label & Platform Indicators */}
@@ -2099,7 +2351,14 @@ export default function ContentPlanner({
 
                               {/* Day Miniature content descriptor */}
                               {hasPlans ? (
-                                <div className="mt-auto text-left leading-tight">
+                                <div 
+                                  className="mt-auto text-left leading-tight cursor-grab active:cursor-grabbing"
+                                  draggable={permissionLevel !== 'viewer'}
+                                  onDragStart={(e) => {
+                                    e.stopPropagation();
+                                    handleDragStartPlan(e, dayPlans[0].id);
+                                  }}
+                                >
                                   <p className="text-[7.5px] font-medium text-slate-200 truncate group-hover:text-white transition-colors">
                                     {dayPlans[0].title}
                                   </p>
@@ -2596,13 +2855,75 @@ export default function ContentPlanner({
                   <Instagram className="w-4 h-4 text-pink-400 animate-bounce" /> Interactive Instagram Interface Previewer
                 </h4>
                 <p className="text-xs text-slate-400 max-w-xl">
-                  Simulate, test, and preview your campaigns before they go live. Review layouts, optimize captions with hashtags, click interactive controls, and test real-time comments.
+                  Simulate, test, and preview your campaigns before they go live. Select Instagram format, Meta Ads, Facebook Ad Registry, or series like Chai with Aadi and Come Along with Title.
                 </p>
               </div>
               <div className="flex items-center gap-3 self-start md:self-auto shrink-0 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono">
                 <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                 <span className="text-slate-400">Mode:</span>
                 <span className="text-amber-300 font-bold">LIVE SIMULATION</span>
+              </div>
+            </div>
+
+            {/* Instagram Selector Bar */}
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-indigo-900/50 shadow-inner space-y-2 text-left">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Instagram className="w-3.5 h-3.5 text-pink-400" /> Instagram Selector Bar (Formats, Ads & Series):
+                </span>
+                <span className="bg-indigo-950 border border-indigo-800/80 text-indigo-300 text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold">
+                  Active: {instaSelectorMode.replace(/_/g, ' ')}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'reels', label: '🎬 Reels', color: 'bg-pink-600' },
+                  { id: 'image', label: '🖼️ Single Image', color: 'bg-blue-600' },
+                  { id: 'carousel', label: '🎠 Carousel', color: 'bg-purple-600' },
+                  { id: 'meta_ads', label: '📣 Instagram Meta Ads', color: 'bg-emerald-600' },
+                  { id: 'ad_registry', label: '📑 Facebook Ad Registry', color: 'bg-cyan-600' },
+                  { id: 'chai_with_aadi', label: '☕ Chai with Aadi Instagram', color: 'bg-amber-600' },
+                  { id: 'come_along_title', label: '🎬 Come Along with Title', color: 'bg-rose-600' }
+                ].map(mode => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => {
+                      setInstaSelectorMode(mode.id as any);
+                      addLog(`Instagram Selector: Switched mode to ${mode.label}`, 'info');
+                      if (mode.id === 'chai_with_aadi') {
+                        const chaiAcc = instagramAccounts.find(a => a.handle.includes('chai_with_aadi')) || instagramAccounts[1];
+                        if (chaiAcc) setActiveInstaAccountId(chaiAcc.id);
+                        setInstaCaption('Chai with Aadithyan Episode #42: "Future Design Paradigms & AI Automation Workflows". Stream live on Instagram! ☕🎙️✨ #ChaiWithAadi');
+                      } else if (mode.id === 'come_along_title') {
+                        const titleAcc = instagramAccounts.find(a => a.handle.includes('come_along_title')) || instagramAccounts[2];
+                        if (titleAcc) setActiveInstaAccountId(titleAcc.id);
+                        setInstaCaption('Come Along with Title - Episode 8 Title Sequence Breakdown. Behind-the-scenes concept art, motion storyboards, and title typography. 🎬✨ #ComeAlongWithTitle');
+                      } else if (mode.id === 'meta_ads') {
+                        const metaAcc = instagramAccounts.find(a => a.handle.includes('meta_ads')) || instagramAccounts[3];
+                        if (metaAcc) setActiveInstaAccountId(metaAcc.id);
+                        setInstaCaption('Sponsored by Meta Ads: High-conversion media workspace automation. Claim 30-day trial today! 📣🎯');
+                      } else if (mode.id === 'ad_registry') {
+                        const regAcc = instagramAccounts.find(a => a.handle.includes('facebook_ad_registry')) || instagramAccounts[4];
+                        if (regAcc) setActiveInstaAccountId(regAcc.id);
+                        setInstaCaption('Facebook Ad Registry Verification Log #META-8849204. Verified advertiser transparency record for official media workspace campaigns. 🛡️📑');
+                      } else if (mode.id === 'reels') {
+                        setInstaCaption('Swanaya Media Official Reel: High performance vertical media pipeline. Sound on 🔊🎬 #Reels #Swanaya');
+                      } else if (mode.id === 'carousel') {
+                        setInstaCaption('Swanaya Media Carousel (1/5): Swipe left to inspect our complete 2026 digital roadmap! 🎠✨');
+                      } else {
+                        setInstaCaption('Swanaya Media Single Image Feature Frame: Pristine visual typography & design craft. 🖼️✨');
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                      instaSelectorMode === mode.id
+                        ? `${mode.color} text-white ring-2 ring-white/30 scale-105 shadow-md`
+                        : 'bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -2643,20 +2964,100 @@ export default function ContentPlanner({
                           {activeInstagramAccount.handle.replace('@', '')}
                           <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex items-center justify-center text-[6px] text-white">✓</span>
                         </p>
-                        <p className="text-[8px] text-indigo-400 font-semibold">{activeInstagramAccount.category} • Est. {activeInstagramAccount.registeredYear}</p>
+                        <p className="text-[8px] text-indigo-400 font-semibold">
+                          {activeInstagramAccount.category} • {instaSelectorMode.toUpperCase().replace('_', ' ')}
+                        </p>
                       </div>
                     </div>
                     <button className="text-slate-400 hover:text-white text-xs font-bold font-mono tracking-widest px-1">•••</button>
                   </div>
 
                   {/* Insta Main Post Image/Video Placeholder */}
-                  <div className="relative aspect-square w-full bg-slate-900 overflow-hidden select-none">
+                  <div className="relative aspect-square w-full bg-slate-900 overflow-hidden select-none group">
                     <img 
-                      src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=500" 
+                      src={
+                        instaSelectorMode === 'reels' ? "https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=500" :
+                        instaSelectorMode === 'carousel' ? "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=500" :
+                        instaSelectorMode === 'meta_ads' ? "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=500" :
+                        instaSelectorMode === 'ad_registry' ? "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=500" :
+                        instaSelectorMode === 'chai_with_aadi' ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=500" :
+                        instaSelectorMode === 'come_along_title' ? "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&q=80&w=800" :
+                        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=500"
+                      } 
                       alt="Instagram Mock Post Content" 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
+
+                    {/* Mode Specific Overlays */}
+                    {instaSelectorMode === 'reels' && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 p-3 flex flex-col justify-between">
+                        <div className="flex justify-between items-center">
+                          <span className="bg-pink-600/90 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase shadow">
+                            🎬 Reel • 0:59
+                          </span>
+                        </div>
+                        <div className="text-center">
+                          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur border border-white/40 flex items-center justify-center mx-auto animate-pulse">
+                            <span className="text-white text-xs font-bold pl-0.5">▶</span>
+                          </div>
+                        </div>
+                        <div className="text-left text-[9px] text-white/90 font-mono">
+                          🎵 Original Audio - Chai with Aadi
+                        </div>
+                      </div>
+                    )}
+
+                    {instaSelectorMode === 'carousel' && (
+                      <div className="absolute top-2 right-2 bg-black/70 backdrop-blur text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full">
+                        🎠 1/5
+                      </div>
+                    )}
+
+                    {instaSelectorMode === 'meta_ads' && (
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-2.5 space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                            Sponsored Meta Ad
+                          </span>
+                          <span className="text-[8px] text-slate-300 font-mono">Meta Ads Manager Verified</span>
+                        </div>
+                        <button type="button" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded text-center transition-colors shadow">
+                          Learn More & Get Started ➔
+                        </button>
+                      </div>
+                    )}
+
+                    {instaSelectorMode === 'ad_registry' && (
+                      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm p-3 flex flex-col justify-between border border-cyan-500/30">
+                        <div className="flex justify-between items-center">
+                          <span className="bg-cyan-950 border border-cyan-800 text-cyan-300 text-[8px] font-mono font-bold px-2 py-0.5 rounded uppercase">
+                            🛡️ FB Ad Registry Archive
+                          </span>
+                          <span className="text-[8px] text-slate-400 font-mono">ID: #META-8849204</span>
+                        </div>
+                        <div className="p-2 bg-slate-900/90 rounded border border-slate-800 text-[9px] space-y-1">
+                          <p className="text-cyan-400 font-bold">Facebook Ad Transparency Verified</p>
+                          <p className="text-slate-300">Registered Advertiser: Swanaya Media Enterprises</p>
+                          <p className="text-slate-400">Active Platforms: Facebook, Instagram, Audience Network</p>
+                        </div>
+                        <div className="text-[8px] text-emerald-400 font-mono text-center">
+                          ✓ Public Archive Compliance Verified
+                        </div>
+                      </div>
+                    )}
+
+                    {instaSelectorMode === 'chai_with_aadi' && (
+                      <div className="absolute top-2 left-2 bg-amber-950/90 border border-amber-800/80 text-amber-300 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span>☕</span> CHAI WITH AADI INSTAGRAM
+                      </div>
+                    )}
+
+                    {instaSelectorMode === 'come_along_title' && (
+                      <div className="absolute top-2 left-2 bg-rose-950/90 border border-rose-800/80 text-rose-300 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span>🎬</span> COME ALONG WITH TITLE
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions Row (Static / Non-interactive) */}
@@ -2752,8 +3153,42 @@ export default function ContentPlanner({
 
                   {/* Form to Register a New Profile */}
                   {isAddingInstaAccount && (
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
-                      <h5 className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-wider">Register New Account Entity</h5>
+                    <div className="bg-slate-950 p-4 rounded-xl border border-indigo-900/60 shadow-xl space-y-3.5">
+                      <div className="p-2.5 rounded-lg bg-indigo-950/60 border border-indigo-500/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-amber-400" /> Quick Presets (1-Click Auto-Fill):
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-400">Select any template below to populate fields</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {[
+                            { label: '🎬 Reels', handle: '@instagram_reels_official', name: 'Instagram Reels Studio', category: 'Reels Creator Studio', followers: '320K', bio: 'Dedicated short-form video portal, trending audio syncs, and viral reel series. 🎬⚡🔥' },
+                            { label: '🖼️ Single Image', handle: '@instagram_single_images', name: 'Instagram Single Image Showcase', category: 'Visual Showcase', followers: '68K', bio: 'High-res single image photography, visual aesthetics, and brand poster showcase. 🖼️🎨' },
+                            { label: '🎠 Carousel', handle: '@instagram_carousels_hub', name: 'Instagram Carousel Studio', category: 'Carousel Infographics', followers: '95K', bio: 'Multi-slide visual storyboards, carousel infographic sequences, and swipeable tutorials. 🎠📊' },
+                            { label: '📣 Meta Ads', handle: '@instagram_meta_ads', name: 'Instagram Meta Ads', category: 'Sponsored Meta Ads', followers: '250K', bio: 'Meta Ads Manager & Sponsored Campaign Registry. Direct automated multi-format ad deployment. 📣📊' },
+                            { label: '🛡️ FB Ad Registry', handle: '@facebook_ad_registry', name: 'Facebook Ad Registry', category: 'Ad Transparency Archive', followers: '1.2M', bio: 'Official Facebook & Meta Transparency Ad Archive and Verified Ad Registry. 🛡️📑' },
+                            { label: '☕ Chai with Aadi', handle: '@chai_with_aadi', name: 'Chai with Aadithyan (Instagram)', category: 'Tech Podcast', followers: '108K', bio: 'Weekly podcasts about future design paradigms, tech automation, and digital media craft. ☕🎙️' },
+                            { label: '🎬 Come Along with Title', handle: '@come_along_title', name: 'Come Along with Title', category: 'Creative Series', followers: '82.5K', bio: 'Exclusive behind-the-scenes title sequences, cinematic storyboards, and episodic creative previews. 🎬' }
+                          ].map(preset => (
+                            <button
+                              key={preset.handle}
+                              type="button"
+                              onClick={() => {
+                                setNewInstaHandle(preset.handle);
+                                setNewInstaName(preset.name);
+                                setNewInstaCategory(preset.category);
+                                setNewInstaFollowers(preset.followers);
+                                setNewInstaBio(preset.bio);
+                                addLog(`Quick Preset Loaded: Populated form fields for ${preset.label}`, 'success');
+                              }}
+                              className="text-[9px] font-mono bg-slate-900 hover:bg-indigo-600 hover:text-white text-indigo-300 border border-indigo-900/60 px-2 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
                           <label className="block text-[8px] font-mono text-slate-400 uppercase">Profile Handle</label>

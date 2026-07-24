@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, CheckSquare, Square, Trash2, CalendarPlus, Plus, 
-  HelpCircle, RefreshCw, Layers, CheckCircle2, AlertCircle, Play
+  HelpCircle, RefreshCw, Layers, CheckCircle2, AlertCircle, Play, Lock, ShieldCheck, Eye
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AiTodoItem, ContentPlan } from '../types';
@@ -330,11 +330,27 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
     setActiveMainTab('planner');
   };
 
-  // Stats breakdowns
-  const totalCount = todos.length;
-  const completedCount = todos.filter(t => t.completed).length;
+  const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'administrator';
+  const [workspaceView, setWorkspaceView] = useState<'my' | 'all'>('my');
+
+  // Filter todos for individual user workspace isolation
+  const visibleTodos = todos.filter(t => {
+    if (isSystemAdmin && workspaceView === 'all') return true;
+    const cleanUser = currentUser?.toLowerCase() || '';
+    if ((t as any).createdBy) {
+      return (t as any).createdBy.toLowerCase() === cleanUser || t.assignee?.toLowerCase() === cleanUser;
+    }
+    if (t.assignee) {
+      return t.assignee.toLowerCase() === cleanUser;
+    }
+    return t.visibility !== 'private' || cleanUser === 'aadithyan' || cleanUser === 'administrator';
+  });
+
+  // Stats breakdowns for active workspace
+  const totalCount = visibleTodos.length;
+  const completedCount = visibleTodos.filter(t => t.completed).length;
   const activeCount = totalCount - completedCount;
-  const highPriorityCount = todos.filter(t => !t.completed && t.priority === 'High').length;
+  const highPriorityCount = visibleTodos.filter(t => !t.completed && t.priority === 'High').length;
 
   return (
     <div className={`backdrop-blur-md border rounded-2xl p-5 flex flex-col justify-between h-full min-h-[580px] shadow-2xl transition-all duration-500 ${
@@ -577,6 +593,37 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
           </div>
         )}
 
+        {/* Workspace Security Header */}
+        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-indigo-900/40 flex items-center justify-between text-xs mb-2">
+          <div className="flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="font-mono text-[11px] text-slate-300">
+              Private Checklist: <strong className="text-white font-extrabold">@{currentUser}</strong>
+            </span>
+            <span className="bg-emerald-950 border border-emerald-900 text-emerald-400 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase">
+              Isolated
+            </span>
+          </div>
+          {isSystemAdmin && (
+            <div className="flex items-center bg-slate-900 p-0.5 rounded border border-slate-800 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setWorkspaceView('my')}
+                className={`px-1.5 py-0.5 rounded font-mono ${workspaceView === 'my' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400'}`}
+              >
+                Mine
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkspaceView('all')}
+                className={`px-1.5 py-0.5 rounded font-mono ${workspaceView === 'all' ? 'bg-amber-600 text-white font-bold' : 'text-slate-400'}`}
+              >
+                All
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* To-Do List Content Block */}
         <div className="space-y-2">
           <div className="flex items-center justify-between pb-1">
@@ -587,14 +634,14 @@ export default function AiTodo({ onAddPlan, setActiveMainTab, addLog, currentUse
           </div>
 
           <div className="max-h-[290px] overflow-y-auto pr-1 space-y-2 scrollbar-thin">
-            {todos.filter(t => t.visibility !== 'private' || t.assignee === currentUser || currentUser === 'aadithyan' || currentUser === 'administrator').length === 0 ? (
+            {visibleTodos.length === 0 ? (
               <div className="text-center py-12 border border-dashed border-slate-850 rounded-2xl text-slate-500 font-mono space-y-1.5">
                 <AlertCircle className="w-7 h-7 mx-auto text-slate-700 animate-bounce" />
                 <p className="text-xs font-bold uppercase text-slate-400">Workspace checklist empty</p>
                 <p className="text-[9px] text-slate-600">Enter a target theme above or manual task to initialize actions</p>
               </div>
             ) : (
-              todos.filter(t => t.visibility !== 'private' || t.assignee === currentUser || currentUser === 'aadithyan' || currentUser === 'administrator').map((todo) => {
+              visibleTodos.map((todo) => {
                 const isDeploying = deployTaskId === todo.id;
                 
                 let platformColor = 'bg-slate-900 border-slate-800 text-slate-400';
