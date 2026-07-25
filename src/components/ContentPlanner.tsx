@@ -3,7 +3,8 @@ import {
   Plus, Calendar, Film, Image, Image as ImageIcon, FileText, CheckCircle, Clock, Trash2, Zap,
   Video, Eye, Play, X, UploadCloud, ChevronRight, BarChart3, AlertCircle, Sparkles, Filter, Edit2,
   ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send,
-  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle, Lock, ShieldCheck, GripVertical, Link
+  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle, Lock, ShieldCheck, GripVertical, Link,
+  ExternalLink, Copy, Check, Rocket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
@@ -315,6 +316,73 @@ export default function ContentPlanner({
   const [multi3dRotation, setMulti3dRotation] = useState<number>(15);
   const [multi3dGlow, setMulti3dGlow] = useState<number>(40);
   const [multi3dPerspective, setMulti3dPerspective] = useState<number>(800);
+
+  // Recent Development Deployments & Live Applications
+  const [recentDevelopments, setRecentDevelopments] = useState<any[]>(() => {
+    const saved = localStorage.getItem('swanaya_recent_developments');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const exists = parsed.some((item: any) => item.url?.includes('planora-odessesy.netlify.app'));
+        if (!exists) {
+          return [
+            {
+              id: 'planora-odyssey',
+              name: 'Planora Odyssey',
+              url: 'https://planora-odessesy.netlify.app/',
+              description: 'Interactive content roadmap & Planora Odyssey web application platform deployed live on Netlify.',
+              status: 'LIVE DEPLOYMENT',
+              platform: 'Netlify',
+              category: 'Web Application / Live Platform',
+              addedAt: '2026-07-25',
+              isFeatured: true
+            },
+            ...parsed
+          ];
+        }
+        return parsed;
+      } catch (e) {
+        console.error('Error loading recent developments', e);
+      }
+    }
+    return [
+      {
+        id: 'planora-odyssey',
+        name: 'Planora Odyssey',
+        url: 'https://planora-odessesy.netlify.app/',
+        description: 'Interactive content roadmap & Planora Odyssey web application platform deployed live on Netlify.',
+        status: 'LIVE DEPLOYMENT',
+        platform: 'Netlify',
+        category: 'Web Application / Live Platform',
+        addedAt: '2026-07-25',
+        isFeatured: true
+      },
+      {
+        id: 'meta-graph-publisher',
+        name: 'Meta Graph API Direct Auto-Publisher',
+        url: 'https://developers.facebook.com/docs/instagram-api/',
+        description: 'OAuth token exchange and direct scheduled posting gateway for Instagram Reels & FB Pages.',
+        status: 'IN DEVELOPMENT (65%)',
+        platform: 'Meta Cloud API',
+        category: 'Backend Pipeline',
+        addedAt: '2026-07-24',
+        isFeatured: false
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('swanaya_recent_developments', JSON.stringify(recentDevelopments));
+  }, [recentDevelopments]);
+
+  const [isAddingDev, setIsAddingDev] = useState(false);
+  const [newDevName, setNewDevName] = useState('');
+  const [newDevUrl, setNewDevUrl] = useState('');
+  const [newDevDesc, setNewDevDesc] = useState('');
+  const [newDevStatus, setNewDevStatus] = useState('LIVE DEPLOYMENT');
+  const [newDevCategory, setNewDevCategory] = useState('Web App / Netlify');
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
 
   const isSystemAdmin = currentUser?.toLowerCase() === 'aadithyan' || currentUser?.toLowerCase() === 'administrator';
   const [workspaceMode, setWorkspaceMode] = useState<'private' | 'all'>('private');
@@ -3271,6 +3339,239 @@ export default function ContentPlanner({
               </div>
             </div>
 
+            {/* Recent Developments & Live Deployments Section */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Rocket className="w-5 h-5 text-emerald-400 animate-bounce" />
+                    <h4 className="text-base font-extrabold text-white font-display">Recent Development Deployments & Live Projects</h4>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+                      {recentDevelopments.length} Active Link{recentDevelopments.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Direct access portal for newly registered development deployments, Netlify prototypes, and API staging environments.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddingDev(!isAddingDev)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-lg"
+                >
+                  <Plus className="w-4 h-4" /> {isAddingDev ? 'Cancel Form' : 'Add Development Link'}
+                </button>
+              </div>
+
+              {/* Form to Add New Recent Development */}
+              {isAddingDev && (
+                <div className="bg-slate-950 p-4 rounded-xl border border-emerald-900/40 space-y-3 font-mono">
+                  <h5 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Rocket className="w-3.5 h-3.5 text-emerald-400" /> Register New Recent Development Deployment
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1">Project / Module Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Planora Odyssey"
+                        value={newDevName}
+                        onChange={(e) => setNewDevName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1">Deployment URL</label>
+                      <input
+                        type="text"
+                        placeholder="https://planora-odessesy.netlify.app/"
+                        value={newDevUrl}
+                        onChange={(e) => setNewDevUrl(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1">Deployment Status</label>
+                      <select
+                        value={newDevStatus}
+                        onChange={(e) => setNewDevStatus(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white outline-none cursor-pointer"
+                      >
+                        <option value="LIVE DEPLOYMENT">LIVE DEPLOYMENT</option>
+                        <option value="IN DEVELOPMENT (80%)">IN DEVELOPMENT (80%)</option>
+                        <option value="STAGING ENVIRONMENT">STAGING ENVIRONMENT</option>
+                        <option value="BETA TEST">BETA TEST</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1">Category / Host</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Netlify / Web App"
+                        value={newDevCategory}
+                        onChange={(e) => setNewDevCategory(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1">Short Description</label>
+                      <input
+                        type="text"
+                        placeholder="Summary of feature capabilities or deployment details..."
+                        value={newDevDesc}
+                        onChange={(e) => setNewDevDesc(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingDev(false)}
+                      className="bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs py-1.5 px-3 rounded-lg cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newDevName.trim() || !newDevUrl.trim()) return;
+                        const formattedUrl = newDevUrl.startsWith('http') ? newDevUrl : `https://${newDevUrl}`;
+                        const newItem = {
+                          id: Date.now().toString(),
+                          name: newDevName,
+                          url: formattedUrl,
+                          description: newDevDesc || 'Recent development deployment project.',
+                          status: newDevStatus,
+                          platform: newDevCategory || 'Web Application',
+                          category: newDevCategory || 'Web App',
+                          addedAt: new Date().toISOString().split('T')[0],
+                          isFeatured: false
+                        };
+                        setRecentDevelopments(prev => [newItem, ...prev]);
+                        setIsAddingDev(false);
+                        setNewDevName('');
+                        setNewDevUrl('');
+                        setNewDevDesc('');
+                        addLog(`Recent Development: Registered "${newItem.name}" (${newItem.url}) into pipeline.`, 'success');
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg cursor-pointer transition-colors"
+                    >
+                      Save Recent Development
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid of Recent Development Deployments */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentDevelopments.map((dev) => (
+                  <div
+                    key={dev.id}
+                    className={`p-4 rounded-xl border text-left space-y-3 transition-all relative group ${
+                      dev.isFeatured
+                        ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/30 border-emerald-500/40 shadow-lg shadow-emerald-500/10'
+                        : 'bg-slate-950/70 hover:bg-slate-950 border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h5 className="text-sm font-bold text-white font-display flex items-center gap-1.5">
+                            <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                            {dev.name}
+                          </h5>
+                          {dev.isFeatured && (
+                            <span className="text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5" /> Featured
+                            </span>
+                          )}
+                        </div>
+                        <span className="inline-block text-[10px] font-mono font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded">
+                          {dev.status}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {recentDevelopments.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRecentDevelopments(prev => prev.filter(d => d.id !== dev.id));
+                              addLog(`Recent Development: Removed "${dev.name}" from registry.`, 'warning');
+                            }}
+                            className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                            title="Remove from recent development"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                      {dev.description}
+                    </p>
+
+                    {/* URL display box */}
+                    <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-2 flex items-center justify-between gap-2 text-xs font-mono">
+                      <span className="text-slate-300 truncate font-semibold">{dev.url}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(dev.url);
+                            setCopiedUrl(dev.url);
+                            addLog(`Copied deployment link: ${dev.url}`, 'info');
+                            setTimeout(() => setCopiedUrl(null), 2000);
+                          }}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded transition-colors cursor-pointer flex items-center gap-1 text-[10px]"
+                          title="Copy Link"
+                        >
+                          {copiedUrl === dev.url ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3 text-slate-400" /> Copy
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewIframeUrl(dev.url);
+                            addLog(`Recent Development: Opening live preview modal for ${dev.name}`, 'info');
+                          }}
+                          className="bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 p-1.5 rounded transition-colors cursor-pointer text-[10px] flex items-center gap-1"
+                          title="Preview in Modal"
+                        >
+                          <Eye className="w-3 h-3" /> Preview
+                        </button>
+
+                        <a
+                          href={dev.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white p-1.5 rounded transition-colors cursor-pointer text-[10px] font-bold flex items-center gap-1"
+                        >
+                          Launch <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-900">
+                      <span>Category: {dev.category}</span>
+                      <span>Added: {dev.addedAt}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Development Status Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {/* Feature Progress Pipeline */}
@@ -4781,6 +5082,58 @@ export default function ContentPlanner({
                 >
                   Confirm & Assign
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Live Preview Modal for Recent Developments */}
+      <AnimatePresence>
+        {previewIframeUrl && (
+          <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="bg-slate-950 px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-mono font-bold text-white">Live Development Preview</span>
+                  <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 truncate max-w-xs">
+                    {previewIframeUrl}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewIframeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-mono flex items-center gap-1 bg-slate-900 px-2.5 py-1 rounded border border-slate-800"
+                  >
+                    Open Fullscreen <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewIframeUrl(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body / Iframe */}
+              <div className="flex-1 bg-slate-950 relative">
+                <iframe
+                  src={previewIframeUrl}
+                  title="Live Development Deployment Preview"
+                  className="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                />
               </div>
             </motion.div>
           </div>
