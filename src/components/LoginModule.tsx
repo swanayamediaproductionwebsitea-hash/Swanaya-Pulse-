@@ -625,6 +625,41 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
    
               {/* Form */}
               <form onSubmit={handleRegister} className="space-y-3">
+                {/* Quick Presets for Specialized Profiles */}
+                <div className="bg-slate-950/90 border border-indigo-900/40 p-2.5 rounded-xl space-y-1.5 text-left">
+                  <span className="block text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest flex items-center justify-between">
+                    <span>✨ Quick Presets (Specialized Profiles)</span>
+                    <span className="text-[9px] text-slate-500 font-normal">Click to auto-fill</span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { role: 'Senior Video Producer', perm: 'editor', icon: '🎬', label: 'Video Producer' },
+                      { role: 'Visual Content Designer', perm: 'editor', icon: '🎨', label: 'Visual Designer' },
+                      { role: 'Brand Copy Strategist', perm: 'editor', icon: '✍️', label: 'Copy Strategist' },
+                      { role: 'General Media Planner', perm: 'editor', icon: '📊', label: 'Media Planner' },
+                      { role: 'Client Stakeholder', perm: 'viewer', icon: '👁️', label: 'Client Viewer' }
+                    ].map(p => (
+                      <button
+                        key={p.role}
+                        type="button"
+                        onClick={() => {
+                          setRegRole(p.role);
+                          setRegPermission(p.perm as any);
+                          addLog(`Registration Preset Applied: ${p.label} (${p.perm})`, 'info');
+                        }}
+                        className={`text-[10px] font-mono font-bold px-2 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1 ${
+                          regRole === p.role
+                            ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
+                            : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                        }`}
+                      >
+                        <span>{p.icon}</span>
+                        <span>{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
                     Operator Username

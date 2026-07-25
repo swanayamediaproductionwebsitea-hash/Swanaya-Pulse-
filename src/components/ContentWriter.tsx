@@ -41,7 +41,7 @@ export default function ContentWriter({ currentUser, addLog, isDemoUser = false 
         <div className="flex items-center gap-3">
           <FileText className="w-8 h-8 text-indigo-400" />
           <div>
-            <h2 className="text-lg font-bold text-white uppercase tracking-tight">Ultimate Content Planning Software built by Swanaya Media Enterprises Team</h2>
+            <h2 className="text-lg font-bold text-white uppercase tracking-tight">SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE</h2>
             <p className="text-xs text-slate-400">Draft, format, and generate scripts or proposals.</p>
           </div>
         </div>

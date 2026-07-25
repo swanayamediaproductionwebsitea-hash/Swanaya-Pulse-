@@ -874,7 +874,7 @@ export default function App() {
                   />
                 )}
               </motion.button>
-              {(currentUser?.toLowerCase() === 'aadithyan' || currentUserPermission === 'administrator' || currentUserPermission === 'editor') && (
+              {(currentUser?.toLowerCase() === 'aadithyan' || currentUserPermission === 'administrator') && (
                 <motion.button
                   whileHover={{ scale: 1.05, translateY: -1 }}
                   whileTap={{ scale: 0.95 }}
@@ -1098,7 +1098,7 @@ export default function App() {
                   </motion.div>
                 )}
 
-                {activeMainTab === 'admin' && (
+                {activeMainTab === 'admin' && (currentUser?.toLowerCase() === 'aadithyan' || currentUserPermission === 'administrator') && (
                   <motion.div
                     key="admin-tab"
                     initial={{ opacity: 0, y: 12, scale: 0.99 }}
@@ -1141,6 +1141,7 @@ export default function App() {
                   >
                     <ProfileSettings 
                       currentUser={currentUser || ''} 
+                      currentUserPermission={currentUserPermission}
                       addLog={addLog} 
                       onProfileUpdate={loadCurrentUserProfile}
                       setActiveMainTab={setActiveMainTab}

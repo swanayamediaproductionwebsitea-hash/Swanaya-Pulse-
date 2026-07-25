@@ -19,14 +19,27 @@ export interface ContentPlan {
   day: number;   // 1 to 31
   year: number;
   assignedDate?: string; // YYYY-MM-DD custom assigned date
-  videoUrl?: string; // object URL for previewing uploaded videos
+  videoUrl?: string; // object URL or link for previewing uploaded videos/photos
   videoName?: string;
   videoSize?: string;
+  mediaType?: 'video' | 'image' | 'link' | string;
+  storyViewRate?: string; // e.g. "14.8%" View Rate
+  storyViews?: number; // e.g. 1850 total story views
+  views?: number; // Views / Impressions / Video Plays
+  likes?: number; // Likes count
+  comments?: number; // Comments count
+  shares?: number; // Shares / Retweets / Link Clicks
+  engagementRate?: string; // e.g. "8.4%"
+  viewRate?: string; // e.g. "18.2%"
+  likeRate?: string; // e.g. "6.5%"
+  externalLink?: string; // Direct YouTube/Instagram/Facebook Link
   status: 'Planned' | 'In Progress' | 'Completed' | 'Review' | 'Live';
   platform: 'YouTube' | 'Instagram' | 'TikTok' | 'LinkedIn' | 'Facebook' | string;
   createdAt: string;
   createdBy?: string; // Track who created the plan
   assignee?: string; // Operator/Event Planner assigned
+  accountHandle?: string; // Pre-registered account handle (e.g. @chai_with_aadi, @youtube_chai_podcasts)
+  accountName?: string; // Pre-registered account name
   tags?: string; // Comma separated video tags
 }
 

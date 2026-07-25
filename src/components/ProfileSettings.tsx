@@ -11,6 +11,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface ProfileSettingsProps {
   currentUser: string;
+  currentUserPermission?: 'viewer' | 'editor' | 'administrator';
   addLog: (text: string, type: 'info' | 'success' | 'warning' | 'action' | 'upload') => void;
   onProfileUpdate?: () => void;
   setActiveMainTab?: (tab: any) => void;
@@ -25,7 +26,7 @@ const PRESET_AVATARS = [
   { name: 'Creative Designer', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150' }
 ];
 
-export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, setActiveMainTab }: ProfileSettingsProps) {
+export default function ProfileSettings({ currentUser, currentUserPermission, addLog, onProfileUpdate, setActiveMainTab }: ProfileSettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Profile state fields
@@ -427,7 +428,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, 
             <div className="pt-2">
               <span className="text-[9px] font-mono text-slate-500 uppercase block mb-2 text-left font-bold font-display">Administrative Commands</span>
               
-              {setActiveMainTab ? (
+              {setActiveMainTab && (currentUser?.toLowerCase() === 'aadithyan' || currentUserPermission === 'administrator') ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -441,7 +442,7 @@ export default function ProfileSettings({ currentUser, addLog, onProfileUpdate, 
                 </button>
               ) : (
                 <div className="text-[10px] text-slate-500 bg-slate-950 p-2.5 rounded-lg border border-slate-900 text-left">
-                  ⚠️ Administrative console routing is detached. Return to standard command channels.
+                  🔒 Administrative Console is strictly restricted to System Administrators.
                 </div>
               )}
             </div>

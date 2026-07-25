@@ -236,7 +236,10 @@ app.get("/api/plans", async (req, res) => {
 
 app.post("/api/plans", async (req, res) => {
   try {
-    const { title, type, description, month, day, year, assignedDate, videoUrl, videoName, videoSize, status, platform, createdBy } = req.body;
+    const { 
+      title, type, description, month, day, year, assignedDate, videoUrl, videoName, videoSize, status, platform, 
+      accountHandle, accountName, createdBy, views, likes, comments, shares, engagementRate, viewRate, likeRate, externalLink 
+    } = req.body;
     const inserted = await withRetry(() => db.insert(contentPlans).values({
       uid: createdBy || "each",
       title,
@@ -251,6 +254,16 @@ app.post("/api/plans", async (req, res) => {
       videoSize: videoSize || "",
       status,
       platform,
+      accountHandle: accountHandle || "@chai_with_aadi",
+      accountName: accountName || "Chai with Aadithyan",
+      views: views !== undefined ? Number(views) : 0,
+      likes: likes !== undefined ? Number(likes) : 0,
+      comments: comments !== undefined ? Number(comments) : 0,
+      shares: shares !== undefined ? Number(shares) : 0,
+      engagementRate: engagementRate || "",
+      viewRate: viewRate || "",
+      likeRate: likeRate || "",
+      externalLink: externalLink || "",
       createdBy: createdBy || "each"
     }).returning());
     res.status(201).json(inserted[0]);
@@ -263,7 +276,10 @@ app.post("/api/plans", async (req, res) => {
 app.put("/api/plans/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, type, description, month, day, year, assignedDate, videoUrl, videoName, videoSize, status, platform, createdBy } = req.body;
+    const { 
+      title, type, description, month, day, year, assignedDate, videoUrl, videoName, videoSize, status, platform, 
+      accountHandle, accountName, createdBy, views, likes, comments, shares, engagementRate, viewRate, likeRate, externalLink 
+    } = req.body;
     const updated = await withRetry(() => db.update(contentPlans).set({
       title,
       type,
@@ -277,6 +293,16 @@ app.put("/api/plans/:id", async (req, res) => {
       videoSize,
       status,
       platform,
+      accountHandle,
+      accountName,
+      views: views !== undefined ? Number(views) : undefined,
+      likes: likes !== undefined ? Number(likes) : undefined,
+      comments: comments !== undefined ? Number(comments) : undefined,
+      shares: shares !== undefined ? Number(shares) : undefined,
+      engagementRate,
+      viewRate,
+      likeRate,
+      externalLink,
       createdBy
     }).where(eq(contentPlans.id, Number(id))).returning());
     res.json(updated[0]);

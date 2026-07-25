@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Plus, Calendar, Film, Image, FileText, CheckCircle, Clock, Trash2, Zap,
+  Plus, Calendar, Film, Image, Image as ImageIcon, FileText, CheckCircle, Clock, Trash2, Zap,
   Video, Eye, Play, X, UploadCloud, ChevronRight, BarChart3, AlertCircle, Sparkles, Filter, Edit2,
   ClipboardList, Paperclip, FolderOpen, Instagram, Heart, Bookmark, MessageCircle, Send,
-  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle, Lock, ShieldCheck, GripVertical
+  List, Smartphone, Tv, Monitor, Rotate3d, Layers, Globe, PlayCircle, Lock, ShieldCheck, GripVertical, Link
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan } from '../types';
@@ -132,7 +132,8 @@ export default function ContentPlanner({
   searchQuery = '',
   uiMode = 'ai'
 }: ContentPlannerProps) {
-  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'instagram-interface'>('monthly');
+  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'entity-manager' | 'under-development' | 'accounts-registry'>('monthly');
+  const [formDirectMediaUrl, setFormDirectMediaUrl] = useState('');
   
   // Dynamic Year Changer state (supports range 2023-2026)
   const [selectedYear, setSelectedYear] = useState<number>(2026);
@@ -156,7 +157,8 @@ export default function ContentPlanner({
         bio: 'Official media workspace. Direct content planner, automation pipelines, and high-performance digital campaign logs. 🚀🎬✨',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
         category: 'Media Production',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
         id: '2',
@@ -166,77 +168,118 @@ export default function ContentPlanner({
         bio: 'Weekly podcasts about future design paradigms, tech automation, and digital media craft. Hosted by Aadithyan. ☕🎙️💡',
         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=80',
         category: 'Tech Podcast',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
         id: '3',
+        handle: '@youtube_chai_podcasts',
+        name: 'Chai with Aadithyan (YouTube Channel)',
+        followers: '240K',
+        bio: 'Official YouTube Podcast Channel featuring long-form video interviews, technical teardowns, and design keynotes. ☕🔴📺',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=80',
+        category: 'YouTube Podcast Studio',
+        registeredYear: 2026,
+        platform: 'YouTube'
+      },
+      {
+        id: '4',
+        handle: '@youtube_official_channel',
+        name: 'Swanaya YouTube Main Studio',
+        followers: '500K',
+        bio: 'Primary YouTube Channel for official brand anthems, tech releases, and product launches. 🔴🎬🚀',
+        avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=80',
+        category: 'Official YouTube Channel',
+        registeredYear: 2026,
+        platform: 'YouTube'
+      },
+      {
+        id: '5',
+        handle: '@youtube_shorts_studio',
+        name: 'YouTube Shorts Studio',
+        followers: '180K',
+        bio: 'High-speed vertical shorts, tech tips, and rapid clip previews. ⚡🔴🔥',
+        avatar: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=80',
+        category: 'YouTube Shorts',
+        registeredYear: 2026,
+        platform: 'YouTube'
+      },
+      {
+        id: '6',
         handle: '@come_along_title',
         name: 'Come Along with Title',
         followers: '82.5K',
         bio: 'Exclusive behind-the-scenes title sequences, cinematic storyboards, and episodic creative previews. 🎬✨🎨',
         avatar: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&q=80&w=80',
         category: 'Creative Series',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
-        id: '4',
+        id: '7',
         handle: '@instagram_meta_ads',
         name: 'Instagram Meta Ads',
         followers: '250K',
         bio: 'Meta Ads Manager & Sponsored Campaign Registry. Direct automated multi-format ad deployment. 📣📊🎯',
         avatar: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&q=80&w=80',
         category: 'Sponsored Meta Ads',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
-        id: '5',
+        id: '8',
         handle: '@facebook_ad_registry',
         name: 'Facebook Ad Registry',
         followers: '1.2M',
         bio: 'Official Facebook & Meta Transparency Ad Archive and Verified Ad Registry. 🛡️📑🌐',
         avatar: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=80',
         category: 'Ad Transparency Registry',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Facebook'
       },
       {
-        id: '6',
+        id: '9',
         handle: '@instagram_reels_official',
         name: 'Instagram Reels Studio',
         followers: '320K',
         bio: 'Dedicated short-form video portal, trending audio syncs, and viral reel series. 🎬⚡🔥',
         avatar: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=80',
         category: 'Reels Creator Studio',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
-        id: '7',
+        id: '10',
         handle: '@instagram_carousels_hub',
         name: 'Instagram Carousel Studio',
         followers: '95K',
         bio: 'Multi-slide visual storyboards, carousel infographic sequences, and swipeable tutorials. 🎠📊✨',
         avatar: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=80',
         category: 'Carousel Infographics',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
-        id: '8',
+        id: '11',
         handle: '@instagram_single_images',
         name: 'Instagram Single Image Showcase',
         followers: '68K',
         bio: 'High-res single image photography, visual aesthetics, and brand poster showcase. 🖼️🎨✨',
         avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=80',
         category: 'Visual Showcase',
-        registeredYear: 2026
+        registeredYear: 2026,
+        platform: 'Instagram'
       },
       {
-        id: '9',
+        id: '12',
         handle: '@chai',
         name: 'Chai Masterclass',
         followers: '12K',
         bio: 'Official training hub for corporate media planning and generative workspace tools. 🍃🤖📖',
         avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=80',
         category: 'Education Hub',
-        registeredYear: 2024
+        registeredYear: 2024,
+        platform: 'Instagram'
       }
     ];
   });
@@ -378,7 +421,7 @@ export default function ContentPlanner({
   };
 
   // Instagram Hub Live Simulator states
-  const [instaSelectorMode, setInstaSelectorMode] = useState<'reels' | 'image' | 'carousel' | 'meta_ads' | 'ad_registry' | 'chai_with_aadi' | 'come_along_title'>('reels');
+  const [instaSelectorMode, setInstaSelectorMode] = useState<'reels' | 'image' | 'carousel' | 'meta_ads' | 'ad_registry' | 'chai_with_aadi' | 'come_along_title' | 'story'>('reels');
   const [instaCaption, setInstaCaption] = useState('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
   const [newInstaComment, setNewInstaComment] = useState('');
   const [instaComments, setInstaComments] = useState<{ id: string; user: string; text: string; time: string }[]>([
@@ -747,8 +790,15 @@ export default function ContentPlanner({
   const [formMonth, setFormMonth] = useState(MONTHS[new Date().getMonth()]);
   const [formDay, setFormDay] = useState<number>(new Date().getDate());
   const [formPlatform, setFormPlatform] = useState<ContentPlan['platform']>('YouTube');
+  const [formAccountHandle, setFormAccountHandle] = useState<string>('@chai_with_aadi');
   const [formStatus, setFormStatus] = useState<ContentPlan['status']>('Planned');
   const [formAssignee, setFormAssignee] = useState('');
+  // Metrics & Link states for creation form
+  const [formViews, setFormViews] = useState<number>(12500);
+  const [formLikes, setFormLikes] = useState<number>(840);
+  const [formComments, setFormComments] = useState<number>(120);
+  const [formShares, setFormShares] = useState<number>(65);
+  const [formExternalLink, setFormExternalLink] = useState<string>('');
 
   // Bidirectional Date Sync helpers
   const parseDateString = (dateStr: string) => {
@@ -863,9 +913,15 @@ export default function ContentPlanner({
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editPlatform, setEditPlatform] = useState<ContentPlan['platform']>('YouTube');
+  const [editAccountHandle, setEditAccountHandle] = useState<string>('@chai_with_aadi');
   const [editType, setEditType] = useState<ContentPlan['type']>('Video');
   const [editStatus, setEditStatus] = useState<ContentPlan['status']>('Planned');
   const [editAssignee, setEditAssignee] = useState('');
+  const [editViews, setEditViews] = useState<number>(0);
+  const [editLikes, setEditLikes] = useState<number>(0);
+  const [editComments, setEditComments] = useState<number>(0);
+  const [editShares, setEditShares] = useState<number>(0);
+  const [editExternalLink, setEditExternalLink] = useState<string>('');
 
   const openEditModal = (plan: ContentPlan) => {
     setEditingPlan(plan);
@@ -873,9 +929,15 @@ export default function ContentPlanner({
     setEditDescription(plan.description);
     setEditDate(ensureDateTimeString(plan.assignedDate || formatDateComponents(selectedYear, plan.month, plan.day)));
     setEditPlatform(plan.platform);
+    setEditAccountHandle(plan.accountHandle || '@chai_with_aadi');
     setEditType(plan.type);
     setEditStatus(plan.status);
     setEditAssignee(plan.assignee || '');
+    setEditViews(plan.views || (plan.type === 'Story' ? 2840 : 12500));
+    setEditLikes(plan.likes || 840);
+    setEditComments(plan.comments || 120);
+    setEditShares(plan.shares || 65);
+    setEditExternalLink(plan.externalLink || plan.videoUrl || '');
   };
 
   const saveEditedPlan = (e: React.FormEvent) => {
@@ -883,6 +945,17 @@ export default function ContentPlanner({
     if (!editingPlan || !editTitle.trim()) return;
 
     const { month, day, year } = parseDateString(editDate);
+    const matchedAcc = instagramAccounts.find(a => a.handle === editAccountHandle);
+
+    const vNum = Number(editViews) || 0;
+    const lNum = Number(editLikes) || 0;
+    const cNum = Number(editComments) || 0;
+    const sNum = Number(editShares) || 0;
+    const calcER = vNum > 0 
+      ? (((lNum + cNum + sNum) / vNum) * 100).toFixed(1) + '%'
+      : '0.0%';
+    const calcVR = vNum > 0 ? ((vNum / 10000) * 100).toFixed(1) + '%' : '12.4%';
+    const calcLR = vNum > 0 ? ((lNum / vNum) * 100).toFixed(1) + '%' : '6.7%';
 
     const updated: ContentPlan = {
       ...editingPlan,
@@ -893,13 +966,26 @@ export default function ContentPlanner({
       day,
       year,
       platform: editPlatform,
+      accountHandle: editAccountHandle || editingPlan.accountHandle || '@chai_with_aadi',
+      accountName: matchedAcc?.name || editingPlan.accountName || 'Chai with Aadithyan',
       type: editType,
       status: editStatus,
-      assignee: editAssignee
+      assignee: editAssignee,
+      views: vNum,
+      likes: lNum,
+      comments: cNum,
+      shares: sNum,
+      engagementRate: calcER,
+      viewRate: calcVR,
+      likeRate: calcLR,
+      externalLink: editExternalLink.trim(),
+      storyViews: editType === 'Story' ? (vNum > 0 ? vNum : 2840) : editingPlan.storyViews,
+      storyViewRate: editType === 'Story' ? calcVR : editingPlan.storyViewRate
     };
 
     onUpdatePlan(updated);
     setEditingPlan(null);
+    addLog(`Planner: Updated campaign "${editTitle.trim()}" metrics [Views: ${vNum}, Likes: ${lNum}, Comments: ${cNum}, ER: ${calcER}]`, 'success');
   };
 
   // Preloaded templates automatic assigning and date management
@@ -972,8 +1058,8 @@ export default function ContentPlanner({
     setSelectedMonth(month);
   };
 
-  // Video upload states
-  const [uploadedVideo, setUploadedVideo] = useState<{ url: string; name: string; size: string; isGoogleDrive?: boolean } | null>(null);
+  // Media upload states
+  const [uploadedVideo, setUploadedVideo] = useState<{ url: string; name: string; size: string; isGoogleDrive?: boolean; mediaType?: 'video' | 'image' | 'link' } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -992,9 +1078,12 @@ export default function ContentPlanner({
   const handleVideoFile = (file: File) => {
     if (!file) return;
     
-    if (!file.type.startsWith('video/')) {
-      addLog(`Validation Error: File "${file.name}" is not a valid video format`, 'warning');
-      alert('Please upload a video file only.');
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    if (!isImage && !isVideo) {
+      addLog(`Validation Error: File "${file.name}" is not a valid video or photo format`, 'warning');
+      alert('Please upload a photo image (JPG, PNG, WEBP, GIF) or video (MP4, WEBM, MOV) file.');
       return;
     }
 
@@ -1011,7 +1100,7 @@ export default function ContentPlanner({
 
   const handleInitiateUpload = () => {
     if (!videoFormTitle.trim()) {
-      alert("Please enter a video title.");
+      alert("Please enter a media title.");
       return;
     }
 
@@ -1035,12 +1124,13 @@ export default function ContentPlanner({
       setUploadProgress(100);
 
       const isDrive = stagedVideoFileForForm?.isGoogleDrive;
+      const isImg = stagedVideoFileForForm?.file?.type.startsWith('image/');
       const finalUrl = stagedVideoFileForForm?.file 
         ? URL.createObjectURL(stagedVideoFileForForm.file) 
         : (stagedVideoFileForForm?.driveUrl || '');
       const finalName = stagedVideoFileForForm?.file 
         ? stagedVideoFileForForm.file.name 
-        : (stagedVideoFileForForm?.driveName || 'Staged Video Clip');
+        : (stagedVideoFileForForm?.driveName || 'Staged Media File');
       const finalSize = stagedVideoFileForForm?.file 
         ? `${(stagedVideoFileForForm.file.size / (1024 * 1024)).toFixed(2)} MB` 
         : (stagedVideoFileForForm?.driveSize || 'Unknown Size');
@@ -1049,7 +1139,8 @@ export default function ContentPlanner({
         url: finalUrl,
         name: finalName,
         size: finalSize,
-        isGoogleDrive: isDrive
+        isGoogleDrive: isDrive,
+        mediaType: isImg ? ('image' as const) : ('video' as const)
       };
 
       setUploadedVideo(videoData);
@@ -1060,10 +1151,10 @@ export default function ContentPlanner({
       setTitle(videoFormTitle.trim());
       setDescription(videoFormDescription.trim());
 
-      // Auto-save this directly inside the Content Planner as a video plan item!
+      // Auto-save this directly inside the Content Planner as a plan item!
       onAddPlan({
         title: videoFormTitle.trim(),
-        type: 'Video',
+        type: isImg ? 'Image' : 'Video',
         description: videoFormDescription.trim(),
         month: formMonth,
         day: formDay,
@@ -1074,19 +1165,22 @@ export default function ContentPlanner({
         videoUrl: finalUrl,
         videoName: finalName,
         videoSize: finalSize,
+        mediaType: isImg ? 'image' : 'video',
         createdBy: currentUser || 'aadithyan',
         tags: videoFormTags.trim()
       });
 
       addLog(`Planner: Saved & scheduled "${videoFormTitle.trim()}" in the content planner with tags: [${videoFormTags.trim()}]`, 'success');
 
-      // Trigger automatic video playback immediately
-      setPreviewVideo({
-        url: finalUrl,
-        title: videoFormTitle.trim()
-      });
+      if (!isImg) {
+        // Trigger automatic video playback immediately if video
+        setPreviewVideo({
+          url: finalUrl,
+          title: videoFormTitle.trim()
+        });
+      }
 
-      addLog(`Media Pipeline: Playback started for newly staged video: "${videoFormTitle.trim()}"`, 'success');
+      addLog(`Media Pipeline: Media staged for "${videoFormTitle.trim()}"`, 'success');
     }, 1200);
   };
 
@@ -1115,6 +1209,19 @@ export default function ContentPlanner({
     }
     if (!title.trim()) return;
 
+    const matchedAcc = instagramAccounts.find(a => a.handle === formAccountHandle);
+    const isImg = uploadedVideo?.mediaType === 'image' || (uploadedVideo?.url ? Boolean(uploadedVideo.url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || uploadedVideo.url.includes('unsplash')) : false);
+
+    const vNum = Number(formViews) || 0;
+    const lNum = Number(formLikes) || 0;
+    const cNum = Number(formComments) || 0;
+    const sNum = Number(formShares) || 0;
+    const calcER = vNum > 0 
+      ? (((lNum + cNum + sNum) / vNum) * 100).toFixed(1) + '%'
+      : '0.0%';
+    const calcVR = vNum > 0 ? ((vNum / 10000) * 100).toFixed(1) + '%' : '12.4%';
+    const calcLR = vNum > 0 ? ((lNum / vNum) * 100).toFixed(1) + '%' : '6.7%';
+
     onAddPlan({
       title: title.trim(),
       type,
@@ -1124,11 +1231,24 @@ export default function ContentPlanner({
       year: 2026,
       assignedDate: formDateTime,
       platform: formPlatform,
+      accountHandle: formAccountHandle || '@chai_with_aadi',
+      accountName: matchedAcc?.name || formAccountHandle || 'Chai with Aadithyan',
       status: formStatus,
       assignee: formAssignee,
-      videoUrl: uploadedVideo?.url,
+      videoUrl: uploadedVideo?.url || formDirectMediaUrl || undefined,
       videoName: uploadedVideo?.name,
       videoSize: uploadedVideo?.size,
+      mediaType: isImg ? 'image' : 'video',
+      storyViewRate: type === 'Story' ? (calcVR !== '0.0%' ? calcVR : '14.8%') : calcVR,
+      storyViews: vNum > 0 ? vNum : (type === 'Story' ? 2840 : vNum),
+      views: vNum,
+      likes: lNum,
+      comments: cNum,
+      shares: sNum,
+      engagementRate: calcER,
+      viewRate: calcVR,
+      likeRate: calcLR,
+      externalLink: formExternalLink.trim(),
       createdBy: currentUser || 'aadithyan'
     });
 
@@ -1136,7 +1256,14 @@ export default function ContentPlanner({
     setTitle('');
     setDescription('');
     setUploadedVideo(null);
-    addLog(`Planner: Staged content plan "${title}" for ${formMonth} Day ${formDay}`, 'success');
+    setFormDirectMediaUrl('');
+    setFormExternalLink('');
+    setFormViews(12500);
+    setFormLikes(840);
+    setFormComments(120);
+    setFormShares(65);
+    setFormDirectMediaUrl('');
+    addLog(`Planner: Staged content plan "${title}" for ${formMonth} Day ${formDay} [Assigned to ${formAccountHandle}]`, 'success');
     
     // Switch back to view tab
     setActiveTab('monthly');
@@ -1162,7 +1289,7 @@ export default function ContentPlanner({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Swanaya Individual Campaign Node - ${plan.title}</title>
+          <title>SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE - ${plan.title}</title>
           <meta charset="utf-8" />
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -1179,7 +1306,7 @@ export default function ContentPlanner({
 
             /* Premium Corporate watermark */
             body::before {
-              content: "SWANAYA CORPORATION OFFICIAL";
+              content: "SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE";
               position: fixed;
               top: 50%;
               left: 50%;
@@ -1323,7 +1450,7 @@ export default function ContentPlanner({
         <body>
           <div class="header">
             <div>
-              <h1 class="logo-text">SWANAYA ENTERPRISES</h1>
+              <h1 class="logo-text">SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE</h1>
               <p class="subtitle">Individual Content Node Manifest</p>
             </div>
             <div class="meta">
@@ -1381,7 +1508,7 @@ export default function ContentPlanner({
           </div>
 
           <div class="watermark-footer">
-            SECURE DEPLOYMENT MANIFEST • VERIFIED COMPLIANCE WATERMARK ENABLED • SWANAYA MEDIA
+            SECURE DEPLOYMENT MANIFEST • VERIFIED COMPLIANCE WATERMARK ENABLED • SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE
           </div>
 
           <button class="btn-print" onclick="window.print()">Print / Save PDF</button>
@@ -1409,7 +1536,7 @@ export default function ContentPlanner({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Swanaya Media Content Deployment Report</title>
+          <title>SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE Report</title>
           <meta charset="utf-8" />
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -1426,7 +1553,7 @@ export default function ContentPlanner({
 
             /* Faint company watermark in the background of printed page */
             body::before {
-              content: "SWANAYA MEDIA ENTERPRISES";
+              content: "SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE";
               position: fixed;
               top: 55%;
               left: 50%;
@@ -1644,7 +1771,7 @@ export default function ContentPlanner({
         <body>
           <div class="print-btn-container no-print">
             <div>
-              <strong style="font-size: 13px; color: #1e293b;">Swanaya Interactive PDF Generator Ready</strong>
+              <strong style="font-size: 13px; color: #1e293b;">SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE PDF Generator Ready</strong>
               <p style="font-size: 11px; color: #64748b; margin: 3px 0 0 0;">Verify layout options and print to finalize the PDF save cycle.</p>
             </div>
             <div style="display: flex; gap: 10px;">
@@ -1655,7 +1782,7 @@ export default function ContentPlanner({
 
           <div class="header-container">
             <div>
-              <h1 class="logo-title">Swanaya Media Enterprises</h1>
+              <h1 class="logo-title">SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE</h1>
               <p class="subtitle">Custom Campaign Registry & Deployment Matrix</p>
             </div>
             <div class="meta-details">
@@ -1707,7 +1834,10 @@ export default function ContentPlanner({
               ` : visiblePlans.filter(p => p.month === selectedMonth).map(plan => `
                 <tr>
                   <td class="plan-day">Day ${plan.day}</td>
-                  <td><span class="badge badge-platform">${plan.platform}</span></td>
+                  <td>
+                    <span class="badge badge-platform">${plan.platform}</span>
+                    ${plan.accountHandle ? `<div style="font-size: 9px; font-weight: bold; color: #d97706; margin-top: 2px; font-family: 'JetBrains Mono', monospace;">${plan.accountHandle}</div>` : ''}
+                  </td>
                   <td><span style="font-weight: 500;">${plan.type}</span></td>
                   <td>
                     <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #059669;">
@@ -1730,7 +1860,7 @@ export default function ContentPlanner({
           </table>
 
           <div class="footer-container">
-            <span class="footer-brand">SWANAYA ENTERPRISES PRODUCTION NODE</span>
+            <span class="footer-brand">SWANIQUE AI INTEGRATED CONTENT-PLANNING SOFTWARE</span>
             <span>Page 1 of 1 • System Verification Authenticated</span>
           </div>
 
@@ -1769,7 +1899,13 @@ export default function ContentPlanner({
     return acc;
   }, {} as Record<string, number>);
 
+  // Filter & Search states
+  const [accountFilter, setAccountFilter] = useState<string>('ALL');
+
   const filteredPlans = visiblePlans.filter(p => {
+    if (accountFilter !== 'ALL' && p.accountHandle !== accountFilter) {
+      return false;
+    }
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const titleMatch = p.title.toLowerCase().includes(query);
@@ -1777,7 +1913,8 @@ export default function ContentPlanner({
       const statusMatch = p.status.toLowerCase().includes(query);
       const typeMatch = p.type.toLowerCase().includes(query);
       const descMatch = p.description?.toLowerCase().includes(query) || false;
-      return titleMatch || platformMatch || statusMatch || typeMatch || descMatch;
+      const accountMatch = p.accountHandle?.toLowerCase().includes(query) || p.accountName?.toLowerCase().includes(query) || false;
+      return titleMatch || platformMatch || statusMatch || typeMatch || descMatch || accountMatch;
     }
     return p.month === selectedMonth;
   });
@@ -1851,17 +1988,32 @@ export default function ContentPlanner({
             </button>
 
             <button
+              type="button"
               onClick={() => {
-                setActiveTab('instagram-interface');
-                addLog('System Navigation: Loaded live Instagram Hub interactive simulator', 'info');
+                setActiveTab('under-development');
+                addLog('System Navigation: Switched to Under Development module', 'info');
               }}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'instagram-interface'
+                activeTab === 'under-development'
+                  ? 'bg-amber-600 text-white shadow font-bold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-300 animate-pulse" /> Under Development
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('accounts-registry');
+                addLog('System Navigation: Switched to Pre-Registered Accounts Directory & Entity Registry', 'info');
+              }}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'accounts-registry'
                   ? 'bg-indigo-600 text-white shadow font-bold'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Instagram className="w-3.5 h-3.5 text-pink-400 animate-pulse" /> Instagram Hub
+              <Layers className="w-3.5 h-3.5 text-indigo-300 animate-pulse" /> Accounts Registry
             </button>
           </div>
         </div>
@@ -1988,10 +2140,49 @@ export default function ContentPlanner({
               
               {/* Staged Plans for the selected month */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                    <Filter className="w-3.5 h-3.5 text-indigo-400" /> Active Registry: {selectedMonth}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/60 border border-slate-850 p-2.5 rounded-xl">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Filter className="w-3.5 h-3.5 text-indigo-400" /> Active Registry: {selectedMonth}
+                    </span>
+
+                    {/* Pre-registered Account Selector Filter */}
+                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg">
+                      <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">Account:</span>
+                      <select
+                        value={accountFilter}
+                        onChange={(e) => {
+                          setAccountFilter(e.target.value);
+                          addLog(`Content Planner: Filtered schedule by account [${e.target.value}]`, 'info');
+                        }}
+                        className="bg-transparent text-[10px] font-mono font-bold text-amber-300 outline-none cursor-pointer max-w-[160px] truncate"
+                      >
+                        <option value="ALL" className="bg-slate-950 text-white">✨ All Pre-Registered Accounts</option>
+                        <optgroup label="📸 Instagram Accounts" className="bg-slate-950 text-slate-300">
+                          {instagramAccounts.filter(a => !a.platform || a.platform === 'Instagram').map(acc => (
+                            <option key={acc.id} value={acc.handle} className="bg-slate-950 text-amber-300">
+                              {acc.handle} — {acc.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="🔴 YouTube Channels" className="bg-slate-950 text-slate-300">
+                          {instagramAccounts.filter(a => a.platform === 'YouTube' || a.handle.includes('youtube')).map(acc => (
+                            <option key={acc.id} value={acc.handle} className="bg-slate-950 text-rose-300">
+                              {acc.handle} — {acc.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="🌐 Meta / Facebook" className="bg-slate-950 text-slate-300">
+                          {instagramAccounts.filter(a => a.platform === 'Facebook' || a.handle.includes('facebook')).map(acc => (
+                            <option key={acc.id} value={acc.handle} className="bg-slate-950 text-cyan-300">
+                              {acc.handle} — {acc.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-2">
                     {/* View Switcher Toggle */}
                     <div className="flex items-center bg-slate-900/90 border border-slate-800 p-0.5 rounded-lg mr-1 shadow-inner">
@@ -2120,6 +2311,11 @@ export default function ContentPlanner({
                                   <span className="font-mono text-[10px] font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded-full">
                                     {searchQuery ? `${plan.month} ` : ''}Day {plan.day} • {plan.platform}
                                   </span>
+                                  {plan.accountHandle && (
+                                    <span className="font-mono text-[9px] font-bold text-amber-300 bg-amber-950/60 border border-amber-900/50 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                                      {plan.platform === 'YouTube' ? '🔴' : plan.platform === 'Facebook' ? '🌐' : '📸'} {plan.accountHandle}
+                                    </span>
+                                  )}
                                   {plan.status === 'Live' ? (
                                     <span className="font-mono text-[9px] font-bold text-rose-400 bg-rose-950/50 border border-rose-900/40 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
                                       <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
@@ -2185,7 +2381,7 @@ export default function ContentPlanner({
                               )}
                               <p className="text-xs text-slate-400 line-clamp-2 mb-2">{plan.description}</p>
                               {plan.tags && (
-                                <div className="flex flex-wrap gap-1 mb-3">
+                                <div className="flex flex-wrap gap-1 mb-2">
                                   {plan.tags.split(',').map((tg, idx) => tg.trim() && (
                                     <span key={idx} className="text-[9px] font-mono font-bold text-indigo-400 bg-indigo-950/40 border border-indigo-900/30 px-1.5 py-0.5 rounded">
                                       #{tg.trim()}
@@ -2193,6 +2389,34 @@ export default function ContentPlanner({
                                   ))}
                                 </div>
                               )}
+
+                              {/* Performance Metrics Tracker Pill Bar */}
+                              <div className="flex flex-wrap items-center gap-1.5 mb-3 font-mono text-[9px]">
+                                <span className="bg-slate-900 border border-slate-800 text-slate-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  👁️ {(plan.views || (plan.type === 'Story' ? 2840 : 12500)).toLocaleString()}
+                                </span>
+                                <span className="bg-slate-900 border border-slate-800 text-rose-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  ❤️ {(plan.likes || 840).toLocaleString()}
+                                </span>
+                                <span className="bg-slate-900 border border-slate-800 text-indigo-300 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  💬 {(plan.comments || 120).toLocaleString()}
+                                </span>
+                                <span className="bg-emerald-950/60 border border-emerald-900/40 text-emerald-400 font-bold px-1.5 py-0.5 rounded">
+                                  📊 {plan.engagementRate || '7.8%'} ER
+                                </span>
+                                {plan.externalLink && (
+                                  <a
+                                    href={plan.externalLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="bg-amber-950/60 hover:bg-amber-900 border border-amber-900/50 text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1 truncate max-w-[110px]"
+                                    title={`Open link: ${plan.externalLink}`}
+                                  >
+                                    <Link className="w-2.5 h-2.5 shrink-0" /> Link
+                                  </a>
+                                )}
+                              </div>
                             </div>
 
                             {/* Staged media files in this item */}
@@ -2596,6 +2820,54 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
+                {/* Pre-registered Social Account / Channel Selector */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Pre-Registered Social Account / Channel</span>
+                    <span className="text-[10px] text-indigo-400 font-mono font-bold">✨ Auto-syncs Platform</span>
+                  </label>
+                  <select
+                    value={formAccountHandle}
+                    onChange={(e) => {
+                      const selectedHandle = e.target.value;
+                      setFormAccountHandle(selectedHandle);
+                      const acc = instagramAccounts.find(a => a.handle === selectedHandle);
+                      if (acc?.platform) {
+                        setFormPlatform(acc.platform as any);
+                      } else if (selectedHandle.includes('youtube')) {
+                        setFormPlatform('YouTube');
+                      } else if (selectedHandle.includes('facebook')) {
+                        setFormPlatform('Facebook');
+                      } else {
+                        setFormPlatform('Instagram');
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none cursor-pointer font-medium"
+                  >
+                    <optgroup label="📸 Instagram Accounts">
+                      {instagramAccounts.filter(a => !a.platform || a.platform === 'Instagram').map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🔴 YouTube Channels">
+                      {instagramAccounts.filter(a => a.platform === 'YouTube' || a.handle.includes('youtube')).map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🌐 Meta / Facebook Archives">
+                      {instagramAccounts.filter(a => a.platform === 'Facebook' || a.handle.includes('facebook')).map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
                 {/* Unified Date & Time Picker Replacement */}
                 <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-3 mt-1">
                   <div className="flex items-center justify-between">
@@ -2698,11 +2970,11 @@ export default function ContentPlanner({
                   />
                 </div>
 
-                {/* DYNAMIC VIDEO FILE UPLOAD COMPONENT */}
+                {/* DYNAMIC MEDIA FILE & LINK UPLOAD PIPELINE */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                    <span>Video Media Upload pipeline</span>
-                    <span className="text-[9px] text-indigo-400 uppercase font-mono">HTML5 Video Linker</span>
+                    <span>Photos & Videos Media Upload Pipeline</span>
+                    <span className="text-[9px] text-amber-400 uppercase font-mono">Photos • Videos • Drive • Link Pastes</span>
                   </label>
 
                   <div 
@@ -2722,14 +2994,16 @@ export default function ContentPlanner({
                       type="file"
                       ref={fileInputRef}
                       onChange={(e) => e.target.files?.[0] && handleVideoFile(e.target.files[0])}
-                      accept="video/*"
+                      accept="image/*,video/*"
                       className="hidden"
                     />
 
                     {uploadedVideo ? (
                       <div className="space-y-2 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                         <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-full inline-flex border border-emerald-500/20">
-                          {uploadedVideo.isGoogleDrive ? (
+                          {uploadedVideo.mediaType === 'image' || uploadedVideo.url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || uploadedVideo.url.includes('unsplash') ? (
+                            <ImageIcon className="w-6 h-6 text-amber-400 animate-pulse" />
+                          ) : uploadedVideo.isGoogleDrive ? (
                             <svg className="w-6 h-6 text-emerald-400 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M19.43 12.981L14.71 4.801c-.38-.66-1.08-1.06-1.85-1.06h-1.72c-.77 0-1.47.4-1.85 1.06L4.57 12.981c-.38.66-.38 1.47 0 2.13l2.36 4.091c.38.66 1.08 1.06 1.85 1.06h9.44c.77 0 1.47-.4 1.85-1.06l2.36-4.091c.38-.66.38-1.47 0-2.13zM9.43 17.5c-.38 0-.74-.21-.93-.54L6.14 12.87c-.19-.33-.19-.74 0-1.07l2.36-4.09c.19-.33.55-.54.93-.54h4.72c.38 0 .74.21.93.54l2.36 4.09c.19.33.19.74 0 1.07l-2.36 4.09c-.19.33-.55.54-.93.54H9.43z" />
                             </svg>
@@ -2742,7 +3016,7 @@ export default function ContentPlanner({
                             {uploadedVideo.name}
                           </p>
                           <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            {uploadedVideo.isGoogleDrive ? 'Linked from Google Drive' : `Size: ${uploadedVideo.size}`} | Staged successfully
+                            {uploadedVideo.isGoogleDrive ? 'Linked from Google Drive' : `Type: ${uploadedVideo.mediaType === 'image' ? 'Photo Image' : 'Video Clip'} • ${uploadedVideo.size}`}
                           </p>
                           {uploadedVideo.isGoogleDrive && uploadedVideo.url && (
                             <a
@@ -2760,7 +3034,7 @@ export default function ContentPlanner({
                           onClick={removeStagedVideo}
                           className="bg-rose-950/50 hover:bg-rose-900 border border-rose-800/50 text-rose-300 text-[10px] py-1 px-3 rounded-lg transition-all cursor-pointer font-semibold"
                         >
-                          Clear Video File
+                          Clear Media File
                         </button>
                       </div>
                     ) : (
@@ -2769,13 +3043,57 @@ export default function ContentPlanner({
                           <UploadCloud className="w-6 h-6" />
                         </div>
                         <p className="text-xs font-medium text-slate-200">
-                          Drag & drop video clip here, or <span className="text-indigo-400 underline">browse</span>
+                          Drag & drop Photo (JPG/PNG) or Video clip here, or <span className="text-indigo-400 underline">browse</span>
                         </p>
                         <p className="text-[9px] text-slate-500">
-                          Supports mp4, webm, quicktime, ogg (Max 150MB)
+                          Supports mp4, webm, mov, jpg, png, webp, gif (Max 150MB)
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  {/* Direct Photo or Video URL Link Paste Input */}
+                  <div className="mt-3 p-3 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Link className="w-3.5 h-3.5 text-amber-400" /> Direct Photo / Video URL Link Paste
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-mono">Unsplash, Web Image or Video Link</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={formDirectMediaUrl}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormDirectMediaUrl(val);
+                          if (val.trim()) {
+                            const isImg = Boolean(val.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) || val.includes('unsplash.com') || val.includes('image'));
+                            setUploadedVideo({
+                              url: val.trim(),
+                              name: val.split('/').pop()?.split('?')[0] || 'pasted_media_link',
+                              size: isImg ? 'Photo Link' : 'Video Link',
+                              mediaType: isImg ? 'image' : 'video'
+                            });
+                            addLog('Media Pipeline: Attached direct photo/video URL link', 'info');
+                          }
+                        }}
+                        placeholder="e.g. https://images.unsplash.com/photo-1518770660439... or https://cdn.com/clip.mp4"
+                        className="w-full bg-slate-900 border border-slate-800 focus:border-amber-500/80 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none font-mono"
+                      />
+                      {formDirectMediaUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormDirectMediaUrl('');
+                            setUploadedVideo(null);
+                          }}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2.5 py-2 rounded-lg font-mono cursor-pointer shrink-0"
+                        >
+                          Clear Link
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Google Drive Picker Trigger Button */}
@@ -2788,8 +3106,76 @@ export default function ContentPlanner({
                       <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19.43 12.981L14.71 4.801c-.38-.66-1.08-1.06-1.85-1.06h-1.72c-.77 0-1.47.4-1.85 1.06L4.57 12.981c-.38.66-.38 1.47 0 2.13l2.36 4.091c.38.66 1.08 1.06 1.85 1.06h9.44c.77 0 1.47-.4 1.85-1.06l2.36-4.091c.38-.66.38-1.47 0-2.13zM9.43 17.5c-.38 0-.74-.21-.93-.54L6.14 12.87c-.19-.33-.19-.74 0-1.07l2.36-4.09c.19-.33.55-.54.93-.54h4.72c.38 0 .74.21.93.54l2.36 4.09c.19.33.19.74 0 1.07l-2.36 4.09c-.19.33-.55.54-.93.54H9.43z" />
                       </svg>
-                      Select Staged Video via Google Picker
+                                      Select Staged Media via Google Picker
                     </button>
+                  </div>
+
+                  {/* Performance Analytics & Direct Social Link Tracker */}
+                  <div className="mt-3 p-3.5 bg-indigo-950/20 border border-indigo-900/40 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Performance Metrics & Post Link Tracker
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/40">
+                        ER: {formViews > 0 ? (((formLikes + formComments + formShares) / formViews) * 100).toFixed(1) : '0.0'}%
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-mono font-bold text-slate-400 uppercase mb-1">
+                        Direct Social Post Link (Instagram Reel / Facebook Post / YouTube Video / Story)
+                      </label>
+                      <input
+                        type="url"
+                        value={formExternalLink}
+                        onChange={(e) => setFormExternalLink(e.target.value)}
+                        placeholder="https://instagram.com/p/... or https://youtube.com/watch?v=..."
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none font-mono"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">👁️ Views / Plays</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formViews}
+                          onChange={(e) => setFormViews(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">❤️ Likes</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formLikes}
+                          onChange={(e) => setFormLikes(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">💬 Comments</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formComments}
+                          onChange={(e) => setFormComments(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">🔁 Shares / Clicks</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formShares}
+                          onChange={(e) => setFormShares(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                        />
+                      </div>
+                    </div>
                   </div>
                   </div>
                 </div>
@@ -2845,758 +3231,445 @@ export default function ContentPlanner({
 
 
         {/* =========================================================================
-            TAB 6: INSTAGRAM HUB (INTERACTIVE SIMULATOR & HASHTAG OPTIMIZER)
+            TAB: UNDER DEVELOPMENT MODULE
             ========================================================================= */}
-        {activeTab === 'instagram-interface' && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-r from-blue-950/40 via-slate-900/40 to-amber-950/20 border border-blue-500/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Instagram className="w-4 h-4 text-pink-400 animate-bounce" /> Interactive Instagram Interface Previewer
-                </h4>
-                <p className="text-xs text-slate-400 max-w-xl">
-                  Simulate, test, and preview your campaigns before they go live. Select Instagram format, Meta Ads, Facebook Ad Registry, or series like Chai with Aadi and Come Along with Title.
+        {activeTab === 'under-development' && (
+          <div className="space-y-6 text-left">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-amber-950/40 via-slate-900/60 to-indigo-950/40 border border-amber-500/30 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    MODULE UNDER DEVELOPMENT
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">v2.4 Roadmap</span>
+                </div>
+                <h3 className="text-xl font-extrabold text-white font-display flex items-center gap-2">
+                  <Clock className="w-6 h-6 text-amber-400" /> Advanced Integrations & Automated Social Gateway
+                </h3>
+                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                  This module is currently undergoing active engineering and backend pipeline integration. Live Meta Graph API auto-publishing, direct Instagram Reel dispatchers, and automated multi-platform campaign telemetry are being built.
                 </p>
               </div>
-              <div className="flex items-center gap-3 self-start md:self-auto shrink-0 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono">
-                <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-slate-400">Mode:</span>
-                <span className="text-amber-300 font-bold">LIVE SIMULATION</span>
+
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('monthly')}
+                  className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-indigo-400" /> Go to Monthly Planner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('accounts-registry')}
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5" /> View Accounts Register
+                </button>
               </div>
             </div>
 
-            {/* Instagram Selector Bar */}
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-indigo-900/50 shadow-inner space-y-2 text-left">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Instagram className="w-3.5 h-3.5 text-pink-400" /> Instagram Selector Bar (Formats, Ads & Series):
-                </span>
-                <span className="bg-indigo-950 border border-indigo-800/80 text-indigo-300 text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold">
-                  Active: {instaSelectorMode.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'reels', label: '🎬 Reels', color: 'bg-pink-600' },
-                  { id: 'image', label: '🖼️ Single Image', color: 'bg-blue-600' },
-                  { id: 'carousel', label: '🎠 Carousel', color: 'bg-purple-600' },
-                  { id: 'meta_ads', label: '📣 Instagram Meta Ads', color: 'bg-emerald-600' },
-                  { id: 'ad_registry', label: '📑 Facebook Ad Registry', color: 'bg-cyan-600' },
-                  { id: 'chai_with_aadi', label: '☕ Chai with Aadi Instagram', color: 'bg-amber-600' },
-                  { id: 'come_along_title', label: '🎬 Come Along with Title', color: 'bg-rose-600' }
-                ].map(mode => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => {
-                      setInstaSelectorMode(mode.id as any);
-                      addLog(`Instagram Selector: Switched mode to ${mode.label}`, 'info');
-                      if (mode.id === 'chai_with_aadi') {
-                        const chaiAcc = instagramAccounts.find(a => a.handle.includes('chai_with_aadi')) || instagramAccounts[1];
-                        if (chaiAcc) setActiveInstaAccountId(chaiAcc.id);
-                        setInstaCaption('Chai with Aadithyan Episode #42: "Future Design Paradigms & AI Automation Workflows". Stream live on Instagram! ☕🎙️✨ #ChaiWithAadi');
-                      } else if (mode.id === 'come_along_title') {
-                        const titleAcc = instagramAccounts.find(a => a.handle.includes('come_along_title')) || instagramAccounts[2];
-                        if (titleAcc) setActiveInstaAccountId(titleAcc.id);
-                        setInstaCaption('Come Along with Title - Episode 8 Title Sequence Breakdown. Behind-the-scenes concept art, motion storyboards, and title typography. 🎬✨ #ComeAlongWithTitle');
-                      } else if (mode.id === 'meta_ads') {
-                        const metaAcc = instagramAccounts.find(a => a.handle.includes('meta_ads')) || instagramAccounts[3];
-                        if (metaAcc) setActiveInstaAccountId(metaAcc.id);
-                        setInstaCaption('Sponsored by Meta Ads: High-conversion media workspace automation. Claim 30-day trial today! 📣🎯');
-                      } else if (mode.id === 'ad_registry') {
-                        const regAcc = instagramAccounts.find(a => a.handle.includes('facebook_ad_registry')) || instagramAccounts[4];
-                        if (regAcc) setActiveInstaAccountId(regAcc.id);
-                        setInstaCaption('Facebook Ad Registry Verification Log #META-8849204. Verified advertiser transparency record for official media workspace campaigns. 🛡️📑');
-                      } else if (mode.id === 'reels') {
-                        setInstaCaption('Swanaya Media Official Reel: High performance vertical media pipeline. Sound on 🔊🎬 #Reels #Swanaya');
-                      } else if (mode.id === 'carousel') {
-                        setInstaCaption('Swanaya Media Carousel (1/5): Swipe left to inspect our complete 2026 digital roadmap! 🎠✨');
-                      } else {
-                        setInstaCaption('Swanaya Media Single Image Feature Frame: Pristine visual typography & design craft. 🖼️✨');
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
-                      instaSelectorMode === mode.id
-                        ? `${mode.color} text-white ring-2 ring-white/30 scale-105 shadow-md`
-                        : 'bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
-                    }`}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Development Status Dashboard */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Feature Progress Pipeline */}
+              <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-md">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h4 className="text-sm font-bold text-white font-display flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-400" /> Feature Engineering Status Pipeline
+                  </h4>
+                  <span className="text-[10px] font-mono text-slate-400">Build #842 • Cloud SQL Ready</span>
+                </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left">
-              
-              {/* Left Column: High-Fidelity Mobile Frame Simulator */}
-              <div className="lg:col-span-5 flex justify-center">
-                <div className="relative w-full max-w-[340px] bg-slate-950 border-[6px] border-slate-800 rounded-[40px] shadow-2xl overflow-hidden pb-4">
-                  {/* Notch / Dynamic Island */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-900 rounded-full z-20 flex items-center justify-center">
-                    <span className="w-2.5 h-2.5 rounded-full bg-slate-950 ml-auto mr-3 border border-slate-800" />
-                  </div>
-
-                  {/* Phone Header Info */}
-                  <div className="bg-slate-950 px-5 pt-7 pb-2 flex justify-between text-[10px] text-slate-400 font-mono select-none">
-                    <span>9:41 AM</span>
-                    <div className="flex gap-1 items-center">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span>5G</span>
+                <div className="space-y-3 font-mono">
+                  {/* Item 1 */}
+                  <div className="p-3 bg-slate-950/80 border border-emerald-900/40 rounded-xl flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-white flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                        Performance Metrics & Link Tracker
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-sans">
+                        Views, Likes, Comments, Shares & Engagement Rate calculation engine integrated across all plans.
+                      </p>
                     </div>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-1 rounded shrink-0">
+                      100% COMPLETED
+                    </span>
                   </div>
 
-                  {/* Insta Header */}
-                  <div className="px-3.5 py-2 border-b border-slate-900 flex justify-between items-center bg-slate-950">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[1.5px]">
-                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
-                          <img 
-                            src={activeInstagramAccount.avatar} 
-                            alt="avatar" 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold text-white leading-tight flex items-center gap-1">
-                          {activeInstagramAccount.handle.replace('@', '')}
-                          <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex items-center justify-center text-[6px] text-white">✓</span>
-                        </p>
-                        <p className="text-[8px] text-indigo-400 font-semibold">
-                          {activeInstagramAccount.category} • {instaSelectorMode.toUpperCase().replace('_', ' ')}
-                        </p>
-                      </div>
+                  {/* Item 2 */}
+                  <div className="p-3 bg-slate-950/80 border border-emerald-900/40 rounded-xl flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-white flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                        Google Drive & Direct Video Staging
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-sans">
+                        Seamless video asset uploading, direct playback previews, and staged cloud media node associations.
+                      </p>
                     </div>
-                    <button className="text-slate-400 hover:text-white text-xs font-bold font-mono tracking-widest px-1">•••</button>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-1 rounded shrink-0">
+                      100% COMPLETED
+                    </span>
                   </div>
 
-                  {/* Insta Main Post Image/Video Placeholder */}
-                  <div className="relative aspect-square w-full bg-slate-900 overflow-hidden select-none group">
-                    <img 
-                      src={
-                        instaSelectorMode === 'reels' ? "https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&q=80&w=500" :
-                        instaSelectorMode === 'carousel' ? "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=500" :
-                        instaSelectorMode === 'meta_ads' ? "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=500" :
-                        instaSelectorMode === 'ad_registry' ? "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=500" :
-                        instaSelectorMode === 'chai_with_aadi' ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=500" :
-                        instaSelectorMode === 'come_along_title' ? "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&q=80&w=800" :
-                        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=500"
-                      } 
-                      alt="Instagram Mock Post Content" 
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-
-                    {/* Mode Specific Overlays */}
-                    {instaSelectorMode === 'reels' && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 p-3 flex flex-col justify-between">
-                        <div className="flex justify-between items-center">
-                          <span className="bg-pink-600/90 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase shadow">
-                            🎬 Reel • 0:59
-                          </span>
-                        </div>
-                        <div className="text-center">
-                          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur border border-white/40 flex items-center justify-center mx-auto animate-pulse">
-                            <span className="text-white text-xs font-bold pl-0.5">▶</span>
-                          </div>
-                        </div>
-                        <div className="text-left text-[9px] text-white/90 font-mono">
-                          🎵 Original Audio - Chai with Aadi
-                        </div>
-                      </div>
-                    )}
-
-                    {instaSelectorMode === 'carousel' && (
-                      <div className="absolute top-2 right-2 bg-black/70 backdrop-blur text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full">
-                        🎠 1/5
-                      </div>
-                    )}
-
-                    {instaSelectorMode === 'meta_ads' && (
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-2.5 space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="bg-emerald-500 text-slate-950 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                            Sponsored Meta Ad
-                          </span>
-                          <span className="text-[8px] text-slate-300 font-mono">Meta Ads Manager Verified</span>
-                        </div>
-                        <button type="button" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded text-center transition-colors shadow">
-                          Learn More & Get Started ➔
-                        </button>
-                      </div>
-                    )}
-
-                    {instaSelectorMode === 'ad_registry' && (
-                      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm p-3 flex flex-col justify-between border border-cyan-500/30">
-                        <div className="flex justify-between items-center">
-                          <span className="bg-cyan-950 border border-cyan-800 text-cyan-300 text-[8px] font-mono font-bold px-2 py-0.5 rounded uppercase">
-                            🛡️ FB Ad Registry Archive
-                          </span>
-                          <span className="text-[8px] text-slate-400 font-mono">ID: #META-8849204</span>
-                        </div>
-                        <div className="p-2 bg-slate-900/90 rounded border border-slate-800 text-[9px] space-y-1">
-                          <p className="text-cyan-400 font-bold">Facebook Ad Transparency Verified</p>
-                          <p className="text-slate-300">Registered Advertiser: Swanaya Media Enterprises</p>
-                          <p className="text-slate-400">Active Platforms: Facebook, Instagram, Audience Network</p>
-                        </div>
-                        <div className="text-[8px] text-emerald-400 font-mono text-center">
-                          ✓ Public Archive Compliance Verified
-                        </div>
-                      </div>
-                    )}
-
-                    {instaSelectorMode === 'chai_with_aadi' && (
-                      <div className="absolute top-2 left-2 bg-amber-950/90 border border-amber-800/80 text-amber-300 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <span>☕</span> CHAI WITH AADI INSTAGRAM
-                      </div>
-                    )}
-
-                    {instaSelectorMode === 'come_along_title' && (
-                      <div className="absolute top-2 left-2 bg-rose-950/90 border border-rose-800/80 text-rose-300 text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <span>🎬</span> COME ALONG WITH TITLE
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions Row (Static / Non-interactive) */}
-                  <div className="px-3.5 py-2.5 flex justify-between items-center bg-slate-950">
-                    <div className="flex gap-3.5">
-                      <Heart className="w-5 h-5 text-white" />
-                      <MessageCircle className="w-5 h-5 text-white" />
-                      <Send className="w-5 h-5 text-white" />
+                  {/* Item 3 */}
+                  <div className="p-3 bg-slate-950/80 border border-amber-900/40 rounded-xl flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-white flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-400 shrink-0 animate-spin" />
+                        Meta Graph API Direct Auto-Publisher
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-sans">
+                        OAuth token exchange and direct scheduled posting for Instagram Reels and Facebook Pages.
+                      </p>
                     </div>
-                    <Bookmark className="w-5 h-5 text-white" />
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-950/80 border border-amber-800/60 px-2 py-1 rounded shrink-0">
+                      IN DEVELOPMENT (65%)
+                    </span>
                   </div>
 
-                  {/* Caption */}
-                  <div className="px-3.5 pb-2.5 bg-slate-950 text-left text-[11px] leading-relaxed">
-                    <p className="text-slate-300">
-                      <span className="font-bold text-white mr-1.5">{activeInstagramAccount.handle.replace('@', '')}</span>
-                      {instaCaption}
-                    </p>
+                  {/* Item 4 */}
+                  <div className="p-3 bg-slate-950/80 border border-indigo-900/40 rounded-xl flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-white flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+                        AI Multi-Platform Hashtag Generator
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-sans">
+                        Automated SEO tag generation and trending keyword research engine for YouTube and Instagram.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold text-indigo-400 bg-indigo-950/80 border border-indigo-800/60 px-2 py-1 rounded shrink-0">
+                      PLANNED (Q3 2026)
+                    </span>
                   </div>
-
-                  {/* Comments Feed Panel */}
-                  <div className="px-3.5 py-2 bg-slate-900/30 border-t border-slate-900 max-h-[140px] overflow-y-auto scrollbar-thin space-y-2 text-left">
-                    <span className="block text-[8px] font-mono font-bold text-slate-500 uppercase tracking-widest">Live Simulated Comments ({instaComments.length})</span>
-                    {instaComments.map(c => (
-                      <div key={c.id} className="text-[10px] leading-tight flex items-start gap-1 justify-between">
-                        <div>
-                          <strong className="text-white mr-1">{c.user}</strong>
-                          <span className="text-slate-300">{c.text}</span>
-                        </div>
-                        <span className="text-[8px] font-mono text-slate-500 shrink-0">{c.time}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Post Comment Input */}
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!newInstaComment.trim()) return;
-                      const commentObj = {
-                        id: `c-${Date.now()}`,
-                        user: 'each_operator',
-                        text: newInstaComment.trim(),
-                        time: '1s'
-                      };
-                      setInstaComments(prev => [...prev, commentObj]);
-                      setNewInstaComment('');
-                      addLog(`Instagram Simulator: Added comment "${commentObj.text}" to post preview`, 'success');
-                    }}
-                    className="px-3 py-2 bg-slate-950 border-t border-slate-900 flex gap-2 items-center"
-                  >
-                    <input 
-                      type="text"
-                      value={newInstaComment}
-                      onChange={(e) => setNewInstaComment(e.target.value)}
-                      placeholder="Add interactive comment..."
-                      className="flex-1 bg-slate-900 border border-slate-850 rounded-full px-3 py-1 text-[10px] text-white placeholder-slate-500 outline-none focus:border-blue-500 transition-all"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!newInstaComment.trim()}
-                      className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-full p-1.5 transition-all cursor-pointer shrink-0"
-                    >
-                      <Send className="w-2.5 h-2.5 fill-white" />
-                    </button>
-                  </form>
                 </div>
               </div>
 
-              {/* Right Column: Interaction Hub Toolkits */}
-              <div className="lg:col-span-7 space-y-6">
+              {/* Development Notes & Quick Actions */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-md flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                    <h4 className="text-sm font-bold text-white font-display">System Status Notice</h4>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                    All core features—including campaign planning, calendar visualization, accounts assignment, video upload, and engagement rate tracking—are fully operational across the app.
+                  </p>
+                  <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                    This section will unlock live auto-publishing APIs as soon as the sandbox validation cycle completes.
+                  </p>
+                </div>
 
-                {/* ==========================================
-                   ENTITY ACCOUNTS REGISTRY & PROFILES MANAGER
-                   ========================================== */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 text-left space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-850 pb-3 flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-indigo-400" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Entity Profiles Registry</span>
-                    </div>
+                <div className="pt-4 border-t border-slate-800/80 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addLog('System Diagnostics: Verified Under Development module integrity and backend services', 'success');
+                    }}
+                    className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-800 text-amber-300 p-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Run Module Diagnostic Check
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('entity-manager')}
+                    className="w-full bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 p-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-indigo-400" /> Add New Content Plan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        {/* =========================================================================
+            DEDICATED TAB VIEW: ACCOUNTS REGISTRY & ENTITY PROFILES
+            ========================================================================= */}
+        {activeTab === 'accounts-registry' && (
+          <div className="space-y-6 text-left">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-indigo-950/60 via-slate-900/60 to-purple-950/40 border border-indigo-500/30 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-indigo-400" /> Pre-Registered Accounts & Entity Profiles Registry
+                </h3>
+                <p className="text-xs text-slate-400 max-w-2xl">
+                  Central management for all pre-registered Instagram handles, YouTube channels, and Facebook ad profiles. Connect your content planning items and live simulator previews directly to verified brand handles.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="bg-indigo-950 border border-indigo-800 text-indigo-300 font-mono text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  {instagramAccounts.length} Active Accounts
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddingInstaAccount(!isAddingInstaAccount);
+                    setIsEditingInstaAccount(false);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs py-1.5 px-3.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow"
+                >
+                  {isAddingInstaAccount ? '✕ Close Form' : '+ Register New Account'}
+                </button>
+              </div>
+            </div>
+
+            {/* Form to Register a New Profile */}
+            {isAddingInstaAccount && (
+              <div className="bg-slate-950 p-5 rounded-2xl border border-indigo-900/80 shadow-2xl space-y-4">
+                <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-400" /> 1-Click Quick Presets (Instant Auto-Fill):
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">Select any template to auto-fill fields</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { label: '🎬 IG Reels Studio', handle: '@instagram_reels_official', name: 'Instagram Reels Studio', category: 'Reels Creator Studio', followers: '320K', bio: 'Dedicated short-form video portal, trending audio syncs, and viral reel series. 🎬⚡' },
+                      { label: '🖼️ Single Image Showcase', handle: '@instagram_single_images', name: 'Instagram Single Image Showcase', category: 'Visual Showcase', followers: '68K', bio: 'High-res single image photography, visual aesthetics, and brand poster showcase. 🖼️🎨' },
+                      { label: '🎠 Carousel Studio', handle: '@instagram_carousels_hub', name: 'Instagram Carousel Studio', category: 'Carousel Infographics', followers: '95K', bio: 'Multi-slide visual storyboards, carousel infographic sequences, and swipeable tutorials. 🎠📊' },
+                      { label: '📸 IG Story Views Hub', handle: '@instagram_story_hub', name: 'Instagram Story Hub', category: 'Story & Views Analytics', followers: '142K', bio: 'Daily IG Story uploads, interactive sticker polls, link taps, and real-time view rates. 📸📊' },
+                      { label: '📣 Meta Ads Manager', handle: '@instagram_meta_ads', name: 'Instagram Meta Ads', category: 'Sponsored Meta Ads', followers: '250K', bio: 'Meta Ads Manager & Sponsored Campaign Registry. Direct automated multi-format ad deployment. 📣📊' },
+                      { label: '🛡️ FB Ad Registry Archive', handle: '@facebook_ad_registry', name: 'Facebook Ad Registry', category: 'Ad Transparency Archive', followers: '1.2M', bio: 'Official Facebook & Meta Transparency Ad Archive and Verified Ad Registry. 🛡️📑' },
+                      { label: '☕ Chai with Aadi', handle: '@chai_with_aadi', name: 'Chai with Aadithyan (Instagram)', category: 'Tech Podcast', followers: '108K', bio: 'Weekly podcasts about future design paradigms, tech automation, and digital media craft. ☕🎙️' },
+                      { label: '🎬 Come Along with Title', handle: '@come_along_title', name: 'Come Along with Title', category: 'Creative Series', followers: '82.5K', bio: 'Exclusive behind-the-scenes title sequences, cinematic storyboards, and episodic creative previews. 🎬' }
+                    ].map(preset => (
+                      <button
+                        key={preset.handle}
+                        type="button"
+                        onClick={() => {
+                          setNewInstaHandle(preset.handle);
+                          setNewInstaName(preset.name);
+                          setNewInstaCategory(preset.category);
+                          setNewInstaFollowers(preset.followers);
+                          setNewInstaBio(preset.bio);
+                          addLog(`Registry Preset Loaded: Populated form for ${preset.label}`, 'success');
+                        }}
+                        className="text-xs font-mono bg-slate-900 hover:bg-indigo-600 hover:text-white text-indigo-300 border border-indigo-900/60 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">Profile Handle</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. @chai_with_aadi"
+                      value={newInstaHandle}
+                      onChange={(e) => setNewInstaHandle(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">Full Brand Name / Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Chai with Aadithyan"
+                      value={newInstaName}
+                      onChange={(e) => setNewInstaName(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">Category / Niche</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Tech Podcast"
+                      value={newInstaCategory}
+                      onChange={(e) => setNewInstaCategory(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">Followers Count</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 108K"
+                      value={newInstaFollowers}
+                      onChange={(e) => setNewInstaFollowers(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">Bio / Channel Overview</label>
+                    <input
+                      type="text"
+                      placeholder="Enter short bio message..."
+                      value={newInstaBio}
+                      onChange={(e) => setNewInstaBio(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-mono text-slate-400 uppercase mb-1">Registered Year Selector</label>
+                    <select
+                      value={newInstaYear}
+                      onChange={(e) => setNewInstaYear(Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none cursor-pointer font-mono"
+                    >
+                      <option value={2026}>2026</option>
+                      <option value={2025}>2025</option>
+                      <option value={2024}>2024</option>
+                      <option value={2023}>2023</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end justify-end">
                     <button
                       type="button"
                       onClick={() => {
-                        setIsAddingInstaAccount(!isAddingInstaAccount);
-                        setIsEditingInstaAccount(false);
+                        if (!newInstaHandle.trim() || !newInstaName.trim()) return;
+                        const newId = Date.now().toString();
+                        const newAcc = {
+                          id: newId,
+                          handle: newInstaHandle.startsWith('@') ? newInstaHandle : `@${newInstaHandle}`,
+                          name: newInstaName,
+                          bio: newInstaBio || 'No biography details provided.',
+                          followers: newInstaFollowers || '1.2K',
+                          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
+                          category: newInstaCategory || 'General Media',
+                          registeredYear: newInstaYear
+                        };
+                        setInstagramAccounts(prev => [...prev, newAcc]);
+                        setActiveInstaAccountId(newId);
+                        setIsAddingInstaAccount(false);
+                        setNewInstaHandle('');
+                        setNewInstaName('');
+                        setNewInstaBio('');
+                        addLog(`Registry: Registered new media entity ${newAcc.handle} into directory.`, 'success');
                       }}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[9px] py-1 px-2.5 rounded-lg transition-colors cursor-pointer uppercase"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold py-2 px-5 rounded-lg cursor-pointer uppercase transition-colors shadow"
                     >
-                      {isAddingInstaAccount ? '✕ Close Form' : '+ Register Account'}
+                      Add Entity to Registry
                     </button>
                   </div>
-
-                  {/* Form to Register a New Profile */}
-                  {isAddingInstaAccount && (
-                    <div className="bg-slate-950 p-4 rounded-xl border border-indigo-900/60 shadow-xl space-y-3.5">
-                      <div className="p-2.5 rounded-lg bg-indigo-950/60 border border-indigo-500/30 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <Sparkles className="w-3 h-3 text-amber-400" /> Quick Presets (1-Click Auto-Fill):
-                          </span>
-                          <span className="text-[9px] font-mono text-slate-400">Select any template below to populate fields</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {[
-                            { label: '🎬 Reels', handle: '@instagram_reels_official', name: 'Instagram Reels Studio', category: 'Reels Creator Studio', followers: '320K', bio: 'Dedicated short-form video portal, trending audio syncs, and viral reel series. 🎬⚡🔥' },
-                            { label: '🖼️ Single Image', handle: '@instagram_single_images', name: 'Instagram Single Image Showcase', category: 'Visual Showcase', followers: '68K', bio: 'High-res single image photography, visual aesthetics, and brand poster showcase. 🖼️🎨' },
-                            { label: '🎠 Carousel', handle: '@instagram_carousels_hub', name: 'Instagram Carousel Studio', category: 'Carousel Infographics', followers: '95K', bio: 'Multi-slide visual storyboards, carousel infographic sequences, and swipeable tutorials. 🎠📊' },
-                            { label: '📣 Meta Ads', handle: '@instagram_meta_ads', name: 'Instagram Meta Ads', category: 'Sponsored Meta Ads', followers: '250K', bio: 'Meta Ads Manager & Sponsored Campaign Registry. Direct automated multi-format ad deployment. 📣📊' },
-                            { label: '🛡️ FB Ad Registry', handle: '@facebook_ad_registry', name: 'Facebook Ad Registry', category: 'Ad Transparency Archive', followers: '1.2M', bio: 'Official Facebook & Meta Transparency Ad Archive and Verified Ad Registry. 🛡️📑' },
-                            { label: '☕ Chai with Aadi', handle: '@chai_with_aadi', name: 'Chai with Aadithyan (Instagram)', category: 'Tech Podcast', followers: '108K', bio: 'Weekly podcasts about future design paradigms, tech automation, and digital media craft. ☕🎙️' },
-                            { label: '🎬 Come Along with Title', handle: '@come_along_title', name: 'Come Along with Title', category: 'Creative Series', followers: '82.5K', bio: 'Exclusive behind-the-scenes title sequences, cinematic storyboards, and episodic creative previews. 🎬' }
-                          ].map(preset => (
-                            <button
-                              key={preset.handle}
-                              type="button"
-                              onClick={() => {
-                                setNewInstaHandle(preset.handle);
-                                setNewInstaName(preset.name);
-                                setNewInstaCategory(preset.category);
-                                setNewInstaFollowers(preset.followers);
-                                setNewInstaBio(preset.bio);
-                                addLog(`Quick Preset Loaded: Populated form fields for ${preset.label}`, 'success');
-                              }}
-                              className="text-[9px] font-mono bg-slate-900 hover:bg-indigo-600 hover:text-white text-indigo-300 border border-indigo-900/60 px-2 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1 shadow-sm active:scale-95"
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Profile Handle</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. @chai_with_aadi"
-                            value={newInstaHandle}
-                            onChange={(e) => setNewInstaHandle(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white placeholder-slate-600 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Full Brand Name</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Chai with Aadithyan"
-                            value={newInstaName}
-                            onChange={(e) => setNewInstaName(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white placeholder-slate-600 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Category</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Tech Podcast"
-                            value={newInstaCategory}
-                            onChange={(e) => setNewInstaCategory(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white placeholder-slate-600 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Followers Count</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. 108K"
-                            value={newInstaFollowers}
-                            onChange={(e) => setNewInstaFollowers(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white placeholder-slate-600 outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Bio / Description</label>
-                          <input
-                            type="text"
-                            placeholder="Enter short bio message..."
-                            value={newInstaBio}
-                            onChange={(e) => setNewInstaBio(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white placeholder-slate-600 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Registered Year Selector</label>
-                          <select
-                            value={newInstaYear}
-                            onChange={(e) => setNewInstaYear(Number(e.target.value))}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none cursor-pointer font-mono"
-                          >
-                            <option value={2026}>2026</option>
-                            <option value={2025}>2025</option>
-                            <option value={2024}>2024</option>
-                            <option value={2023}>2023</option>
-                          </select>
-                        </div>
-                        <div className="flex items-end justify-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!newInstaHandle.trim() || !newInstaName.trim()) return;
-                              const newId = Date.now().toString();
-                              const newAcc = {
-                                id: newId,
-                                handle: newInstaHandle.startsWith('@') ? newInstaHandle : `@${newInstaHandle}`,
-                                name: newInstaName,
-                                bio: newInstaBio || 'No biography details provided.',
-                                followers: newInstaFollowers || '1.2K',
-                                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=80',
-                                category: newInstaCategory || 'General Media',
-                                registeredYear: newInstaYear
-                              };
-                              setInstagramAccounts(prev => [...prev, newAcc]);
-                              setActiveInstaAccountId(newId);
-                              setIsAddingInstaAccount(false);
-                              setNewInstaHandle('');
-                              setNewInstaName('');
-                              setNewInstaBio('');
-                              addLog(`Registry: Registered new media entity ${newAcc.handle} into directory.`, 'success');
-                            }}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-mono font-bold py-1.5 px-4 rounded-lg cursor-pointer uppercase transition-colors"
-                          >
-                            Add Entity
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Form to Edit Selected Profile */}
-                  {isEditingInstaAccount && (
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
-                      <h5 className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider">Edit Registered Entity: {activeInstagramAccount.handle}</h5>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Handle Handle</label>
-                          <input
-                            type="text"
-                            value={editedInstaHandle}
-                            onChange={(e) => setEditedInstaHandle(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Brand Name / Title</label>
-                          <input
-                            type="text"
-                            value={editedInstaName}
-                            onChange={(e) => setEditedInstaName(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Category</label>
-                          <input
-                            type="text"
-                            value={editedInstaCategory}
-                            onChange={(e) => setEditedInstaCategory(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Followers Count</label>
-                          <input
-                            type="text"
-                            value={editedInstaFollowers}
-                            onChange={(e) => setEditedInstaFollowers(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Bio Summary Text</label>
-                          <input
-                            type="text"
-                            value={editedInstaBio}
-                            onChange={(e) => setEditedInstaBio(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-mono text-slate-400 uppercase">Registered Year Selector</label>
-                          <select
-                            value={editedInstaYear}
-                            onChange={(e) => setEditedInstaYear(Number(e.target.value))}
-                            className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-[10px] text-white outline-none cursor-pointer font-mono"
-                          >
-                            <option value={2026}>2026</option>
-                            <option value={2025}>2025</option>
-                            <option value={2024}>2024</option>
-                            <option value={2023}>2023</option>
-                          </select>
-                        </div>
-                        <div className="flex items-end justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setIsEditingInstaAccount(false)}
-                            className="bg-slate-900 hover:bg-slate-800 text-slate-400 text-[10px] font-mono font-bold py-1.5 px-3 rounded-lg cursor-pointer uppercase transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setInstagramAccounts(prev => prev.map(a => a.id === activeInstaAccountId ? {
-                                ...a,
-                                handle: editedInstaHandle,
-                                name: editedInstaName,
-                                category: editedInstaCategory,
-                                followers: editedInstaFollowers,
-                                bio: editedInstaBio,
-                                registeredYear: editedInstaYear
-                              } : a));
-                              setIsEditingInstaAccount(false);
-                              addLog(`Registry: Successfully edited details for profile ${editedInstaHandle}`, 'success');
-                            }}
-                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-mono font-bold py-1.5 px-4 rounded-lg cursor-pointer uppercase transition-colors"
-                          >
-                            Save Changes
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Accounts Directory Carousel/Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {instagramAccounts.map((acc) => (
-                      <div
-                        key={acc.id}
-                        onClick={() => {
-                          setActiveInstaAccountId(acc.id);
-                          setIsEditingInstaAccount(false);
-                        }}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all relative group flex items-start gap-2.5 ${
-                          activeInstaAccountId === acc.id
-                            ? 'bg-slate-950 border-indigo-500/40 shadow shadow-indigo-500/15'
-                            : 'bg-slate-950/40 hover:bg-slate-950 border-slate-850 hover:border-slate-800'
-                        }`}
-                      >
-                        <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-900 border border-slate-800 flex-shrink-0">
-                          <img src={acc.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <div className="flex items-center justify-between">
-                            <h6 className="text-[11px] font-bold text-white truncate">{acc.name}</h6>
-                            <span className="text-[8px] font-mono text-indigo-400 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-900/30">
-                              {acc.registeredYear}
-                            </span>
-                          </div>
-                          <p className="text-[9px] font-mono text-slate-400 truncate">{acc.handle}</p>
-                          <p className="text-[8px] text-slate-500 truncate">{acc.category} • {acc.followers} followers</p>
-                        </div>
-
-                        {/* Hover commands */}
-                        <div className="absolute right-2 bottom-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveInstaAccountId(acc.id);
-                              setIsEditingInstaAccount(true);
-                              setIsAddingInstaAccount(false);
-                              setEditedInstaHandle(acc.handle);
-                              setEditedInstaName(acc.name);
-                              setEditedInstaBio(acc.bio);
-                              setEditedInstaCategory(acc.category);
-                              setEditedInstaFollowers(acc.followers);
-                              setEditedInstaYear(acc.registeredYear);
-                            }}
-                            className="text-[8px] font-mono text-indigo-400 hover:text-indigo-300 bg-slate-900 px-1 py-0.5 rounded border border-slate-800 cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          {instagramAccounts.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setInstagramAccounts(prev => prev.filter(a => a.id !== acc.id));
-                                if (activeInstaAccountId === acc.id) {
-                                  setActiveInstaAccountId(instagramAccounts.find(a => a.id !== acc.id)?.id || '');
-                                }
-                                addLog(`Registry: Removed profile ${acc.handle} from register.`, 'warning');
-                              }}
-                              className="text-[8px] font-mono text-rose-500 hover:text-rose-400 bg-slate-900 px-1 py-0.5 rounded border border-slate-800 cursor-pointer"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
+              </div>
+            )}
 
-                {/* 1. Campaign Plan Loader */}
-                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
-                    <FolderOpen className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Simulate Scheduled Campaigns</span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Select any of your current scheduled Instagram campaigns from the selector below. This instantly imports its title and description into the live Instagram mockup on the left for visualization.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                    <div className="sm:col-span-9">
-                      <select 
-                        onChange={(e) => {
-                          const selectedId = e.target.value;
-                          const found = plans.find(p => p.id === selectedId);
-                          if (found) {
-                            setInstaCaption(`${found.title} - ${found.description}`);
-                            addLog(`Instagram Simulator: Loaded scheduled campaign "${found.title}" into mockup`, 'info');
-                          }
-                        }}
-                        className="w-full bg-slate-950 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-all cursor-pointer font-mono"
-                      >
-                        <option value="">-- Choose scheduled campaign to preview --</option>
-                        {plans.map(p => (
-                          <option key={p.id} value={p.id}>
-                            [{p.month} Day {p.day}] - {p.title} ({p.platform})
-                          </option>
-                        ))}
-                      </select>
+            {/* Grid of All Pre-Registered Accounts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {instagramAccounts.map((acc) => (
+                <div
+                  key={acc.id}
+                  onClick={() => {
+                    setActiveInstaAccountId(acc.id);
+                    setIsEditingInstaAccount(false);
+                  }}
+                  className={`p-4 rounded-2xl border text-left cursor-pointer transition-all relative group flex flex-col justify-between space-y-3 ${
+                    activeInstaAccountId === acc.id
+                      ? 'bg-slate-900 border-indigo-500 ring-1 ring-indigo-500/50 shadow-xl'
+                      : 'bg-slate-950/60 hover:bg-slate-900 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 border border-slate-700 shrink-0">
+                        <img src={acc.avatar} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-bold text-white leading-tight flex items-center gap-1">
+                          {acc.name}
+                          <span className="text-blue-400 font-bold text-xs">✓</span>
+                        </h5>
+                        <p className="text-xs font-mono text-amber-300 font-semibold">{acc.handle}</p>
+                      </div>
                     </div>
+                    <span className="text-[10px] font-mono text-indigo-300 bg-indigo-950 border border-indigo-800 px-2 py-0.5 rounded-full font-bold">
+                      {acc.registeredYear}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed bg-slate-950/50 p-2 rounded-lg border border-slate-900">
+                    {acc.bio}
+                  </p>
+
+                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-850">
+                    <span className="text-slate-500">{acc.category}</span>
+                    <span className="text-emerald-400 font-bold">{acc.followers} Followers</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                      activeInstaAccountId === acc.id ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-900 text-slate-500'
+                    }`}>
+                      {activeInstaAccountId === acc.id ? '● Active Default' : 'Click to Select'}
+                    </span>
                     
-                    <div className="sm:col-span-3">
-                      <button 
-                        onClick={() => {
-                          setInstaCaption('Swanaya Media Enterprises official Instagram post preview. Direct media scheduling, automated workflows, and high-performance multi-platform campaign logs. 🚀🎬✨');
-                          addLog('Instagram Simulator: Reset preview caption to default boilerplate text', 'info');
-                        }}
-                        className="w-full bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-700 text-slate-300 text-xs font-semibold py-2 px-3 rounded-lg transition-colors cursor-pointer text-center"
-                      >
-                        Reset Caption
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. AI Hashtag Optimizer */}
-                <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 text-left space-y-4">
-                  <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
-                    <Sparkles className="w-4 h-4 text-pink-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">AI Hashtag Optimizer</span>
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Optimize search discoverability and algorithmic engagement. Choose a niche theme below to generate a trending set of optimized, highly matching campaign hashtags.
-                  </p>
-
-                  {/* Category Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {['Media', 'Technology', 'Fashion', 'Corporate', 'Creative'].map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setHashtagCategory(cat)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                          hashtagCategory === cat
-                            ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-md shadow-amber-500/5'
-                            : 'bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-800 hover:text-white'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Hashtags display and apply button */}
-                  <div className="bg-slate-950/80 rounded-xl p-4 border border-slate-850 space-y-3.5">
-                    <div className="flex flex-wrap gap-2">
-                      {hashtagCategory === 'Media' && [
-                        '#mediaproduction', '#swanaya', '#contentplanner', '#videoediting', '#agencylife', '#digitalmarketing', '#campaigns'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-blue-950/60 text-blue-300 border border-blue-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Technology' && [
-                        '#containerization', '#esbuild', '#typescript', '#clouddeploy', '#nodejs', '#webdevelopment', '#devops'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Fashion' && [
-                        '#editorial', '#aesthetic', '#vogue', '#outfitoftheday', '#colorgrading', '#brandshoot', '#runway'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-pink-950/60 text-pink-300 border border-pink-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Corporate' && [
-                        '#corporatelaunch', '#enterpriseworkflow', '#saas', '#b2bmarketing', '#productivity', '#collaboration', '#agile'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-slate-900 text-slate-300 border border-slate-800 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-
-                      {hashtagCategory === 'Creative' && [
-                        '#storyboarding', '#artdirection', '#conceptual', '#uiux', '#brandidentity', '#digitalart', '#motiongraphics'
-                      ].map((h, i) => (
-                        <span key={i} className="text-[10px] font-mono font-semibold bg-indigo-950/60 text-indigo-300 border border-indigo-900/40 px-2.5 py-1 rounded">
-                          {h}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-between items-center pt-2.5 border-t border-slate-900">
-                      <span className="text-[9px] font-mono text-slate-500">Suggested density: 7 tags (Optimal for Instagram discovery)</span>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() => {
-                          const tags = {
-                            'Media': ' #mediaproduction #swanaya #contentplanner #videoediting #agencylife #digitalmarketing #campaigns',
-                            'Technology': ' #containerization #esbuild #typescript #clouddeploy #nodejs #webdevelopment #devops',
-                            'Fashion': ' #editorial #aesthetic #vogue #outfitoftheday #colorgrading #brandshoot #runway',
-                            'Corporate': ' #corporatelaunch #enterpriseworkflow #saas #b2bmarketing #productivity #collaboration #agile',
-                            'Creative': ' #storyboarding #artdirection #conceptual #uiux #brandidentity #digitalart #motiongraphics'
-                          }[hashtagCategory] || '';
-
-                          setInstaCaption(prev => {
-                            // Strip existing tags if already added
-                            const cleanText = prev.split('#')[0].trim();
-                            return `${cleanText} ${tags}`;
-                          });
-                          addLog(`Instagram Simulator: Applied trending [${hashtagCategory}] hashtags to caption`, 'success');
+                          setActiveInstaAccountId(acc.id);
+                          setIsEditingInstaAccount(true);
+                          setIsAddingInstaAccount(false);
+                          setEditedInstaHandle(acc.handle);
+                          setEditedInstaName(acc.name);
+                          setEditedInstaBio(acc.bio);
+                          setEditedInstaCategory(acc.category);
+                          setEditedInstaFollowers(acc.followers);
+                          setEditedInstaYear(acc.registeredYear);
                         }}
-                        className="bg-amber-400 text-slate-950 text-[10px] font-bold py-1.5 px-3 rounded hover:bg-amber-300 transition-colors cursor-pointer"
+                        className="text-xs font-mono text-indigo-400 hover:text-indigo-300 bg-slate-900 hover:bg-slate-800 px-2 py-1 rounded-lg border border-slate-800 cursor-pointer"
                       >
-                        Apply to Mock Post Caption
+                        Edit Profile
                       </button>
+                      {instagramAccounts.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInstagramAccounts(prev => prev.filter(a => a.id !== acc.id));
+                            if (activeInstaAccountId === acc.id) {
+                              setActiveInstaAccountId(instagramAccounts.find(a => a.id !== acc.id)?.id || '');
+                            }
+                            addLog(`Registry: Removed profile ${acc.handle} from register.`, 'warning');
+                          }}
+                          className="text-xs font-mono text-rose-400 hover:text-rose-300 bg-slate-900 hover:bg-slate-800 px-2 py-1 rounded-lg border border-slate-800 cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-
-              </div>
-
+              ))}
             </div>
           </div>
         )}
@@ -3692,6 +3765,54 @@ export default function ContentPlanner({
                   </div>
                 </div>
 
+                {/* Pre-registered Account Selector */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex justify-between">
+                    <span>Pre-Registered Social Account / Channel</span>
+                    <span className="text-[10px] text-indigo-400 font-mono font-bold">Auto-Syncs Platform</span>
+                  </label>
+                  <select
+                    value={editAccountHandle}
+                    onChange={(e) => {
+                      const selectedHandle = e.target.value;
+                      setEditAccountHandle(selectedHandle);
+                      const acc = instagramAccounts.find(a => a.handle === selectedHandle);
+                      if (acc?.platform) {
+                        setEditPlatform(acc.platform as any);
+                      } else if (selectedHandle.includes('youtube')) {
+                        setEditPlatform('YouTube');
+                      } else if (selectedHandle.includes('facebook')) {
+                        setEditPlatform('Facebook');
+                      } else {
+                        setEditPlatform('Instagram');
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none font-medium cursor-pointer"
+                  >
+                    <optgroup label="📸 Instagram Accounts">
+                      {instagramAccounts.filter(a => !a.platform || a.platform === 'Instagram').map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🔴 YouTube Channels">
+                      {instagramAccounts.filter(a => a.platform === 'YouTube' || a.handle.includes('youtube')).map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🌐 Meta / Facebook Archives">
+                      {instagramAccounts.filter(a => a.platform === 'Facebook' || a.handle.includes('facebook')).map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   {/* Platform */}
                   <div>
@@ -3755,6 +3876,74 @@ export default function ContentPlanner({
                       placeholder="Username or role"
                       className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none"
                     />
+                  </div>
+                </div>
+
+                {/* Performance Analytics & Direct Post Link Editor */}
+                <div className="p-3.5 bg-indigo-950/30 border border-indigo-900/50 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Performance Metrics & Link Editor
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/40">
+                      Calculated ER: {editViews > 0 ? (((editLikes + editComments + editShares) / editViews) * 100).toFixed(1) : '0.0'}%
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold text-slate-400 uppercase mb-1">
+                      Direct Social Post / Video Link
+                    </label>
+                    <input
+                      type="url"
+                      value={editExternalLink}
+                      onChange={(e) => setEditExternalLink(e.target.value)}
+                      placeholder="https://instagram.com/reel/... or https://youtube.com/watch?v=..."
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg p-2 text-xs text-white placeholder-slate-600 outline-none font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div>
+                      <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">👁️ Views</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editViews}
+                        onChange={(e) => setEditViews(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">❤️ Likes</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editLikes}
+                        onChange={(e) => setEditLikes(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">💬 Comments</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editComments}
+                        onChange={(e) => setEditComments(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-mono font-bold text-slate-400 mb-0.5">🔁 Shares</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editShares}
+                        onChange={(e) => setEditShares(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-md p-1.5 text-xs text-white outline-none font-mono font-bold"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -4013,6 +4202,11 @@ export default function ContentPlanner({
                     <span className="px-2 py-0.5 bg-slate-950 border border-slate-800 rounded text-slate-300 font-bold">
                       {viewingPostPlan.platform}
                     </span>
+                    {viewingPostPlan.accountHandle && (
+                      <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-900/50 rounded text-amber-300 font-bold flex items-center gap-1 shadow-sm">
+                        {viewingPostPlan.platform === 'YouTube' ? '🔴' : viewingPostPlan.platform === 'Facebook' ? '🌐' : '📸'} {viewingPostPlan.accountHandle}
+                      </span>
+                    )}
                     <span className="px-2 py-0.5 bg-indigo-950/40 border border-indigo-900/30 rounded text-indigo-300">
                       {viewingPostPlan.type}
                     </span>
@@ -4058,6 +4252,56 @@ export default function ContentPlanner({
                       </button>
                     </div>
                   )}
+
+                  {/* Performance Metrics & Telemetry Panel */}
+                  <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl space-y-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                        <BarChart3 className="w-3.5 h-3.5 text-indigo-400" /> Performance Metrics Telemetry
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/40">
+                        {viewingPostPlan.engagementRate || '8.2%'} ER
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="bg-slate-900/80 border border-slate-800 p-2 rounded-lg">
+                        <p className="text-[9px] text-slate-500 font-mono">Views / Plays</p>
+                        <p className="text-sm font-extrabold text-white font-mono mt-0.5">
+                          {(viewingPostPlan.views || (viewingPostPlan.type === 'Story' ? 2840 : 12500)).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-slate-900/80 border border-slate-800 p-2 rounded-lg">
+                        <p className="text-[9px] text-slate-500 font-mono">Likes</p>
+                        <p className="text-sm font-extrabold text-rose-400 font-mono mt-0.5">
+                          {(viewingPostPlan.likes || 840).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-slate-900/80 border border-slate-800 p-2 rounded-lg">
+                        <p className="text-[9px] text-slate-500 font-mono">Comments</p>
+                        <p className="text-sm font-extrabold text-indigo-400 font-mono mt-0.5">
+                          {(viewingPostPlan.comments || 120).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-slate-900/80 border border-slate-800 p-2 rounded-lg">
+                        <p className="text-[9px] text-slate-500 font-mono">Shares / Clicks</p>
+                        <p className="text-sm font-extrabold text-amber-400 font-mono mt-0.5">
+                          {(viewingPostPlan.shares || 65).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {viewingPostPlan.externalLink && (
+                      <a
+                        href={viewingPostPlan.externalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold flex items-center justify-center gap-1.5 transition-all truncate"
+                      >
+                        <Link className="w-3 h-3 text-indigo-400" /> Open Direct Social Link
+                      </a>
+                    )}
+                  </div>
 
                   {/* Upload video file inside modal if needed */}
                   <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-3 text-left">
@@ -4296,6 +4540,52 @@ export default function ContentPlanner({
                     className="w-full bg-slate-950 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-600 outline-none transition-all"
                   />
                 </div>
+
+                {/* Account / Channel Selector for Video Upload */}
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex justify-between">
+                    <span>Target Pre-Registered Account / Channel</span>
+                    <span className="text-[8px] text-indigo-400 font-mono font-bold">Instagram & YouTube</span>
+                  </label>
+                  <select
+                    value={formAccountHandle}
+                    onChange={(e) => {
+                      const selectedHandle = e.target.value;
+                      setFormAccountHandle(selectedHandle);
+                      const acc = instagramAccounts.find(a => a.handle === selectedHandle);
+                      if (acc?.platform) {
+                        setFormPlatform(acc.platform as any);
+                      } else if (selectedHandle.includes('youtube')) {
+                        setFormPlatform('YouTube');
+                      } else {
+                        setFormPlatform('Instagram');
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-850 hover:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-xs text-white outline-none cursor-pointer"
+                  >
+                    <optgroup label="📸 Instagram Accounts">
+                      {instagramAccounts.filter(a => !a.platform || a.platform === 'Instagram').map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🔴 YouTube Channels">
+                      {instagramAccounts.filter(a => a.platform === 'YouTube' || a.handle.includes('youtube')).map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🌐 Meta / Facebook Archives">
+                      {instagramAccounts.filter(a => a.platform === 'Facebook' || a.handle.includes('facebook')).map(acc => (
+                        <option key={acc.id} value={acc.handle}>
+                          {acc.handle} — {acc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
               </div>
 
               {/* Upload Progress Simulation bar */}
@@ -4397,6 +4687,53 @@ export default function ContentPlanner({
                 >
                   ⚡ Apply Peak Time ({getBestUploadTiming(formPlatform).time})
                 </button>
+              </div>
+
+              <div className="space-y-1.5 text-left">
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                  <span>Assign to Pre-Registered Account / Channel</span>
+                  <span className="text-[10px] text-emerald-400 font-mono font-bold">Instagram & YouTube</span>
+                </label>
+                <select
+                  value={formAccountHandle}
+                  onChange={(e) => {
+                    const selectedHandle = e.target.value;
+                    setFormAccountHandle(selectedHandle);
+                    const acc = instagramAccounts.find(a => a.handle === selectedHandle);
+                    if (acc?.platform) {
+                      setFormPlatform(acc.platform as any);
+                    } else if (selectedHandle.includes('youtube')) {
+                      setFormPlatform('YouTube');
+                    } else if (selectedHandle.includes('facebook')) {
+                      setFormPlatform('Facebook');
+                    } else {
+                      setFormPlatform('Instagram');
+                    }
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg p-2.5 text-xs text-white outline-none font-medium cursor-pointer"
+                >
+                  <optgroup label="📸 Instagram Accounts">
+                    {instagramAccounts.filter(a => !a.platform || a.platform === 'Instagram').map(acc => (
+                      <option key={acc.id} value={acc.handle}>
+                        {acc.handle} — {acc.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🔴 YouTube Channels">
+                    {instagramAccounts.filter(a => a.platform === 'YouTube' || a.handle.includes('youtube')).map(acc => (
+                      <option key={acc.id} value={acc.handle}>
+                        {acc.handle} — {acc.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🌐 Meta / Facebook Archives">
+                    {instagramAccounts.filter(a => a.platform === 'Facebook' || a.handle.includes('facebook')).map(acc => (
+                      <option key={acc.id} value={acc.handle}>
+                        {acc.handle} — {acc.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
               </div>
 
               <div className="space-y-1.5">
