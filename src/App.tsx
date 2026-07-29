@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
-  Home as HomeIcon, User, Search, X, Users, FileText, Bell, AlertTriangle, Share2, Send, Lock, Network
+  Home as HomeIcon, User, Search, X, Users, FileText, Bell, AlertTriangle, Share2, Send, Lock, Network,
+  Sun, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan, ContentDocument, ActivityLog } from './types';
@@ -34,6 +35,14 @@ export default function App() {
   const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
     return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
   });
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('swanaya_theme') as 'dark' | 'light') || 'dark';
+  });
+
+  const handleSetTheme = (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+    localStorage.setItem('swanaya_theme', newTheme);
+  };
 
   // Demo session states
   const [isDemoUser, setIsDemoUser] = useState(false);
@@ -550,13 +559,15 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between text-slate-100 font-sans selection:bg-indigo-500/35 selection:text-white pb-0">
+    <div className={`relative min-h-screen w-full flex flex-col justify-between font-sans selection:bg-indigo-500/35 pb-0 transition-colors duration-500 ${
+      theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-[#030712] text-slate-100'
+    }`}>
       
       {/* Real-time Rolling Ticker & Simulation Notification HUD */}
       <RealTimeTicker />
       
       {/* Absolute 3D Backdrop canvas */}
-      <Background3D />
+      <Background3D theme={theme} />
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-grow flex flex-col justify-start">
@@ -629,38 +640,77 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mode Switcher Segmented Control */}
-              <div className="bg-slate-950/80 border border-slate-800/80 p-1.5 rounded-xl flex items-center gap-1.5 shadow-inner">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSetUiMode('human');
-                    addLog('UI Mode Switch: Active [Human Operator Mode]. Focused on manual editing & standard structures.', 'info');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
-                    uiMode === 'human'
-                      ? 'bg-slate-800 border-indigo-500/20 text-indigo-400 font-black shadow-sm'
-                      : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Human UI</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSetUiMode('ai');
-                    addLog('UI Mode Switch: Active [AI-Integrated Workspace]. Enabled predictive co-pilots, tags & automated scripts.', 'success');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
-                    uiMode === 'ai'
-                      ? 'bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-black shadow-lg shadow-indigo-500/5'
-                      : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse shrink-0" />
-                  <span>AI Integrated</span>
-                </button>
+              {/* Mode & Theme Switchers */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Mode Switcher Segmented Control */}
+                <div className="bg-slate-950/80 border border-slate-800/80 p-1.5 rounded-xl flex items-center gap-1.5 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSetUiMode('human');
+                      addLog('UI Mode Switch: Active [Human Operator Mode]. Focused on manual editing & standard structures.', 'info');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      uiMode === 'human'
+                        ? 'bg-slate-800 border-indigo-500/20 text-indigo-400 font-black shadow-sm'
+                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>Human UI</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSetUiMode('ai');
+                      addLog('UI Mode Switch: Active [AI-Integrated Workspace]. Enabled predictive co-pilots, tags & automated scripts.', 'success');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      uiMode === 'ai'
+                        ? 'bg-indigo-600/10 border-indigo-500/40 text-indigo-400 font-black shadow-lg shadow-indigo-500/5'
+                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse shrink-0" />
+                    <span>AI Integrated</span>
+                  </button>
+                </div>
+
+                {/* Theme Mode Switcher (Dark / Light) */}
+                <div className="bg-slate-950/80 border border-slate-800/80 p-1.5 rounded-xl flex items-center gap-1 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSetTheme('dark');
+                      addLog('Theme Switch: Activated Dark Mode visual palette', 'info');
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      theme === 'dark'
+                        ? 'bg-indigo-600 text-white border-indigo-400 shadow-md font-extrabold'
+                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                    }`}
+                    title="Switch to Dark Theme"
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>Dark</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSetTheme('light');
+                      addLog('Theme Switch: Activated Light Mode visual palette', 'info');
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      theme === 'light'
+                        ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-md font-extrabold'
+                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                    }`}
+                    title="Switch to Light Theme"
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                    <span>Light</span>
+                  </button>
+                </div>
               </div>
 
               {/* Global Search Bar */}
