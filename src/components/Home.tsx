@@ -3,7 +3,8 @@ import {
   Home as HomeIcon, Sparkles, Youtube, Instagram, Shield, Layout,
   Layers, Settings, Share2, Compass, AlertCircle, Send, CheckCircle2,
   Calendar, Film, FileText, BarChart3, Users, Clock, HelpCircle, 
-  ChevronRight, Laptop, Key, Power, Image, Check, Smartphone, Lock
+  ChevronRight, Laptop, Key, Power, Image, Check, Smartphone, Lock,
+  ArrowRight, Filter, Globe, ExternalLink, Zap, Plus, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -244,6 +245,12 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
   const [draftTitle, setDraftTitle] = useState('');
   const [draftDate, setDraftDate] = useState('2026-07-15');
 
+  // 1-4Q Front View Schedule State
+  const [homeQuarterTab, setHomeQuarterTab] = useState<'ALL' | 'Q1' | 'Q2' | 'Q3' | 'Q4'>('ALL');
+  const [homePlatformFilter, setHomePlatformFilter] = useState<string>('ALL');
+  const [homeDayRange, setHomeDayRange] = useState<'ALL' | '1-10' | '11-20' | '21-31'>('ALL');
+  const [homeSortMode, setHomeSortMode] = useState<'DAY_1_TO_31' | 'DATE_SEQ'>('DAY_1_TO_31');
+
   // Interactive Mapper State
   const [selectedModule, setSelectedModule] = useState<ModuleNode>(SITE_MODULES[0]);
 
@@ -460,6 +467,254 @@ export default function Home({ plans, onAddPlan, setActiveMainTab, addLog, curre
               )}
             </div>
           </div>
+        </div>
+
+        {/* Front View 1-4Q Campaign Schedule (Days 1-31) */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-2xl backdrop-blur-md">
+          {/* Section Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Clock className="w-5 h-5 text-emerald-400 animate-pulse shrink-0" />
+                <h3 className="text-xl font-extrabold font-display text-white uppercase tracking-tight">
+                  1-4Q Daily Campaign Schedule (Days 1–31)
+                </h3>
+                <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase">
+                  Front View 1–31 Days
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Sequential daily campaign plans categorized across Quarters 1 to 4 (Q1 - Q4) arranged by Days 1 to 31.
+              </p>
+            </div>
+
+            {/* Quarter Filter Tabs */}
+            <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 overflow-x-auto self-start lg:self-auto max-w-full">
+              {[
+                { key: 'ALL', label: '1-4Q Schedule', icon: Calendar },
+                { key: 'Q1', label: 'Q1 (Jan-Mar)', icon: Sparkles },
+                { key: 'Q2', label: 'Q2 (Apr-Jun)', icon: Zap },
+                { key: 'Q3', label: 'Q3 (Jul-Sep)', icon: CheckCircle2 },
+                { key: 'Q4', label: 'Q4 (Oct-Dec)', icon: Clock },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setHomeQuarterTab(tab.key as any)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    homeQuarterTab === tab.key
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Day 1-31 Range Selector & Sort Mode Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-2 overflow-x-auto max-w-full">
+              <span className="text-xs font-mono font-bold text-slate-400 flex items-center gap-1 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-emerald-400" /> Day Range:
+              </span>
+              {[
+                { key: 'ALL', label: 'All Days (1–31)' },
+                { key: '1-10', label: 'Days 1–10' },
+                { key: '11-20', label: 'Days 11–20' },
+                { key: '21-31', label: 'Days 21–31' },
+              ].map(range => (
+                <button
+                  key={range.key}
+                  type="button"
+                  onClick={() => setHomeDayRange(range.key as any)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                    homeDayRange === range.key
+                      ? 'bg-emerald-600 text-white border border-emerald-400/30 shadow'
+                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-slate-400 shrink-0">Order:</span>
+              <button
+                type="button"
+                onClick={() => setHomeSortMode(m => m === 'DAY_1_TO_31' ? 'DATE_SEQ' : 'DAY_1_TO_31')}
+                className="px-3 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800 text-indigo-200 text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Clock className="w-3 h-3 text-emerald-400" />
+                {homeSortMode === 'DAY_1_TO_31' ? 'Arranged: Day 1 → 31' : 'Arranged: Calendar Date'}
+              </button>
+            </div>
+          </div>
+
+          {/* Quarterly Summary Indicators */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { q: 'Q1', title: '1st Quarter', months: 'Jan - Mar', mList: ['January', 'February', 'March'], color: 'border-blue-500/30 text-blue-400 bg-blue-950/20' },
+              { q: 'Q2', title: '2nd Quarter', months: 'Apr - Jun', mList: ['April', 'May', 'June'], color: 'border-amber-500/30 text-amber-400 bg-amber-950/20' },
+              { q: 'Q3', title: '3rd Quarter', months: 'Jul - Sep', mList: ['July', 'August', 'September'], color: 'border-emerald-500/30 text-emerald-400 bg-emerald-950/20' },
+              { q: 'Q4', title: '4th Quarter', months: 'Oct - Dec', mList: ['October', 'November', 'December'], color: 'border-purple-500/30 text-purple-400 bg-purple-950/20' },
+            ].map(item => {
+              const qCount = plans.filter(p => item.mList.includes(p.month)).length;
+              const isSel = homeQuarterTab === 'ALL' || homeQuarterTab === item.q;
+              return (
+                <div
+                  key={item.q}
+                  onClick={() => setHomeQuarterTab(item.q as any)}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                    isSel 
+                      ? `${item.color} shadow-md ring-1 ring-emerald-500/30`
+                      : 'bg-slate-950/40 border-slate-800 opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black font-mono">{item.q} ({item.months})</span>
+                    <span className="text-[10px] font-mono font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                      {qCount} {qCount === 1 ? 'plan' : 'plans'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Sorted 1-31 Days Schedule Grid */}
+          {(() => {
+            const MONTH_ORDER: Record<string, number> = {
+              'January': 1, 'February': 2, 'March': 3,
+              'April': 4, 'May': 5, 'June': 6,
+              'July': 7, 'August': 8, 'September': 9,
+              'October': 10, 'November': 11, 'December': 12
+            };
+
+            const getQ = (m: string) => {
+              const num = MONTH_ORDER[m] || 1;
+              if (num <= 3) return 'Q1';
+              if (num <= 6) return 'Q2';
+              if (num <= 9) return 'Q3';
+              return 'Q4';
+            };
+
+            let filteredPlans = plans.filter(plan => {
+              if (homeQuarterTab !== 'ALL' && getQ(plan.month) !== homeQuarterTab) return false;
+              if (homePlatformFilter !== 'ALL' && plan.platform !== homePlatformFilter) return false;
+              return true;
+            });
+
+            // Filter by day range if selected
+            if (homeDayRange === '1-10') {
+              filteredPlans = filteredPlans.filter(p => (p.day || 1) >= 1 && (p.day || 1) <= 10);
+            } else if (homeDayRange === '11-20') {
+              filteredPlans = filteredPlans.filter(p => (p.day || 1) >= 11 && (p.day || 1) <= 20);
+            } else if (homeDayRange === '21-31') {
+              filteredPlans = filteredPlans.filter(p => (p.day || 1) >= 21 && (p.day || 1) <= 31);
+            }
+
+            // Sort plans based on homeSortMode
+            const sortedPlans = [...filteredPlans].sort((a, b) => {
+              const dayA = a.day || 1;
+              const dayB = b.day || 1;
+
+              if (homeSortMode === 'DAY_1_TO_31') {
+                // Primary sort by Day number 1 to 31
+                if (dayA !== dayB) return dayA - dayB;
+                const mA = MONTH_ORDER[a.month] || 1;
+                const mB = MONTH_ORDER[b.month] || 1;
+                if (mA !== mB) return mA - mB;
+                return (a.year || 2026) - (b.year || 2026);
+              } else {
+                // Calendar date sequence
+                const yA = a.year || 2026;
+                const yB = b.year || 2026;
+                if (yA !== yB) return yA - yB;
+                const mA = MONTH_ORDER[a.month] || 1;
+                const mB = MONTH_ORDER[b.month] || 1;
+                if (mA !== mB) return mA - mB;
+                return dayA - dayB;
+              }
+            });
+
+            if (sortedPlans.length === 0) {
+              return (
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-8 text-center space-y-2">
+                  <Clock className="w-8 h-8 text-slate-600 mx-auto" />
+                  <p className="text-xs font-bold text-slate-300">No campaigns found for selected filter criteria.</p>
+                  <p className="text-[11px] text-slate-500">Add new content schedules in the Monthly Content Planner.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+                  <span>Arranged Days 1–31 ({sortedPlans.length} deliverables)</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMainTab('planner')}
+                    className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    Open 1-4Q Full Planner <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {sortedPlans.slice(0, 9).map(plan => {
+                    const qBadge = getQ(plan.month);
+                    const dayNum = plan.day || 1;
+                    const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+
+                    return (
+                      <div
+                        key={plan.id}
+                        className="bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-emerald-500/40 p-3.5 rounded-xl space-y-2.5 transition-all shadow group relative flex flex-col justify-between"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded font-mono font-black text-[9px] bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow">
+                                DAY {formattedDay}
+                              </span>
+                              <span className="text-[9px] font-mono font-bold text-emerald-300 bg-emerald-950 border border-emerald-800/80 px-2 py-0.5 rounded flex items-center gap-1">
+                                {qBadge} • {plan.month} {plan.year || 2026}
+                              </span>
+                            </div>
+                            <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase border ${
+                              plan.status === 'Completed' ? 'bg-emerald-950 text-emerald-300 border-emerald-800' :
+                              plan.status === 'In Progress' ? 'bg-amber-950 text-amber-300 border-amber-800' :
+                              plan.status === 'Review' ? 'bg-indigo-950 text-indigo-300 border-indigo-800' :
+                              'bg-slate-800 text-slate-300 border-slate-700'
+                            }`}>
+                              {plan.status}
+                            </span>
+                          </div>
+
+                          <h5 className="text-xs font-bold text-white font-display line-clamp-1 group-hover:text-emerald-300 transition-colors">
+                            {plan.title}
+                          </h5>
+
+                          <p className="text-[11px] text-slate-400 line-clamp-2">
+                            {plan.description || 'No description added.'}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-900 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                          <span className="text-slate-300 font-semibold">{plan.platform} ({plan.type})</span>
+                          {(plan.assignee || plan.createdBy) && <span>👤 {plan.assignee || plan.createdBy}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Main Grid: AI Task Planner & Strategic To-Do engine */}
