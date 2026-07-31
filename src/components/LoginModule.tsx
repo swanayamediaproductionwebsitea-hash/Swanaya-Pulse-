@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Key, User, ShieldCheck, ArrowRight, UserPlus, Fingerprint, Lock, 
   Sparkles, RefreshCw, AlertCircle, CheckCircle2, MessageSquare, ArrowLeft, Camera,
-  LogIn, Copy, Check, Terminal, Mail, Eye, EyeOff
+  LogIn, Copy, Check, Terminal, Mail, Eye, EyeOff, Wrench, AlertTriangle, Clock, ShieldAlert
 } from 'lucide-react';
 import { RegisteredUser } from '../types';
 import { db, handleFirestoreError, OperationType, auth } from '../lib/firebase';
 import { collection, doc, setDoc, getDoc, deleteDoc, getDocs, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
+import SwanayaShowcase from './SwanayaShowcase';
 
 interface LoginProps {
   onLoginSuccess: (username: string) => void;
@@ -45,10 +46,69 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [showAdminEmergencyLogin, setShowAdminEmergencyLogin] = useState(false);
 
   // Avatar resolver state
   const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(null);
   const [isResolvingAvatar, setIsResolvingAvatar] = useState(false);
+
+  // Maintenance & Duration Lock Configuration State
+  const [maintConfig, setMaintConfig] = useState(() => {
+    const saved = localStorage.getItem('swanaya_maintenance_config');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return {
+      isMaintenanceActive: false,
+      lockedPortals: 'both' as 'both' | 'registration' | 'login',
+      maintenanceReason: 'Scheduled System Maintenance & Security Audit in Progress. Portals are temporarily restricted.',
+      durationLockUntil: '2026-08-14T00:00:00',
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'aadithyan'
+    };
+  });
+
+  useEffect(() => {
+    const checkAuthInitialView = () => {
+      const initialView = localStorage.getItem('swanaya_initial_auth_view');
+      if (initialView === 'register_standard' || initialView === 'register_demo' || initialView === 'login') {
+        setViewState(initialView as any);
+        localStorage.removeItem('swanaya_initial_auth_view');
+      }
+    };
+    checkAuthInitialView();
+
+    const handleMaintUpdate = () => {
+      const saved = localStorage.getItem('swanaya_maintenance_config');
+      if (saved) {
+        try { setMaintConfig(JSON.parse(saved)); } catch (e) { /* ignore */ }
+      }
+    };
+
+    window.addEventListener('swanaya_maintenance_updated', handleMaintUpdate);
+    window.addEventListener('storage', handleMaintUpdate);
+    return () => {
+      window.removeEventListener('swanaya_maintenance_updated', handleMaintUpdate);
+      window.removeEventListener('storage', handleMaintUpdate);
+    };
+  }, []);
+
+  const isMaintenanceNow = () => {
+    if (!maintConfig.isMaintenanceActive) return false;
+    if (maintConfig.durationLockUntil) {
+      const lockTime = new Date(maintConfig.durationLockUntil).getTime();
+      if (Date.now() > lockTime) return false;
+    }
+    return true;
+  };
+
+  const isCurrentViewLocked = () => {
+    if (!isMaintenanceNow()) return false;
+    if (maintConfig.lockedPortals === 'both') return true;
+    if (maintConfig.lockedPortals === 'registration' && (viewState === 'register_standard' || viewState === 'register_demo')) return true;
+    if (maintConfig.lockedPortals === 'login' && viewState === 'login') return true;
+    return false;
+  };
 
   // Load and Sync registered users from both localStorage and Firestore
   useEffect(() => {
@@ -271,11 +331,18 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
-    // Direct check for Administrative logins
+    // Direct check for Administrative logins (Bypasses Maintenance Mode)
     if (cleanUser.toLowerCase() === 'aadithyan' && cleanPass === 'aadithyan') {
       addLog(`Auth: Administrative login authorized for ${cleanUser}`, 'success');
       localStorage.setItem('swanaya_has_logged_in', 'true');
       onLoginSuccess(cleanUser.toLowerCase());
+      return;
+    }
+
+    // Maintenance Mode Check for non-admin logins
+    if (isMaintenanceNow() && (maintConfig.lockedPortals === 'both' || maintConfig.lockedPortals === 'login')) {
+      setErrorMessage(`🔒 MAINTENANCE MODE ACTIVE: ${maintConfig.maintenanceReason} (Lock active until ${new Date(maintConfig.durationLockUntil).toLocaleString()}). Standard logins are currently locked. System Administrators may log in using admin credentials.`);
+      addLog(`Auth Error: Blocked user login attempt for "${cleanUser}" during active maintenance mode`, 'warning');
       return;
     }
 
@@ -316,6 +383,13 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     setErrorMessage('');
     setSuccessMessage('');
 
+    // Maintenance Mode Check
+    if (isMaintenanceNow() && (maintConfig.lockedPortals === 'both' || maintConfig.lockedPortals === 'registration')) {
+      setErrorMessage(`🔒 REGISTRATION MAINTENANCE LOCK ACTIVE: ${maintConfig.maintenanceReason} (Lock active until ${new Date(maintConfig.durationLockUntil).toLocaleString()}). New registrations are currently closed by system administrators.`);
+      addLog(`Auth Error: Blocked user registration attempt during active maintenance lock`, 'warning');
+      return;
+    }
+
     const cleanUser = regUsername.trim();
     if (!cleanUser) {
       setErrorMessage('Username is required.');
@@ -340,6 +414,14 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     const exists = registeredUsers.some(u => u.username.toLowerCase() === cleanUser.toLowerCase());
     if (exists) {
       setErrorMessage('Username already registered in system.');
+      return;
+    }
+
+    // Check 14/08/2026 Workspace Creation Lock (Only trial session allowed before 14/08/2026)
+    const isUnlocked = new Date() >= new Date('2026-08-14T00:00:00');
+    if (!regIsDemo && !isUnlocked) {
+      setErrorMessage('🔒 Create Workspace is locked until August 14, 2026 (14/08/2026). Standard full workspace creation unlocks after 14/08/2026. Only Trial Sessions ("Join Workspace") are allowed prior to this date.');
+      addLog('Auth: Blocked standard workspace creation before 14/08/2026 unlock date. Trial session available.', 'warning');
       return;
     }
 
@@ -555,8 +637,64 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   };
 
 
+  // If portal is locked in Maintenance Mode and user has not toggled admin emergency override, replace portal with Swanaya Showcase Advertisement
+  if (isCurrentViewLocked() && !showAdminEmergencyLogin) {
+    return (
+      <div className="w-full max-w-4xl mx-auto my-6 space-y-6 animate-fade-in">
+        {/* BRAND HERO IMAGE */}
+        <div className="w-full rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950/60 p-1 shadow-2xl relative group">
+          <div className="relative h-28 w-full rounded-xl overflow-hidden">
+            <img 
+              src="/src/assets/images/client_portal_login_1783849385880.jpg" 
+              alt="Swanaya Secure Portal" 
+              className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-all duration-700 filter saturate-[0.85]"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+            <div className="absolute bottom-3 left-4 right-4 text-left flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <span className="text-[9px] font-mono font-black text-amber-400 uppercase tracking-widest bg-amber-950/60 px-2 py-0.5 rounded border border-amber-900/40">
+                  PORTAL ACCESS RESTRICTED • SHOWCASE ACTIVE
+                </span>
+                <h3 className="text-sm font-black text-white mt-1 uppercase tracking-tight font-display">
+                  Swanaya Media Enterprises Digital Showcase
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SWANAYA SHOWCASE ADVERTISEMENT & LANDING PAGES */}
+        <SwanayaShowcase
+          isMaintenanceMode={true}
+          maintenanceReason={maintConfig.maintenanceReason}
+          durationLockUntil={maintConfig.durationLockUntil}
+          onAdminBypassLogin={() => {
+            setShowAdminEmergencyLogin(true);
+            setDirectUsername('aadithyan');
+            setPortalTab('admin');
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-md mx-auto my-6 space-y-6">
+      
+      {/* Emergency Admin Return Notice if bypassing lock */}
+      {showAdminEmergencyLogin && isCurrentViewLocked() && (
+        <div className="bg-amber-950/90 border border-amber-500 text-amber-200 rounded-xl p-3 flex items-center justify-between text-xs font-mono">
+          <span className="font-bold uppercase">⚡ Administrator Emergency Access Active</span>
+          <button
+            type="button"
+            onClick={() => setShowAdminEmergencyLogin(false)}
+            className="bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1 rounded text-[10px] font-bold uppercase cursor-pointer border border-slate-700"
+          >
+            ← Back to Showcase
+          </button>
+        </div>
+      )}
       
       {/* 1. BRAND HERO IMAGE OF ADMINISTRATIVE SECURE PORTAL */}
       <div className="w-full rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950/60 p-1 shadow-2xl relative group">
@@ -578,6 +716,36 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           </div>
         </div>
       </div>
+
+      {/* 2. MAINTENANCE MODE & PORTAL LOCK ALERT BANNER */}
+      {isCurrentViewLocked() && (
+        <div className="bg-rose-950/90 border-2 border-rose-500 text-rose-200 rounded-2xl p-4 shadow-2xl space-y-2 font-mono text-xs mb-2 text-left relative overflow-hidden animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-rose-600/30 text-rose-400 border border-rose-500/50 rounded-xl shrink-0 animate-pulse">
+              <Wrench className="w-6 h-6 animate-spin text-rose-400" />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="font-extrabold uppercase text-white tracking-wider text-xs flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-400" /> SYSTEM MAINTENANCE MODE
+                </span>
+                <span className="bg-rose-900 px-2 py-0.5 rounded border border-rose-700 text-[9px] text-rose-300 font-bold uppercase font-mono">
+                  {maintConfig.lockedPortals === 'both' ? 'BOTH PORTALS LOCKED' : `${maintConfig.lockedPortals.toUpperCase()} LOCKED`}
+                </span>
+              </div>
+              <p className="text-[11px] text-rose-200/90 font-sans leading-relaxed">
+                {maintConfig.maintenanceReason}
+              </p>
+              <div className="text-[10px] text-rose-300/90 pt-2 border-t border-rose-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1 font-mono">
+                <span>🔒 Duration Lock Until: <strong>{new Date(maintConfig.durationLockUntil).toLocaleString()}</strong></span>
+                <span className="text-amber-300 font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> Admin Bypass Active
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       <div className="relative">
@@ -622,6 +790,34 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                 <h2 className="text-xl font-black font-display tracking-tight text-white uppercase">Create Operator Node</h2>
                 <p className="text-slate-400 text-[10px] font-mono uppercase tracking-wider">Register on the collaborative campaign directory</p>
               </div>
+
+              {/* 14/08/2026 Lock Alert Banner */}
+              {new Date() < new Date('2026-08-14T00:00:00') && (
+                <div className="bg-amber-950/70 border border-amber-500/50 text-amber-300 rounded-xl p-3 text-left mb-3 font-mono text-xs space-y-1.5 shadow-lg">
+                  <div className="flex items-center justify-between font-bold uppercase tracking-wider text-[11px] text-amber-200">
+                    <span className="flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-amber-400" /> Workspace Creation Locked
+                    </span>
+                    <span className="bg-amber-900/80 px-2 py-0.5 rounded border border-amber-600/60 text-[10px]">
+                      Unlocks 14/08/2026
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-amber-200/90 leading-relaxed font-sans">
+                    Standard full workspace node creation is locked until <strong>14/08/2026 (August 14, 2026)</strong>. Prior to this date, only <strong>Trial Sessions ("Join Workspace")</strong> are unlocked.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewState('register_demo');
+                      setRegIsDemo(true);
+                      setErrorMessage('');
+                    }}
+                    className="w-full mt-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer uppercase font-mono shadow transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> Switch to Trial Session (Unlocked)
+                  </button>
+                </div>
+              )}
    
               {/* Form */}
               <form onSubmit={handleRegister} className="space-y-3">
@@ -1004,7 +1200,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     setErrorMessage('');
                     setSuccessMessage('');
                     setDirectUsername('aadithyan');
-                    setDirectPassword('aadithyan');
+                    setDirectPassword('');
                   }}
                   className={`py-2 px-1 text-[8.5px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-300 cursor-pointer text-center ${
                     portalTab === 'admin'
@@ -1054,6 +1250,10 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                     </p>
                     <p className="text-[9px] text-slate-400 leading-relaxed">
                       For primary system administrators. Complete read/write/edit clearance, logs dispatcher, and registry management.
+                    </p>
+                    <p className="text-[8px] font-mono text-amber-400/90 pt-1 flex items-center gap-1 font-bold">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Administrative Clearance Required. Please enter your secure administrator password below.</span>
                     </p>
                   </>
                 )}
@@ -1162,10 +1362,25 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                         setErrorMessage('');
                         setSuccessMessage('');
                       }}
-                      className="bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/30 hover:border-indigo-500/50 text-indigo-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold"
+                      className={`font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold border ${
+                        new Date() < new Date('2026-08-14T00:00:00')
+                          ? 'bg-amber-950/30 hover:bg-amber-900/40 border-amber-900/40 text-amber-300'
+                          : 'bg-indigo-950/40 hover:bg-indigo-900/40 border-indigo-900/30 text-indigo-300'
+                      }`}
                     >
-                      <UserPlus className="w-3.5 h-3.5 text-indigo-400 mb-0.5 animate-pulse" />
-                      <span>Create Workspace</span>
+                      {new Date() < new Date('2026-08-14T00:00:00') ? (
+                        <>
+                          <Lock className="w-3.5 h-3.5 text-amber-400 mb-0.5" />
+                          <span>Create Workspace</span>
+                          <span className="text-[8px] text-amber-400/80 font-normal">Unlocks 14/08/2026</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-3.5 h-3.5 text-indigo-400 mb-0.5 animate-pulse" />
+                          <span>Create Workspace</span>
+                          <span className="text-[8px] text-emerald-400 font-normal">Unlocked</span>
+                        </>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -1175,10 +1390,11 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                         setErrorMessage('');
                         setSuccessMessage('');
                       }}
-                      className="bg-amber-950/40 hover:bg-amber-900/40 border border-amber-900/30 hover:border-amber-500/50 text-amber-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold"
+                      className="bg-amber-950/40 hover:bg-amber-900/40 border border-amber-900/50 hover:border-amber-500/50 text-amber-300 font-mono text-[9px] py-2.5 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 uppercase tracking-wide font-bold relative group"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400 mb-0.5" />
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 mb-0.5 animate-bounce" />
                       <span>Join Workspace</span>
+                      <span className="text-[8px] text-amber-300/90 font-normal bg-amber-900/60 px-1 rounded">Trial Session (Unlocked)</span>
                     </button>
                   </div>
                 </div>

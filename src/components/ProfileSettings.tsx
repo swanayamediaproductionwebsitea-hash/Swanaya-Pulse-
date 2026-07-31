@@ -418,6 +418,12 @@ export default function ProfileSettings({ currentUser, currentUserPermission, ad
                 <span className="text-slate-500">Security Credentials:</span>
                 <span className="text-amber-400">RSA-2048 Shared Key</span>
               </div>
+              <div className="flex justify-between border-b border-slate-850 pb-1.5">
+                <span className="text-slate-500">Workspace Creation Lock Date:</span>
+                <span className={`font-bold ${new Date() >= new Date('2026-08-14T00:00:00') ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  14/08/2026 ({new Date() >= new Date('2026-08-14T00:00:00') ? '✅ Unlocked' : '🔒 Locked - Trial Only'})
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Local System Clock:</span>
                 <span className="text-slate-300">{new Date().toISOString().split('T')[0]}</span>

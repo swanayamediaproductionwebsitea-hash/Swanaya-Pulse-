@@ -6,6 +6,7 @@ import {
   Play, Users, Check, Star, User, Tv, Radio, Video, Plus, Trash2, Volume2, VolumeX, Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import SwanayaShowcase from './SwanayaShowcase';
 
 interface InteractiveLandingProps {
   onEnterPortal: () => void;
@@ -413,6 +414,11 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
           </div>
         </div>
       )}
+
+      {/* SWANAYA MEDIA ENTERPRISES ADVERTISEMENT & SERVICES SHOWCASE */}
+      <div className="w-full">
+        <SwanayaShowcase onBookConsultation={() => onEnterPortal()} />
+      </div>
 
       {/* 🔴 MULTI-WORKSPACE LIVE VIDEO TELECASTING TERMINAL & MEDIA GRID */}
       {false && (

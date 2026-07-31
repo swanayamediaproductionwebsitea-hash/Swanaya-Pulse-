@@ -1162,6 +1162,12 @@ export default function App() {
                       onClearLogs={handleClearLogs}
                       currentUser={currentUser || ''}
                       addLog={addLog}
+                      onLogout={handleLogout}
+                      onActivatePortal={(portalType) => {
+                        localStorage.setItem('swanaya_initial_auth_view', portalType);
+                        addLog(`Admin Console: Activated ${portalType === 'login' ? 'Login Portal' : portalType === 'register_standard' ? 'Registration Portal' : 'Trial Session Portal'} directly`, 'action');
+                        handleLogout();
+                      }}
                     />
                   </motion.div>
                 )}
