@@ -1155,7 +1155,7 @@ export default function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('research');
-                  addLog('System Navigation: Switched workspace to [R&D Access]', 'info');
+                  addLog('System Navigation: Switched workspace to [Research & Innovation]', 'info');
                 }}
                 className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   activeMainTab === 'research'
@@ -1164,7 +1164,7 @@ export default function App() {
                 }`}
               >
                 <Cpu className="w-4 h-4 text-emerald-400" />
-                <span>R&D Access</span>
+                <span>Research & Innovation</span>
                 {activeMainTab === 'research' && (
                   <motion.div
                     layoutId="activeTabUnderline"

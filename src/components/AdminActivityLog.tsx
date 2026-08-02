@@ -4,6 +4,7 @@ import {
   ExternalLink, Lock, Wrench, AlertTriangle, Power, ShieldAlert, Clock, Calendar, CheckCircle2, AlertCircle,
   Mail, Phone, Send, MessageSquare, Check, Filter, Tag, Copy, Globe, RefreshCw, Eye, EyeOff, Shield, FileText, X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ActivityLog } from '../types';
 import { db } from '../lib/firebase';
 import { collection, doc, getDocs, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
@@ -231,6 +232,72 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
       return updated;
     });
     addLog(`Admin: Updated permissions for ${username} to [${newPermission.toUpperCase()}]`, 'info');
+  };
+
+  // Remove User Confirmation State
+  const [userPendingDelete, setUserPendingDelete] = useState<{ username: string; permissionLevel?: string } | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+
+  const handleInitiateRemoveUser = (targetUsername: string, permissionLevel?: string) => {
+    if (!targetUsername) return;
+
+    if (targetUsername.toLowerCase() === 'aadithyan') {
+      alert('Security Policy: Primary Administrator [aadithyan] cannot be removed from system matrix.');
+      return;
+    }
+
+    setUserPendingDelete({ username: targetUsername, permissionLevel });
+    setDeleteConfirmInput('');
+  };
+
+  const handleExecuteRemoveUser = async () => {
+    if (!userPendingDelete) return;
+    const targetUsername = userPendingDelete.username;
+    const isSelf = targetUsername.toLowerCase() === currentUser?.toLowerCase();
+
+    // 1. Remove from users array state
+    setUsers(prev => {
+      const updated = prev.filter(u => u.username.toLowerCase() !== targetUsername.toLowerCase());
+      localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
+      return updated;
+    });
+
+    // 2. Clean up user-specific keys in localStorage
+    const userKey = targetUsername.toLowerCase();
+    localStorage.removeItem(`swanaya_rd_access_level_${userKey}`);
+    localStorage.removeItem(`swanaya_legal_accepted_${userKey}`);
+
+    // 3. Delete user document from Firestore database if available
+    try {
+      if (db) {
+        const userDocRef = doc(db, 'users', userKey);
+        await deleteDoc(userDocRef);
+        addLog(`Admin Console: Removed user record for "@${targetUsername}" from Firestore database`, 'success');
+      }
+    } catch (err) {
+      console.warn('Firestore user deletion notice:', err);
+    }
+
+    // 4. Dispatch event so other components refresh user lists immediately
+    window.dispatchEvent(new Event('swanaya_registered_users_updated'));
+
+    addLog(`Admin Console: REMOVED registered operator "@${targetUsername}" from workspace matrix`, 'warning');
+    
+    setUserPendingDelete(null);
+    setDeleteConfirmInput('');
+
+    if (isSelf && onLogout) {
+      alert('Your account has been removed. Logging out now.');
+      onLogout();
+    }
+  };
+
+  const handleRemoveAccessRequest = (reqId: string) => {
+    const updated = accessRequests.filter(req => req.id !== reqId);
+    setAccessRequests(updated);
+    localStorage.setItem('swanaya_access_requests', JSON.stringify(updated));
+    window.dispatchEvent(new Event('swanaya_access_requests_updated'));
+    addLog(`Admin Action: Deleted access clearance request record`, 'info');
   };
 
   const [logins, setLogins] = useState<any[]>(() => {
@@ -1331,12 +1398,20 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                           <option value="administrator">Administrator</option>
                         </select>
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 flex items-center gap-1.5">
                         <button 
                           onClick={() => handleResetPassword(u.username)}
-                          className="text-amber-400 hover:text-amber-300 flex items-center gap-1 text-[10px] bg-amber-400/10 px-2 py-1 rounded"
+                          className="text-amber-400 hover:text-amber-300 flex items-center gap-1 text-[10px] bg-amber-400/10 hover:bg-amber-400/20 px-2 py-1 rounded cursor-pointer transition-colors"
+                          title={`Reset password for ${u.username}`}
                         >
                           <Key className="w-3 h-3" /> Reset Pass
+                        </button>
+                        <button 
+                          onClick={() => handleInitiateRemoveUser(u.username, u.permissionLevel)}
+                          className="text-rose-400 hover:text-rose-300 flex items-center gap-1 text-[10px] bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-2 py-1 rounded cursor-pointer transition-colors"
+                          title={`Remove registered operator ${u.username}`}
+                        >
+                          <Trash2 className="w-3 h-3" /> Remove
                         </button>
                       </td>
                     </tr>
@@ -1401,24 +1476,34 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                     <p className="text-[10px] text-slate-500">Submitted: {new Date(req.submittedAt).toLocaleString()}</p>
                   </div>
 
-                  {req.status === 'pending' && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleApproveAccessRequest(req.id)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-mono font-bold text-xs cursor-pointer flex items-center gap-1 shadow"
-                      >
-                        <Check className="w-3.5 h-3.5" /> Approve & Elevate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRejectAccessRequest(req.id)}
-                        className="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 px-3 py-1.5 rounded-lg font-mono font-bold text-xs cursor-pointer flex items-center gap-1"
-                      >
-                        <X className="w-3.5 h-3.5" /> Reject
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {req.status === 'pending' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleApproveAccessRequest(req.id)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-mono font-bold text-xs cursor-pointer flex items-center gap-1 shadow"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Approve & Elevate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRejectAccessRequest(req.id)}
+                          className="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 px-3 py-1.5 rounded-lg font-mono font-bold text-xs cursor-pointer flex items-center gap-1"
+                        >
+                          <X className="w-3.5 h-3.5" /> Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAccessRequest(req.id)}
+                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer transition-colors"
+                      title="Clear request record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1594,6 +1679,115 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
             </div>
           </div>
         </div>
+
+        {/* ⚠️ ADMIN CONFIRMATION MODAL FOR OPERATOR REMOVAL */}
+        <AnimatePresence>
+          {userPendingDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 20 }}
+                className="bg-slate-900 border border-rose-500/50 w-full max-w-md rounded-3xl p-6 shadow-2xl shadow-rose-950/50 space-y-5 relative overflow-hidden"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-rose-500/20 border border-rose-500/40 rounded-2xl text-rose-400">
+                      <ShieldAlert className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold font-mono text-white">Confirm User Removal</h3>
+                      <p className="text-xs text-rose-300/80 font-mono">Administrative Deletion Safeguard</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserPendingDelete(null);
+                      setDeleteConfirmInput('');
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Operator Identity Badge */}
+                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                  <div className="text-[10px] font-mono uppercase text-slate-400">Target Operator</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-black font-mono text-white">
+                      @{userPendingDelete.username}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase bg-slate-800 text-indigo-400 border border-slate-700">
+                      {userPendingDelete.permissionLevel || 'Editor'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Warning Details */}
+                <div className="p-3.5 bg-rose-950/60 border border-rose-800/80 rounded-2xl space-y-1 text-xs font-sans text-rose-200 leading-relaxed">
+                  <div className="flex items-center gap-1.5 font-bold font-mono text-rose-400">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>Permanent Action Notice</span>
+                  </div>
+                  <p className="text-[11px] text-rose-200/90">
+                    Removing this registered team member will permanently revoke their access credentials and erase local configuration locks.
+                  </p>
+                  {userPendingDelete.username.toLowerCase() === currentUser?.toLowerCase() && (
+                    <p className="text-[11px] font-mono font-bold text-amber-300 pt-1">
+                      ⚠️ WARNING: You are removing your own logged-in account!
+                    </p>
+                  )}
+                </div>
+
+                {/* Type Confirmation Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-mono text-slate-300 font-bold">
+                    Type <span className="text-rose-400 uppercase font-black">CONFIRM</span> to enable deletion:
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmInput}
+                    onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                    placeholder="Type CONFIRM here..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono text-white outline-none focus:border-rose-500 transition-colors"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserPendingDelete(null);
+                      setDeleteConfirmInput('');
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono font-bold text-xs cursor-pointer transition-colors"
+                  >
+                    Cancel & Keep Operator
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteConfirmInput.trim().toUpperCase() !== 'CONFIRM'}
+                    onClick={handleExecuteRemoveUser}
+                    className={`px-5 py-2.5 rounded-xl font-mono font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all ${
+                      deleteConfirmInput.trim().toUpperCase() === 'CONFIRM'
+                        ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 cursor-pointer'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Confirm Removal</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );

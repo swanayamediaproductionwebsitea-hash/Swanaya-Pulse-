@@ -3,7 +3,8 @@ import {
   Sparkles, Flame, BarChart3, TrendingUp, Search, Calendar, Shield,
   ArrowRight, MessageSquare, Zap, Target, Database, Terminal, Cpu,
   ChevronDown, ChevronUp, ExternalLink, Mail, Globe, Laptop, HelpCircle,
-  Play, Users, Check, Star, User, Tv, Radio, Video, Plus, Trash2, Volume2, VolumeX, Send
+  Play, Users, Check, Star, User, Tv, Radio, Video, Plus, Trash2, Volume2, VolumeX, Send,
+  UploadCloud, Paperclip, FileText, FileDown, CheckCircle2, AlertCircle, X, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SwanayaShowcase from './SwanayaShowcase';
@@ -102,6 +103,112 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
     setLiveTelecasts(prev => prev.map(t => t.id === id ? { ...t, title: editingTitleVal } : t));
     setIsEditingTelecastTitle(null);
     setEditingTitleVal('');
+  };
+
+  // R&D Proposal Form & File Upload State
+  const [rdFormName, setRdFormName] = useState('');
+  const [rdFormEmail, setRdFormEmail] = useState('');
+  const [rdFormCategory, setRdFormCategory] = useState('AI Model Fine-Tuning');
+  const [rdFormTitle, setRdFormTitle] = useState('');
+  const [rdFormAbstract, setRdFormAbstract] = useState('');
+  const [rdAttachedFile, setRdAttachedFile] = useState<{ name: string; size: string; type: string; dataUrl?: string } | null>(null);
+  const [isUploadingRdFile, setIsUploadingRdFile] = useState(false);
+  const [rdUploadProgress, setRdUploadProgress] = useState(0);
+  const [rdSubmissions, setRdSubmissions] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('swanaya_rd_submissions');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: 'rd_sub_1',
+          name: 'Aadithyan M Menon',
+          email: 'aadithyan@swanayamedia.com',
+          category: 'AI Model Fine-Tuning',
+          title: 'Zero-Latency Gemini 2.5 Audio Pipeline Optimization',
+          abstract: 'A research benchmark demonstrating 40% reduction in audio inference frame processing time using client-side Web Audio synthesis buffer staging.',
+          fileName: 'gemini_audio_pipeline_v2.pdf',
+          fileSize: '4.2 MB',
+          submittedAt: '2026-07-18T10:30:00.000Z',
+          status: 'Under Peer Review'
+        }
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleRdFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingRdFile(true);
+    setRdUploadProgress(15);
+
+    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+    const sizeStr = file.size > 1024 * 1024 ? `${sizeInMb} MB` : `${Math.round(file.size / 1024)} KB`;
+
+    const reader = new FileReader();
+    reader.onprogress = (evt) => {
+      if (evt.lengthComputable) {
+        const percent = Math.round((evt.loaded / evt.total) * 100);
+        setRdUploadProgress(percent);
+      }
+    };
+    reader.onload = () => {
+      setRdUploadProgress(100);
+      setTimeout(() => {
+        setRdAttachedFile({
+          name: file.name,
+          size: sizeStr,
+          type: file.type || 'document',
+          dataUrl: reader.result as string
+        });
+        setIsUploadingRdFile(false);
+        setRdUploadProgress(0);
+      }, 300);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitRdProposal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rdFormName.trim() || !rdFormTitle.trim() || !rdFormAbstract.trim()) {
+      alert('Please fill in your name, project title, and research abstract.');
+      return;
+    }
+
+    const newSubmission = {
+      id: `rd_sub_${Date.now()}`,
+      name: rdFormName.trim(),
+      email: rdFormEmail.trim() || 'researcher@swanaya.org',
+      category: rdFormCategory,
+      title: rdFormTitle.trim(),
+      abstract: rdFormAbstract.trim(),
+      fileName: rdAttachedFile ? rdAttachedFile.name : null,
+      fileSize: rdAttachedFile ? rdAttachedFile.size : null,
+      submittedAt: new Date().toISOString(),
+      status: 'Under Peer Review'
+    };
+
+    const updated = [newSubmission, ...rdSubmissions];
+    setRdSubmissions(updated);
+    localStorage.setItem('swanaya_rd_submissions', JSON.stringify(updated));
+    window.dispatchEvent(new Event('swanaya_rd_submissions_updated'));
+
+    // Reset Form
+    setRdFormName('');
+    setRdFormEmail('');
+    setRdFormTitle('');
+    setRdFormAbstract('');
+    setRdAttachedFile(null);
+
+    alert('R&D Proposal & Technical Files submitted successfully to Swanique Research Matrix!');
+  };
+
+  const handleRemoveRdSubmission = (id: string) => {
+    const updated = rdSubmissions.filter(s => s.id !== id);
+    setRdSubmissions(updated);
+    localStorage.setItem('swanaya_rd_submissions', JSON.stringify(updated));
+    window.dispatchEvent(new Event('swanaya_rd_submissions_updated'));
   };
 
   // Testimonial Form State
@@ -1490,6 +1597,263 @@ export default function InteractiveLanding({ onEnterPortal, registeredUsersCount
                 </motion.form>
               )}
             </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+      {/* 🔬 R&D INNOVATION & PROPOSAL SUBMISSION PORTAL WITH FILE UPLOAD */}
+      <div className="bg-slate-950/90 border border-purple-500/30 rounded-2xl p-6 md:p-8 space-y-6 text-left shadow-2xl relative overflow-hidden backdrop-blur-xl">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/20 border border-purple-500/30 rounded-2xl text-purple-400">
+              <Cpu className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                R&D Innovation & Proposal Portal
+                <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[9px] px-2 py-0.5 rounded-full font-sans font-bold">
+                  DIRECT R&D SUBMISSION
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Submit research whitepapers, model fine-tuning assets, or dataset proposals with file attachments directly to the Swanique R&D Dept.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl shrink-0">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span className="text-[10px] font-mono text-slate-300 font-bold">TLS 1.3 ENCRYPTED FILE STAGING</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Form (7 cols) */}
+          <form onSubmit={handleSubmitRdProposal} className="lg:col-span-7 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-mono font-bold text-slate-300">
+                  Researcher / Lead Operator <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={rdFormName}
+                  onChange={(e) => setRdFormName(e.target.value)}
+                  placeholder="e.g. Dr. Alex Mercer"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-mono font-bold text-slate-300">
+                  Institutional Email / Handle
+                </label>
+                <input
+                  type="email"
+                  value={rdFormEmail}
+                  onChange={(e) => setRdFormEmail(e.target.value)}
+                  placeholder="e.g. researcher@swanayamedia.com"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-mono font-bold text-slate-300">
+                  R&D Domain Category
+                </label>
+                <select
+                  value={rdFormCategory}
+                  onChange={(e) => setRdFormCategory(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white outline-none focus:border-purple-500 transition-colors cursor-pointer"
+                >
+                  <option value="AI Model Fine-Tuning">AI Model Fine-Tuning & Reasoning</option>
+                  <option value="Compute Credit Optimization">Compute Credit Optimization</option>
+                  <option value="D3 Visual Data Engines">D3 Visual Data Engines</option>
+                  <option value="Firestore Security & Schema">Firestore Security & Schema</option>
+                  <option value="Live Audio & Video Telemetry">Live Audio & Video Telemetry</option>
+                  <option value="Automated Campaign Modeling">Automated Campaign Modeling</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-mono font-bold text-slate-300">
+                  Proposal / Project Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={rdFormTitle}
+                  onChange={(e) => setRdFormTitle(e.target.value)}
+                  placeholder="e.g. Sub-100ms Gemini Prompt Cache Architecture"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-mono font-bold text-slate-300">
+                Research Abstract & Technical Objectives <span className="text-rose-400">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={rdFormAbstract}
+                onChange={(e) => setRdFormAbstract(e.target.value)}
+                placeholder="Describe project methodology, expected compute impact, and integration requirements..."
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-sans text-slate-200 outline-none focus:border-purple-500 transition-colors"
+              />
+            </div>
+
+            {/* File Upload Zone */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-mono font-bold text-slate-300 flex items-center justify-between">
+                <span>Attach R&D Documentation or Data Asset</span>
+                <span className="text-[10px] text-slate-500 font-normal">PDF, ZIP, CSV, JSON, PNG (Max 50MB)</span>
+              </label>
+
+              {!rdAttachedFile && !isUploadingRdFile && (
+                <label className="border-2 border-dashed border-slate-800 hover:border-purple-500/50 bg-slate-900/60 hover:bg-slate-900 p-5 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center group">
+                  <div className="p-3 bg-purple-500/10 group-hover:bg-purple-500/20 text-purple-400 rounded-xl border border-purple-500/20 transition-colors">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-mono font-bold text-slate-200">
+                      Click to upload or drag & drop research paper / code asset
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      Staged files will be packaged with your submission payload
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    onChange={handleRdFileUpload}
+                    className="hidden"
+                    accept=".pdf,.zip,.json,.csv,.txt,.png,.jpg,.jpeg,.mp4"
+                  />
+                </label>
+              )}
+
+              {/* Upload Progress Bar */}
+              {isUploadingRdFile && (
+                <div className="bg-slate-900 p-4 rounded-2xl border border-purple-500/30 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-purple-300 font-bold flex items-center gap-2">
+                      <UploadCloud className="w-4 h-4 animate-bounce" /> Processing & Staging File...
+                    </span>
+                    <span className="text-purple-400 font-bold">{rdUploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+                    <div
+                      className="bg-gradient-to-r from-purple-600 to-indigo-500 h-full transition-all duration-200"
+                      style={{ width: `${rdUploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Uploaded File Attached Preview Card */}
+              {rdAttachedFile && !isUploadingRdFile && (
+                <div className="bg-slate-900 border border-purple-500/40 p-3.5 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="p-2.5 bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-xl shrink-0">
+                      <Paperclip className="w-4 h-4" />
+                    </div>
+                    <div className="truncate text-xs font-mono">
+                      <div className="font-bold text-white truncate">{rdAttachedFile.name}</div>
+                      <div className="text-[10px] text-slate-400">{rdAttachedFile.size} • Attached & Validated</div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setRdAttachedFile(null)}
+                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl cursor-pointer transition-colors shrink-0"
+                    title="Remove attached file"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-mono font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+            >
+              <Send className="w-4 h-4" />
+              <span>Submit R&D Research Proposal</span>
+            </button>
+          </form>
+
+          {/* Right Live Submissions Feed (5 cols) */}
+          <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <span className="text-xs font-mono font-extrabold text-white uppercase flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-400" />
+                  Submitted R&D Proposals
+                </span>
+                <span className="text-[10px] font-mono text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                  {rdSubmissions.length} RECORDED
+                </span>
+              </div>
+
+              {rdSubmissions.length === 0 ? (
+                <div className="text-center py-8 text-xs font-mono text-slate-500">
+                  No R&D proposals submitted yet. Use the form to submit your research paper or data asset.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                  {rdSubmissions.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="bg-slate-950 border border-slate-850 p-3.5 rounded-xl space-y-2 text-xs font-mono relative group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-white text-xs">{sub.title}</div>
+                          <div className="text-[10px] text-purple-400">{sub.category} • {sub.name}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRdSubmission(sub.id)}
+                          className="text-slate-500 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+                          title="Delete submission entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] font-sans text-slate-300 line-clamp-2 italic">
+                        "{sub.abstract}"
+                      </p>
+
+                      {sub.fileName && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-950/60 text-purple-300 border border-purple-800/80 rounded-lg text-[10px] font-mono">
+                          <Paperclip className="w-3 h-3 text-purple-400" />
+                          <span className="truncate max-w-[180px]">{sub.fileName}</span>
+                          <span className="text-slate-400">({sub.fileSize})</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-[9px] text-slate-500 border-t border-slate-900 pt-1.5">
+                        <span className="text-emerald-400 font-bold uppercase">{sub.status}</span>
+                        <span>{new Date(sub.submittedAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-800/80 text-[10px] font-mono text-slate-400 space-y-1">
+              <p>🔒 Submissions automatically mirror to the Central Admin Activity Matrix & R&D Access Logs.</p>
+            </div>
           </div>
         </div>
       </div>

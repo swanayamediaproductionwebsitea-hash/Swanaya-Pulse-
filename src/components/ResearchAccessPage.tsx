@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Cpu, Zap, CheckCircle2, ShieldCheck, Sparkles, AlertCircle, ArrowRight,
   Database, Lock, Key, Award, BarChart3, Layers, Clock, Server, RefreshCw,
-  TrendingUp, Activity, PieChart as PieIcon, LineChart as LineIcon, UserCheck, Send, FileText, Check, X
+  TrendingUp, Activity, PieChart as PieIcon, LineChart as LineIcon, UserCheck, Send, FileText, Check, X, Trash2, FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -44,6 +44,14 @@ export default function ResearchAccessPage({ currentUser, addLog, onLevelChange 
     const saved = localStorage.getItem('swanaya_access_requests');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const handleDeleteRequest = (reqId: string) => {
+    const updated = existingRequests.filter(r => r.id !== reqId);
+    setExistingRequests(updated);
+    localStorage.setItem('swanaya_access_requests', JSON.stringify(updated));
+    window.dispatchEvent(new Event('swanaya_access_requests_updated'));
+    addLog('R&D Access: Removed access clearance request entry', 'info');
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem(`swanaya_rd_access_level_${userKey}`) || 'Research';
@@ -98,6 +106,53 @@ export default function ResearchAccessPage({ currentUser, addLog, onLevelChange 
     { metric: 'SEO Web Scraper', avgMs: 180, targetMs: 300, accuracy: 98.9 },
     { metric: 'Campaign Synthesizer', avgMs: 135, targetMs: 250, accuracy: 99.6 },
   ];
+
+  const handleDownloadReport = () => {
+    const trendData = getUsageTrendData();
+    const allocationData = getModuleAllocationData();
+    const slaData = getPerformanceSlaData();
+
+    const csvLines: string[] = [];
+    csvLines.push(`SWANIQUE AI - RESEARCH & DEVELOPMENT CREDIT USAGE REPORT`);
+    csvLines.push(`Generated At,${new Date().toISOString()}`);
+    csvLines.push(`Timeframe,${timeframe.toUpperCase()}`);
+    csvLines.push(`Operator,${currentUser || 'guest'}`);
+    csvLines.push(``);
+
+    csvLines.push(`--- SECTION 1: COMPUTE CREDIT CONSUMPTION TREND ---`);
+    csvLines.push(`Date/Period,Content Writer Credits,SEO Audit Credits,Campaign Planner Credits,AI Assistant Credits,Total Credits`);
+    trendData.forEach((row: any) => {
+      const total = row.contentWriter + row.seoAudit + row.campaignPlanner + row.aiAssistant;
+      csvLines.push(`"${row.date}",${row.contentWriter},${row.seoAudit},${row.campaignPlanner},${row.aiAssistant},${total}`);
+    });
+    csvLines.push(``);
+
+    csvLines.push(`--- SECTION 2: CREDIT ALLOCATION BY MODULE ---`);
+    csvLines.push(`Module Name,Allocation Percentage (%)`);
+    allocationData.forEach((row: any) => {
+      csvLines.push(`"${row.name}",${row.value}`);
+    });
+    csvLines.push(``);
+
+    csvLines.push(`--- SECTION 3: AI MODEL SLA BENCHMARKS ---`);
+    csvLines.push(`Pipeline Engine,Avg Latency (ms),Target SLA (ms),Accuracy (%)`);
+    slaData.forEach((row: any) => {
+      csvLines.push(`"${row.metric}",${row.avgMs},${row.targetMs},${row.accuracy}`);
+    });
+
+    const csvString = csvLines.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `research_credits_report_${timeframe}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    addLog(`Research Insights: Downloaded JSON-to-CSV credit usage analysis report (${timeframe})`, 'info');
+  };
 
   const levels = [
     {
@@ -228,15 +283,18 @@ export default function ResearchAccessPage({ currentUser, addLog, onLevelChange 
             <span className="p-2 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl">
               <Cpu className="w-6 h-6 animate-pulse" />
             </span>
-            <span className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">
-              RESEARCH & DEVELOPMENT PROGRAM
+            <span className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+              RESEARCH & INNOVATION PROGRAM
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] px-2 py-0.5 rounded-full font-sans font-bold">
+                ENTERPRISE AI • 2026 EDITION
+              </span>
             </span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-white font-mono tracking-tight">
-            Research & Development Access
+            Research & Innovation Lab
           </h1>
           <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-            Swanique AI operates under an R&D Access framework. Manage active research tiers, view real-time compute credit analytics, or submit registration & login access edits directly to System Admin.
+            Swanique AI operates an advanced Research & Innovation (AI Research Lab) framework. Manage active innovation tiers, view real-time compute credit analytics, or submit research proposal files directly to System Admin.
           </p>
         </div>
 
@@ -423,39 +481,52 @@ export default function ResearchAccessPage({ currentUser, addLog, onLevelChange 
             </div>
           </div>
 
-          {/* Timeframe Filter Controls */}
-          <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+          {/* Timeframe Filter Controls & Download Report Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-indigo-400" />
               <h3 className="text-sm font-bold font-mono text-white uppercase">Compute Credit Consumption Trends</h3>
             </div>
-            <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setTimeframe('7d')}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
+                    timeframe === '7d' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  7 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTimeframe('30d')}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
+                    timeframe === '30d' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  30 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTimeframe('90d')}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
+                    timeframe === '90d' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  90 Days
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setTimeframe('7d')}
-                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
-                  timeframe === '7d' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
+                onClick={handleDownloadReport}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-950/40 cursor-pointer transition-all hover:scale-[1.02]"
+                title="Convert credit usage JSON data to CSV and download report"
               >
-                7 Days
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframe('30d')}
-                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
-                  timeframe === '30d' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                30 Days
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframe('90d')}
-                className={`px-3 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer ${
-                  timeframe === '90d' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                90 Days
+                <FileDown className="w-4 h-4" />
+                <span>Download Report</span>
               </button>
             </div>
           </div>
@@ -638,6 +709,14 @@ export default function ResearchAccessPage({ currentUser, addLog, onLevelChange 
                     }`}>
                       {req.status === 'approved' ? '✓ APPROVED BY ADMIN' : req.status === 'rejected' ? '✗ REJECTED' : '⏳ PENDING ADMIN REVIEW'}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRequest(req.id)}
+                      className="p-1.5 bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-800 rounded-xl cursor-pointer transition-colors"
+                      title="Withdraw or remove request"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}

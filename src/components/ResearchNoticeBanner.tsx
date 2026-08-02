@@ -18,10 +18,10 @@ export default function ResearchNoticeBanner({ onOpenLegalCenter, onOpenLegal }:
           <Cpu className="w-3.5 h-3.5 animate-pulse" />
         </span>
         <span className="font-bold text-indigo-300 uppercase tracking-wider shrink-0">
-          R&D PREVIEW NOTICE:
+          RESEARCH & INNOVATION PREVIEW:
         </span>
         <span className="text-slate-300 font-sans truncate">
-          This platform is currently provided as a Research & Development (R&D) preview. Features, AI outputs, and availability may change as we continue development.
+          This platform is operated as an advanced Research & Innovation (AI Research Lab) preview environment. Features, AI outputs, and model synthesis pipelines are actively benchmarked.
         </span>
       </div>
 
