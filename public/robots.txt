@@ -1,0 +1,8 @@
+# Robots.txt for Swanaya Media Enterprises
+User-agent: *
+Allow: /
+
+# Disallow private admin routes if any
+Disallow: /api/
+
+Sitemap: https://swanique-ai-cc-planning.netlify.app/sitemap.xml

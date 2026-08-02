@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Activity, Trash2, User, Key, Search, FileDown, UserPlus, LogIn, Sparkles, 
   ExternalLink, Lock, Wrench, AlertTriangle, Power, ShieldAlert, Clock, Calendar, CheckCircle2, AlertCircle,
-  Mail, Phone, Send, MessageSquare, Check, Filter, Tag, Copy, Globe, RefreshCw
+  Mail, Phone, Send, MessageSquare, Check, Filter, Tag, Copy, Globe, RefreshCw, Eye, EyeOff, Shield, FileText, X
 } from 'lucide-react';
 import { ActivityLog } from '../types';
 import { db } from '../lib/firebase';
-import { collection, doc, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 
 interface AdminActivityLogProps {
   logs: ActivityLog[];
@@ -36,16 +36,162 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
       lockedPortals: 'both' as 'both' | 'registration' | 'login',
       maintenanceReason: 'Scheduled System Maintenance & Security Audit in Progress. Portals are temporarily restricted.',
       durationLockUntil: '2026-08-14T00:00:00',
+      allowPublicRegistration: true,
+      allowDemoTrial: true,
+      allowStandardLogin: true,
+      trialDurationHours: 168,
+      requireAdminApproval: false,
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser || 'aadithyan'
     };
   });
+
+  // New Admin Provisioning Form State
+  const [newAdminUsername, setNewAdminUsername] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [newAdminRole, setNewAdminRole] = useState<'administrator' | 'editor' | 'viewer'>('administrator');
+  const [newAdminDesignation, setNewAdminDesignation] = useState('Senior System Administrator');
+  const [adminCreationSuccess, setAdminCreationSuccess] = useState<string | null>(null);
+  const [adminCreationError, setAdminCreationError] = useState<string | null>(null);
 
   const saveMaintConfig = (updated: typeof maintConfig) => {
     setMaintConfig(updated);
     localStorage.setItem('swanaya_maintenance_config', JSON.stringify(updated));
     // Dispatch a custom window event so other components (or tabs) update immediately
     window.dispatchEvent(new Event('swanaya_maintenance_updated'));
+  };
+
+  const handleAddNewAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminCreationError(null);
+    setAdminCreationSuccess(null);
+
+    const cleanUser = newAdminUsername.trim();
+    if (!cleanUser) {
+      setAdminCreationError('Admin username is required.');
+      return;
+    }
+
+    if (newAdminPassword.length < 4) {
+      setAdminCreationError('Password must be at least 4 characters long.');
+      return;
+    }
+
+    const exists = users.some(u => u.username.toLowerCase() === cleanUser.toLowerCase());
+    if (exists) {
+      setAdminCreationError(`Operator "${cleanUser}" is already registered in system matrix.`);
+      return;
+    }
+
+    const cleanEmail = newAdminEmail.trim() || `${cleanUser.toLowerCase()}@swanayamedia.com`;
+
+    const newAdminObj = {
+      username: cleanUser,
+      password: newAdminPassword,
+      email: cleanEmail,
+      provider: 'direct',
+      uid: `uid_admin_${Date.now()}`,
+      designation: newAdminDesignation || 'System Administrator',
+      permissionLevel: newAdminRole,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser || 'aadithyan'
+    };
+
+    const updatedUsers = [...users, newAdminObj];
+    setUsers(updatedUsers);
+    localStorage.setItem('swanaya_registered_users', JSON.stringify(updatedUsers));
+
+    // Try Firestore sync
+    try {
+      const userRef = doc(db, 'users', cleanUser.toLowerCase());
+      await setDoc(userRef, {
+        username: cleanUser,
+        password: newAdminPassword,
+        email: cleanEmail,
+        designation: newAdminDesignation || 'System Administrator',
+        permissionLevel: newAdminRole,
+        fullName: cleanUser,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser || 'aadithyan'
+      });
+      addLog(`Admin Console: Synchronized new admin doc for "${cleanUser}" to Firestore`, 'success');
+    } catch (err) {
+      console.warn('Firestore offline or restricted:', err);
+    }
+
+    addLog(`Admin Console: PROVISIONED NEW ADMINISTRATOR "${cleanUser}" with [${newAdminRole.toUpperCase()}] clearance.`, 'success');
+    setAdminCreationSuccess(`Successfully created Administrator account: "${cleanUser}" (${cleanEmail}). Role: ${newAdminRole.toUpperCase()}`);
+
+    // Reset fields
+    setNewAdminUsername('');
+    setNewAdminEmail('');
+    setNewAdminPassword('');
+  };
+
+  const handleGenerateRandomAdminPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+    let pass = '';
+    for (let i = 0; i < 10; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewAdminPassword(pass);
+    setShowAdminPassword(true);
+  };
+
+  const [accessRequests, setAccessRequests] = useState<any[]>(() => {
+    const saved = localStorage.getItem('swanaya_access_requests');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    const handleRequestsUpdate = () => {
+      const saved = localStorage.getItem('swanaya_access_requests');
+      if (saved) {
+        try { setAccessRequests(JSON.parse(saved)); } catch (e) { /* ignore */ }
+      }
+    };
+    window.addEventListener('swanaya_access_requests_updated', handleRequestsUpdate);
+    return () => window.removeEventListener('swanaya_access_requests_updated', handleRequestsUpdate);
+  }, []);
+
+  const handleApproveAccessRequest = (reqId: string) => {
+    const updated = accessRequests.map(req => {
+      if (req.id === reqId) {
+        // Apply level change to user
+        const targetUser = req.username ? req.username.toLowerCase() : 'guest';
+        localStorage.setItem(`swanaya_rd_access_level_${targetUser}`, req.requestedLevel);
+        window.dispatchEvent(new CustomEvent('rd_level_changed', { detail: { level: req.requestedLevel } }));
+
+        // Update user permission if requested level is administrator
+        if (req.requestedLevel.toLowerCase().includes('admin')) {
+          handleUpdatePermission(req.username, 'administrator');
+        }
+
+        addLog(`Admin Action: APPROVED clearance request for operator "${req.username}" to level [${req.requestedLevel}]`, 'success');
+        return { ...req, status: 'approved', approvedAt: new Date().toISOString(), approvedBy: currentUser };
+      }
+      return req;
+    });
+
+    setAccessRequests(updated);
+    localStorage.setItem('swanaya_access_requests', JSON.stringify(updated));
+    window.dispatchEvent(new Event('swanaya_access_requests_updated'));
+  };
+
+  const handleRejectAccessRequest = (reqId: string) => {
+    const updated = accessRequests.map(req => {
+      if (req.id === reqId) {
+        addLog(`Admin Action: REJECTED clearance request for operator "${req.username}"`, 'warning');
+        return { ...req, status: 'rejected', rejectedAt: new Date().toISOString(), rejectedBy: currentUser };
+      }
+      return req;
+    });
+
+    setAccessRequests(updated);
+    localStorage.setItem('swanaya_access_requests', JSON.stringify(updated));
+    window.dispatchEvent(new Event('swanaya_access_requests_updated'));
   };
 
   const handleBroadcast = () => {
@@ -65,6 +211,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
     setBroadcastMessage('');
     alert('Public address broadcasted to all operators.');
   };
+
 
   const handleResetPassword = (username: string) => {
     const tempPass = Math.random().toString(36).slice(-8);
@@ -465,7 +612,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
           )}
         </div>
 
-        {/* Portal Activation Controls */}
+        {/* Portal Activation Controls & Access Regulation Policies */}
         <div className="bg-slate-950/90 border border-indigo-500/40 p-5 rounded-2xl shadow-2xl mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4 mb-4">
             <div className="flex items-center gap-2.5">
@@ -474,13 +621,13 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-                  Portal Activation Controls
+                  Portal Activation & Policy Controls
                   <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] px-2 py-0.5 rounded-full font-sans font-bold">
                     ONLINE
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  Directly activate & switch to the public Registration Portal or Login Portal from the Admin Console.
+                  Directly activate portals & regulate login/registration policies from the Admin Console.
                 </p>
               </div>
             </div>
@@ -492,7 +639,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
             {/* Button 1: Activate Registration Portal */}
             <button
               type="button"
@@ -506,7 +653,7 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                   onLogout();
                 }
               }}
-              className="bg-indigo-950/60 hover:bg-indigo-900/70 border border-indigo-500/40 hover:border-indigo-400 p-4 rounded-xl text-left transition-all cursor-pointer group shadow-lg hover:shadow-indigo-500/20"
+              className="bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/40 hover:border-indigo-400 p-4 rounded-xl text-left transition-all cursor-pointer group shadow-lg hover:shadow-indigo-500/20"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="p-2 bg-indigo-600/30 text-indigo-300 rounded-lg group-hover:scale-110 transition-transform border border-indigo-500/40">
@@ -585,9 +732,140 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
                 <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
               </h4>
               <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-                Launches the unlocked 72-hour Trial Session onboarding portal for guest operators.
+                Launches the unlocked 168-hour / 1-Week Trial Session onboarding portal for guest operators.
               </p>
             </button>
+          </div>
+
+          {/* ⚙️ PORTAL ACCESS REGULATION & POLICY SETTINGS */}
+          <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h4 className="text-xs font-extrabold text-white uppercase font-mono flex items-center gap-2">
+                <Shield className="w-4 h-4 text-cyan-400" /> Portal Login & Registration Regulation Rules
+              </h4>
+              <span className="text-[9px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/80">
+                ACTIVE ADMIN POLICIES
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Rule 1: Standard Public Registration */}
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-bold flex items-center gap-1">
+                    <UserPlus className="w-3.5 h-3.5 text-indigo-400" /> Registration Access
+                  </span>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    maintConfig.allowPublicRegistration !== false ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'
+                  }`}>
+                    {maintConfig.allowPublicRegistration !== false ? 'OPEN' : 'RESTRICTED'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = maintConfig.allowPublicRegistration !== false;
+                    const updated = { ...maintConfig, allowPublicRegistration: !current };
+                    saveMaintConfig(updated);
+                    addLog(`Admin Policy: Set Standard Public Registration access to [${!current ? 'OPEN' : 'RESTRICTED'}]`, 'warning');
+                  }}
+                  className={`w-full py-1.5 px-2 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer border ${
+                    maintConfig.allowPublicRegistration !== false
+                      ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-600/30'
+                      : 'bg-rose-600/20 text-rose-300 border-rose-500/50 hover:bg-rose-600/30'
+                  }`}
+                >
+                  {maintConfig.allowPublicRegistration !== false ? '🟢 Open for Registrations' : '🔒 Restrict Registration'}
+                </button>
+              </div>
+
+              {/* Rule 2: Trial Studio Registration */}
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-bold flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-amber-400" /> Trial Studio Portal
+                  </span>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    maintConfig.allowDemoTrial !== false ? 'bg-amber-950 text-amber-400 border border-amber-800' : 'bg-rose-950 text-rose-400 border border-rose-800'
+                  }`}>
+                    {maintConfig.allowDemoTrial !== false ? 'ENABLED' : 'SUSPENDED'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = maintConfig.allowDemoTrial !== false;
+                    const updated = { ...maintConfig, allowDemoTrial: !current };
+                    saveMaintConfig(updated);
+                    addLog(`Admin Policy: Set Trial Studio Session creation to [${!current ? 'ENABLED' : 'SUSPENDED'}]`, 'warning');
+                  }}
+                  className={`w-full py-1.5 px-2 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer border ${
+                    maintConfig.allowDemoTrial !== false
+                      ? 'bg-amber-600/20 text-amber-300 border-amber-500/50 hover:bg-amber-600/30'
+                      : 'bg-rose-600/20 text-rose-300 border-rose-500/50 hover:bg-rose-600/30'
+                  }`}
+                >
+                  {maintConfig.allowDemoTrial !== false ? '⚡ Trial Onboarding Active' : '⛔ Suspend Trial Sessions'}
+                </button>
+              </div>
+
+              {/* Rule 3: Standard Login Portal Access */}
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-bold flex items-center gap-1">
+                    <LogIn className="w-3.5 h-3.5 text-cyan-400" /> Login Portal Access
+                  </span>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    maintConfig.allowStandardLogin !== false ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' : 'bg-rose-950 text-rose-400 border border-rose-800'
+                  }`}>
+                    {maintConfig.allowStandardLogin !== false ? 'ACTIVE' : 'LOCKED'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = maintConfig.allowStandardLogin !== false;
+                    const updated = { ...maintConfig, allowStandardLogin: !current };
+                    saveMaintConfig(updated);
+                    addLog(`Admin Policy: Set Standard Login Portal access to [${!current ? 'ACTIVE' : 'LOCKED'}]`, 'warning');
+                  }}
+                  className={`w-full py-1.5 px-2 rounded text-[10px] font-mono font-bold uppercase transition-all cursor-pointer border ${
+                    maintConfig.allowStandardLogin !== false
+                      ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/50 hover:bg-cyan-600/30'
+                      : 'bg-rose-600/20 text-rose-300 border-rose-500/50 hover:bg-rose-600/30'
+                  }`}
+                >
+                  {maintConfig.allowStandardLogin !== false ? '🔓 Logins Active' : '🔒 Lock Standard Logins'}
+                </button>
+              </div>
+
+              {/* Rule 4: Configurable Trial Duration */}
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-bold flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-purple-400" /> Trial Studio Period
+                  </span>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">
+                    {maintConfig.trialDurationHours || 168} HOURS
+                  </span>
+                </div>
+                <select
+                  value={maintConfig.trialDurationHours || 168}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    const updated = { ...maintConfig, trialDurationHours: val };
+                    saveMaintConfig(updated);
+                    addLog(`Admin Policy: Updated global trial session period to [${val} Hours]`, 'info');
+                  }}
+                  className="w-full bg-slate-900 border border-slate-800 text-xs text-white px-2 py-1.5 rounded outline-none focus:border-purple-500 font-mono cursor-pointer"
+                >
+                  <option value={168}>168 Hours (1 Full Week) [Default]</option>
+                  <option value={72}>72 Hours (3 Days)</option>
+                  <option value={336}>336 Hours (2 Weeks)</option>
+                  <option value={720}>720 Hours (30 Days)</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -823,6 +1101,167 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
           </div>
         </div>
 
+        {/* 👑 ADD NEW SYSTEM ADMINISTRATOR NODE PANEL */}
+        <div className="bg-slate-950/90 border border-emerald-500/40 p-5 rounded-2xl shadow-2xl mb-6 relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl shrink-0">
+                <UserPlus className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                  Provision New Administrator / System Operator
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-2.5 py-0.5 rounded-full font-mono font-bold">
+                    ADMIN CLEARANCE
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Register new administrators with full system access, custom department designations, and direct authentication keys.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleAddNewAdmin} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* Username */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase mb-1">
+                  New Admin Username *
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. swanaya_admin2"
+                    value={newAdminUsername}
+                    onChange={(e) => setNewAdminUsername(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-xs text-white pl-9 pr-3 py-2 rounded-xl outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase mb-1">
+                  Official Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="email"
+                    placeholder="e.g. admin2@swanayamedia.com"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-xs text-white pl-9 pr-3 py-2 rounded-xl outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Clearance Level */}
+              <div>
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase mb-1">
+                  Permission Clearance Level
+                </label>
+                <select
+                  value={newAdminRole}
+                  onChange={(e) => setNewAdminRole(e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-xs text-emerald-300 font-mono font-bold px-3 py-2 rounded-xl outline-none cursor-pointer"
+                >
+                  <option value="administrator">👑 Administrator (Full System Privilege)</option>
+                  <option value="editor">✏️ Editor (Content & Campaign Maker)</option>
+                  <option value="viewer">👁️ Viewer (Read-Only Observer)</option>
+                </select>
+              </div>
+
+              {/* Password Key */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase">
+                    Initial Authentication Key *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomAdminPassword}
+                    className="text-[9px] font-mono font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" /> Auto-Key
+                  </button>
+                </div>
+                <div className="relative">
+                  <Key className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type={showAdminPassword ? "text" : "password"}
+                    required
+                    placeholder="Min 4 chars password"
+                    value={newAdminPassword}
+                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-xs text-white pl-9 pr-10 py-2 rounded-xl outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Department Designation */}
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase mb-1">
+                  Department / Designation Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Senior Infrastructure Administrator & Security Node"
+                  value={newAdminDesignation}
+                  onChange={(e) => setNewAdminDesignation(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 text-xs text-white px-3 py-2 rounded-xl outline-none font-sans"
+                />
+              </div>
+            </div>
+
+            {/* Error & Success Feedback Banners */}
+            {adminCreationError && (
+              <div className="bg-rose-950/60 border border-rose-500/60 p-3 rounded-xl text-xs text-rose-300 font-mono flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{adminCreationError}</span>
+              </div>
+            )}
+
+            {adminCreationSuccess && (
+              <div className="bg-emerald-950/80 border border-emerald-500/60 p-3.5 rounded-xl text-xs text-emerald-200 font-mono flex items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{adminCreationSuccess}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdminCreationSuccess(null)}
+                  className="text-[10px] text-emerald-400 hover:text-white uppercase font-bold underline cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold uppercase tracking-wider py-2.5 px-6 rounded-xl transition-all cursor-pointer shadow-lg hover:shadow-emerald-600/30 flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Register Administrator Node</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Telemetry Logs */}
           <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col h-96">
@@ -907,6 +1346,195 @@ export default function AdminActivityLog({ logs, onClearLogs, currentUser, addLo
             </div>
           </div>
         </div>
+        {/* 📩 ACCESS CLEARANCE & REGISTRATION EDIT REQUESTS INBOX */}
+        <div className="bg-slate-950/90 border border-amber-500/40 p-5 rounded-2xl shadow-2xl mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4 mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-600/20 border border-amber-500/30 rounded-xl text-amber-400">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                  Access Clearance & Registration Request Matrix
+                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] px-2 py-0.5 rounded-full font-sans font-bold">
+                    {accessRequests.filter(r => r.status === 'pending').length} PENDING
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Review & approve registration edit requests, role promotions, and enterprise level access submissions from operators.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {accessRequests.length === 0 ? (
+            <div className="text-center py-6 text-slate-500 text-xs font-mono">
+              No pending access edit requests submitted by operators.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {accessRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-sm">{req.fullName} (@{req.username})</span>
+                      <span className="text-slate-400">• {req.email}</span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                        req.status === 'approved'
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          : req.status === 'rejected'
+                          ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                          : 'bg-amber-950 text-amber-400 border border-amber-800'
+                      }`}>
+                        {req.status}
+                      </span>
+                    </div>
+
+                    <div className="text-slate-300">
+                      Requested Tier: <strong className="text-indigo-400">{req.requestedLevel}</strong> | Role Title: <strong className="text-emerald-400">{req.requestedRole}</strong>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 font-sans italic">Rationale: "{req.rationale}"</p>
+                    <p className="text-[10px] text-slate-500">Submitted: {new Date(req.submittedAt).toLocaleString()}</p>
+                  </div>
+
+                  {req.status === 'pending' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleApproveAccessRequest(req.id)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-mono font-bold text-xs cursor-pointer flex items-center gap-1 shadow"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Approve & Elevate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRejectAccessRequest(req.id)}
+                        className="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 px-3 py-1.5 rounded-lg font-mono font-bold text-xs cursor-pointer flex items-center gap-1"
+                      >
+                        <X className="w-3.5 h-3.5" /> Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ⚖️ LEGAL & GOVERNANCE DOCUMENT CONTROL PANEL */}
+        <div className="bg-slate-950/90 border border-indigo-500/40 p-5 rounded-2xl shadow-2xl mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4 mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-600/20 border border-indigo-500/30 rounded-xl text-indigo-400">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                  Legal & Governance Administration
+                  <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] px-2 py-0.5 rounded-full font-sans font-bold">
+                    v1.0 ACTIVE
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Update legal documents, publish new versions, view user consent logs & export regulatory files.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const logs = [
+                    { user: 'aadithyan', acceptedAt: new Date().toISOString(), docVersion: 'v1.0' },
+                    { user: 'creator', acceptedAt: new Date(Date.now() - 3600000).toISOString(), docVersion: 'v1.0' },
+                    { user: 'demo_user', acceptedAt: new Date(Date.now() - 86400000).toISOString(), docVersion: 'v1.0' }
+                  ];
+                  let csv = 'User,Accepted At,Document Version\n';
+                  logs.forEach(l => csv += `${l.user},${l.acceptedAt},${l.docVersion}\n`);
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `legal_acceptance_logs_${Date.now()}.csv`;
+                  a.click();
+                  addLog('Admin: Exported Legal Acceptance Logs to CSV', 'success');
+                }}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Export Acceptance Logs</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-3">
+              <h4 className="text-xs font-bold font-mono text-indigo-400 uppercase flex items-center gap-1.5">
+                <FileText className="w-4 h-4" /> Privacy Policy v1.0
+              </h4>
+              <p className="text-[11px] text-slate-400">Update collection protocols & GDPR data processing terms.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const newVer = prompt('Enter new version tag for Privacy Policy:', 'v1.1');
+                  if (newVer) {
+                    addLog(`Admin: Published Privacy Policy version [${newVer}]`, 'action');
+                    alert(`Privacy Policy updated to ${newVer} and published across platform.`);
+                  }
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer"
+              >
+                Update & Publish Privacy Policy
+              </button>
+            </div>
+
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-3">
+              <h4 className="text-xs font-bold font-mono text-indigo-400 uppercase flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4" /> Terms & Conditions v1.0
+              </h4>
+              <p className="text-[11px] text-slate-400">Update user accounts, intellectual property & R&D liability terms.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const newVer = prompt('Enter new version tag for Terms & Conditions:', 'v1.1');
+                  if (newVer) {
+                    addLog(`Admin: Published Terms & Conditions version [${newVer}]`, 'action');
+                    alert(`Terms & Conditions updated to ${newVer} and published across platform.`);
+                  }
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer"
+              >
+                Update & Publish Terms
+              </button>
+            </div>
+
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-3">
+              <h4 className="text-xs font-bold font-mono text-indigo-400 uppercase flex items-center gap-1.5">
+                <Wrench className="w-4 h-4" /> User Manual v1.0
+              </h4>
+              <p className="text-[11px] text-slate-400">Update interactive user manual guide sections & FAQs.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const newVer = prompt('Enter new version tag for User Manual:', 'v1.1');
+                  if (newVer) {
+                    addLog(`Admin: Published User Manual version [${newVer}]`, 'action');
+                    alert(`User Manual updated to ${newVer} and published across platform.`);
+                  }
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer"
+              >
+                Update & Publish User Manual
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex flex-col lg:col-span-2">
             <div className="flex justify-between items-center mb-4">

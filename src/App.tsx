@@ -3,7 +3,7 @@ import {
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
   Home as HomeIcon, User, Search, X, Users, FileText, Bell, AlertTriangle, Share2, Send, Lock, Network,
-  Sun, Moon
+  Sun, Moon, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan, ContentDocument, ActivityLog } from './types';
@@ -19,13 +19,23 @@ import PopupHub from './components/PopupHub';
 import AiTodo from './components/AiTodo';
 import AdminActivityLog from './components/AdminActivityLog';
 import ContentWriter from './components/ContentWriter';
+import SeoAuditDashboard from './components/SeoAuditDashboard';
+import LegalModal from './components/LegalModal';
+import ResearchNoticeBanner from './components/ResearchNoticeBanner';
+import FirstLoginConsentModal from './components/FirstLoginConsentModal';
+import LegalCenter from './components/LegalCenter';
+import ResearchAccessPage from './components/ResearchAccessPage';
+import RdAccessBadge from './components/RdAccessBadge';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalTab, setLegalTab] = useState<'privacy' | 'terms' | 'additional'>('privacy');
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [liveTime, setLiveTime] = useState<string>('');
-  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'admin' | 'assistant' | 'profile' | 'client' | 'tasks' | 'collaborate' | 'notifications'>('home');
+  const [activeMainTab, setActiveMainTab] = useState<'home' | 'planner' | 'writer' | 'admin' | 'assistant' | 'profile' | 'client' | 'tasks' | 'collaborate' | 'notifications' | 'seo' | 'legal' | 'research'>('home');
+  const [showFirstLoginConsent, setShowFirstLoginConsent] = useState(false);
   const [landingView, setLandingView] = useState<'landing' | 'login'>('landing');
   const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
   const [userProfileImage, setUserProfileImage] = useState<string | null>(null);
@@ -38,6 +48,26 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('swanaya_theme') as 'dark' | 'light') || 'dark';
   });
+
+  const [rdAccessLevel, setRdAccessLevel] = useState<string>(() => {
+    const userKey = currentUser ? currentUser.toLowerCase() : 'guest';
+    return localStorage.getItem(`swanaya_rd_access_level_${userKey}`) || 'Research';
+  });
+
+  useEffect(() => {
+    const userKey = currentUser ? currentUser.toLowerCase() : 'guest';
+    const saved = localStorage.getItem(`swanaya_rd_access_level_${userKey}`) || 'Research';
+    setRdAccessLevel(saved);
+
+    const handleRdEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.level) {
+        setRdAccessLevel(customEvent.detail.level);
+      }
+    };
+    window.addEventListener('rd_level_changed', handleRdEvent);
+    return () => window.removeEventListener('rd_level_changed', handleRdEvent);
+  }, [currentUser]);
 
   const handleSetTheme = (newTheme: 'dark' | 'light') => {
     setTheme(newTheme);
@@ -72,7 +102,7 @@ export default function App() {
     return [
       { id: 'n1', title: 'Interactive Multi-User Ticker Online', message: 'Workspace collaboration session synced. Check active online operators in real-time.', time: 'Just Now', type: 'info', unread: true },
       { id: 'n2', title: 'Content Entry Modified', message: 'Campaign operator synchronized draft status to [In Progress].', time: '20m ago', type: 'success', unread: true },
-      { id: 'n3', title: '72-Hour Expiration Node Safe', message: 'Demo creator restrictions applied to campaign directory. All edits are local simulations.', time: '1h ago', type: 'warning', unread: true },
+      { id: 'n3', title: '168-Hour / 1-Week Trial Node Safe', message: 'Demo creator restrictions applied to campaign directory. All edits are local simulations.', time: '1h ago', type: 'warning', unread: true },
     ];
   });
 
@@ -563,6 +593,18 @@ export default function App() {
       theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-[#030712] text-slate-100'
     }`}>
       
+      {/* Top R&D Notice Banner */}
+      <ResearchNoticeBanner
+        onOpenLegal={() => {
+          if (currentUser) {
+            setActiveMainTab('legal');
+          } else {
+            setLegalTab('privacy');
+            setShowLegalModal(true);
+          }
+        }}
+      />
+
       {/* Real-time Rolling Ticker & Simulation Notification HUD */}
       <RealTimeTicker />
       
@@ -734,20 +776,23 @@ export default function App() {
               </div>
 
               {/* Center status and time */}
-              <div className="hidden xl:flex items-center gap-5 text-xs font-mono">
-                <div className="flex items-center gap-2 border-r border-slate-800 pr-4">
+              <div className="hidden lg:flex items-center gap-4 text-xs font-mono">
+                <div className="flex items-center gap-2 border-r border-slate-800 pr-3">
                   <Clock className="w-4 h-4 text-indigo-400" />
                   <span className="text-slate-300 font-bold">{liveTime || 'LOADING...'}</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 text-[11px] font-mono shadow-sm">
+
+                <RdAccessBadge
+                  level={rdAccessLevel}
+                  onClick={() => {
+                    setActiveMainTab('research');
+                    addLog(`R&D Badge: Navigated to Research Access page [${rdAccessLevel}]`, 'info');
+                  }}
+                />
+
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-950/70 border border-indigo-500/40 text-indigo-300 text-[11px] font-mono shadow-sm">
                   <Lock className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Isolated Workspace: <strong className="text-white font-bold">@{currentUser || 'Guest'}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-purple-400" />
-                  <span className="text-slate-400">Workspace Plans: <strong className="text-white font-bold">{
-                    plans.filter(p => !p.createdBy || p.createdBy.toLowerCase() === (currentUser?.toLowerCase() || '') || currentUser === 'aadithyan' || currentUser === 'administrator').length
-                  } items</strong></span>
                 </div>
               </div>
 
@@ -841,14 +886,14 @@ export default function App() {
                       ⚠️ Active Trial Demo Mode Node
                     </span>
                     <p className="text-slate-300 leading-relaxed font-sans">
-                      This operator credentials session has been pre-seeded for trial validation. A strict 72-hour automated destruction countdown is active.
+                      This operator credentials session has been pre-seeded for trial validation. A strict 168-hour (1-week) automated destruction countdown is active.
                     </p>
                   </div>
                 </div>
                 <div className="shrink-0 flex items-center gap-2 bg-amber-950/60 border border-amber-900/40 px-3 py-1.5 rounded-lg font-mono text-xs text-amber-400">
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                   <span>DESTRUCTION COUNTDOWN:</span>
-                  <strong className="font-black text-white">{demoTimeLeft || '72h 00m 00s'}</strong>
+                  <strong className="font-black text-white">{demoTimeLeft || '168h 00m 00s'}</strong>
                 </div>
               </motion.div>
             )}
@@ -1061,18 +1106,18 @@ export default function App() {
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  setActiveMainTab('profile');
-                  addLog('System Navigation: Switched workspace to [Profile Settings]', 'info');
+                  setActiveMainTab('seo');
+                  addLog('System Navigation: Switched workspace to [SEO Audit Dashboard]', 'info');
                 }}
                 className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  activeMainTab === 'profile'
+                  activeMainTab === 'seo'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
               >
-                <User className="w-4 h-4" />
-                <span>Profile Settings</span>
-                {activeMainTab === 'profile' && (
+                <Globe className="w-4 h-4 text-emerald-400" />
+                <span>SEO Audit</span>
+                {activeMainTab === 'seo' && (
                   <motion.div
                     layoutId="activeTabUnderline"
                     className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
@@ -1081,7 +1126,54 @@ export default function App() {
                 )}
               </motion.button>
 
-                          </div>
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setActiveMainTab('legal');
+                  addLog('System Navigation: Switched workspace to [Legal Center]', 'info');
+                }}
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'legal'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <FileText className="w-4 h-4 text-indigo-400" />
+                <span>Legal Center</span>
+                {activeMainTab === 'legal' && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05, translateY: -1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setActiveMainTab('research');
+                  addLog('System Navigation: Switched workspace to [R&D Access]', 'info');
+                }}
+                className={`relative px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeMainTab === 'research'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <Cpu className="w-4 h-4 text-emerald-400" />
+                <span>R&D Access</span>
+                {activeMainTab === 'research' && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute -bottom-[2px] left-4 right-4 h-[2px] bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+            </div>
 
             {/* Main Interactive Tab Views with motion animations */}
             <main className="flex-grow flex flex-col justify-stretch min-h-[450px]">
@@ -1201,6 +1293,23 @@ export default function App() {
                       addLog={addLog} 
                       onProfileUpdate={loadCurrentUserProfile}
                       setActiveMainTab={setActiveMainTab}
+                    />
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'seo' && (
+                  <motion.div
+                    key="seo-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <SeoAuditDashboard
+                      logs={logs}
+                      addLog={addLog}
+                      currentUser={currentUser || 'aadithyan'}
                     />
                   </motion.div>
                 )}
@@ -1460,6 +1569,35 @@ export default function App() {
                     </div>
                   </motion.div>
                 )}
+                {activeMainTab === 'legal' && (
+                  <motion.div
+                    key="legal-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <LegalCenter initialTab="privacy" />
+                  </motion.div>
+                )}
+
+                {activeMainTab === 'research' && (
+                  <motion.div
+                    key="research-tab"
+                    initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    className="w-full h-full flex flex-col"
+                  >
+                    <ResearchAccessPage
+                      currentUser={currentUser || ''}
+                      addLog={addLog}
+                      onLevelChange={(lvl) => setRdAccessLevel(lvl)}
+                    />
+                  </motion.div>
+                )}
               </AnimatePresence>
             </main>
 
@@ -1467,6 +1605,23 @@ export default function App() {
         )}
 
       </div>
+
+      {/* First Login Consent Modal */}
+      <FirstLoginConsentModal
+        isOpen={showFirstLoginConsent}
+        username={currentUser || ''}
+        onAccept={() => {
+          if (currentUser) {
+            localStorage.setItem(`swanaya_legal_accepted_${currentUser.toLowerCase()}`, 'true');
+            addLog(`Legal: Recorded user consent for operator [${currentUser}]`, 'success');
+          }
+          setShowFirstLoginConsent(false);
+        }}
+        onViewDetails={(doc) => {
+          setLegalTab(doc === 'manual' || doc === 'disclaimer' ? 'additional' : doc);
+          setShowLegalModal(true);
+        }}
+      />
 
       {/* Globally Active AI and Secure Messenger Popups Floating Hub */}
       <PopupHub addLog={addLog} />
@@ -1502,6 +1657,115 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Legal & Governance Modal */}
+      <LegalModal
+        isOpen={showLegalModal}
+        onClose={() => setShowLegalModal(false)}
+        defaultTab={legalTab}
+      />
+
+      {/* Global Application Footer */}
+      <footer className="mt-12 border-t border-slate-900 bg-slate-950/90 backdrop-blur-xl py-8 px-4 sm:px-8 text-slate-400 font-sans z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left space-y-1">
+            <div className="flex items-center justify-center md:justify-start gap-2">
+              <span className="font-extrabold text-white text-sm font-mono tracking-wider">SWANIQUE AI</span>
+              <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold">
+                v1.0 R&D Access
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Experimental R&D AI Platform for Autonomous Content Strategy & Generation.
+            </p>
+            <p className="text-[10px] text-slate-600 font-mono">
+              Effective Date: August 2, 2026 • All Rights Reserved © Swanique AI
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-mono">
+            <button
+              type="button"
+              onClick={() => {
+                if (currentUser) {
+                  setActiveMainTab('legal');
+                } else {
+                  setLegalTab('privacy');
+                  setShowLegalModal(true);
+                }
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentUser) {
+                  setActiveMainTab('legal');
+                } else {
+                  setLegalTab('terms');
+                  setShowLegalModal(true);
+                }
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Terms & Conditions
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentUser) {
+                  setActiveMainTab('legal');
+                } else {
+                  setLegalTab('additional');
+                  setShowLegalModal(true);
+                }
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              User Manual
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentUser) {
+                  setActiveMainTab('legal');
+                } else {
+                  setLegalTab('additional');
+                  setShowLegalModal(true);
+                }
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Cookie Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentUser) {
+                  setActiveMainTab('legal');
+                } else {
+                  setLegalTab('additional');
+                  setShowLegalModal(true);
+                }
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Security
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                alert('For support or inquiries, please contact legal@swanique.ai');
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer text-indigo-400 font-bold"
+            >
+              Contact Support
+            </button>
+          </div>
+        </div>
+      </footer>
 
     </div>
   );

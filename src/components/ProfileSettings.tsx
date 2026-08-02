@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Shield, Mail, Briefcase, FileText, Camera, UploadCloud, 
-  CheckCircle2, AlertCircle, Save, Award, RefreshCw, UserCheck, Code2, Cpu
+  CheckCircle2, AlertCircle, Save, Award, RefreshCw, UserCheck, Code2, Cpu,
+  Lock, Bell, Palette, BookOpen, Layers, Sparkles, Key
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RegisteredUser } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import LegalCenter from './LegalCenter';
+import ResearchAccessPage from './ResearchAccessPage';
+import AboutModal from './AboutModal';
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -40,7 +44,8 @@ export default function ProfileSettings({ currentUser, currentUserPermission, ad
   const [isSaving, setIsSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [settingsSubTab, setSettingsSubTab] = useState<'profile' | 'clientHub'>('profile');
+  const [settingsSubTab, setSettingsSubTab] = useState<'profile' | 'security' | 'notifications' | 'appearance' | 'legalCenter' | 'researchAccess' | 'about' | 'clientHub'>('profile');
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   // Load existing profile from Firestore or LocalStorage
@@ -228,29 +233,122 @@ export default function ProfileSettings({ currentUser, currentUserPermission, ad
   return (
     <div className="space-y-6">
       {/* Settings Sub-Tab Navigation Header */}
-      <div className="flex bg-slate-950/60 p-1 rounded-2xl border border-slate-850 max-w-sm">
+      <div className="flex flex-wrap gap-1 bg-slate-950/60 p-1.5 rounded-2xl border border-slate-850">
         <button
           type="button"
           onClick={() => {
             setSettingsSubTab('profile');
-            addLog('Profile Settings: Switched setting category to Operator Profile Parameters', 'info');
+            addLog('Profile Settings: Switched to Operator Profile', 'info');
           }}
-          className={`flex-1 py-1.5 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
             settingsSubTab === 'profile' 
               ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <User className="w-3.5 h-3.5" />
-          <span>Operator Profile</span>
+          <span>Profile</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('security');
+            addLog('Profile Settings: Switched to Security Settings', 'info');
+          }}
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+            settingsSubTab === 'security' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Lock className="w-3.5 h-3.5" />
+          <span>Security</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('notifications');
+            addLog('Profile Settings: Switched to Notifications Settings', 'info');
+          }}
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+            settingsSubTab === 'notifications' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Bell className="w-3.5 h-3.5" />
+          <span>Notifications</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('appearance');
+            addLog('Profile Settings: Switched to Appearance Settings', 'info');
+          }}
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+            settingsSubTab === 'appearance' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Palette className="w-3.5 h-3.5" />
+          <span>Appearance</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('legalCenter');
+            addLog('Profile Settings: Switched to Legal Center', 'info');
+          }}
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+            settingsSubTab === 'legalCenter' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5 text-indigo-300" />
+          <span>Legal Center</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSettingsSubTab('researchAccess');
+            addLog('Profile Settings: Switched to Research Access', 'info');
+          }}
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+            settingsSubTab === 'researchAccess' 
+              ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Research Access</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsAboutModalOpen(true);
+            addLog('Profile Settings: Opened About Swanique AI', 'info');
+          }}
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 text-indigo-300 hover:text-white bg-indigo-950/40 border border-indigo-800/40`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <span>About Swanique AI</span>
+        </button>
+
         <button
           type="button"
           onClick={() => {
             setSettingsSubTab('clientHub');
-            addLog('Profile Settings: Switched setting category to Client Connection Hub Matrix', 'info');
+            addLog('Profile Settings: Switched to Client Hub', 'info');
           }}
-          className={`flex-1 py-1.5 px-3.5 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
             settingsSubTab === 'clientHub' 
               ? 'bg-indigo-600 text-white shadow shadow-indigo-500/15' 
               : 'text-slate-400 hover:text-slate-200'
@@ -659,7 +757,159 @@ export default function ProfileSettings({ currentUser, currentUserPermission, ad
       </div>
           </motion.div>
         )}
+
+        {/* SECURITY SUBTAB */}
+        {settingsSubTab === 'security' && (
+          <motion.div
+            key="security-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+              <div className="p-2.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black font-mono text-white">Security & Authentication Protocols</h3>
+                <p className="text-xs text-slate-400">Manage password credentials, 2FA tokens & row-level security rules.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 max-w-xl">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Current Password</label>
+                <input type="password" placeholder="••••••••" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">New Password</label>
+                <input type="password" placeholder="Enter new password (min 8 chars)" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-indigo-500" />
+              </div>
+
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-white font-mono">Two-Factor Authentication (2FA)</h4>
+                  <p className="text-[10px] text-slate-400">Enforce multi-factor verification for workspace actions.</p>
+                </div>
+                <button type="button" onClick={() => alert('2FA protocol is active for system administrators.')} className="bg-emerald-950 text-emerald-400 border border-emerald-800 px-3 py-1 rounded-lg text-xs font-mono font-bold">Enabled</button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  addLog('Security Settings: Updated credential parameters', 'success');
+                  alert('Security parameters saved successfully.');
+                }}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-mono text-xs font-bold uppercase transition-all shadow cursor-pointer"
+              >
+                Update Security Settings
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* NOTIFICATIONS SUBTAB */}
+        {settingsSubTab === 'notifications' && (
+          <motion.div
+            key="notifications-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+              <div className="p-2.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black font-mono text-white">Notification & Dispatch Preferences</h3>
+                <p className="text-xs text-slate-400">Configure real-time ticker alerts, admin dispatches, and campaign notifications.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 max-w-xl text-xs font-mono">
+              <label className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                <span>Real-Time Collaboration Ticker Alerts</span>
+                <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-indigo-600" />
+              </label>
+
+              <label className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                <span>Admin Broadcast Dispatches</span>
+                <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-indigo-600" />
+              </label>
+
+              <label className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                <span>R&D Compute Credit Threshold Alerts</span>
+                <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-indigo-600" />
+              </label>
+            </div>
+          </motion.div>
+        )}
+
+        {/* APPEARANCE SUBTAB */}
+        {settingsSubTab === 'appearance' && (
+          <motion.div
+            key="appearance-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+              <div className="p-2.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-xl">
+                <Palette className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black font-mono text-white">Appearance & Cyber Theme</h3>
+                <p className="text-xs text-slate-400">Customize background 3D canvas particles and glassmorphism styling.</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3 text-xs font-mono">
+              <div className="flex items-center justify-between">
+                <span>Active Color Theme:</span>
+                <span className="text-indigo-400 font-bold">Cyber Blue & Purple Dark Glass</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Typography Scaling:</span>
+                <span className="text-emerald-400 font-bold">Mathematical Major Second (1.125)</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* LEGAL CENTER SUBTAB */}
+        {settingsSubTab === 'legalCenter' && (
+          <motion.div
+            key="legal-center-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <LegalCenter initialTab="privacy" />
+          </motion.div>
+        )}
+
+        {/* RESEARCH ACCESS SUBTAB */}
+        {settingsSubTab === 'researchAccess' && (
+          <motion.div
+            key="research-access-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <ResearchAccessPage currentUser={currentUser} addLog={addLog} />
+          </motion.div>
+        )}
       </AnimatePresence>
+
+      <AboutModal
+        isOpen={isAboutModalOpen}
+        onClose={() => setIsAboutModalOpen(false)}
+        onOpenLegalCenter={() => setSettingsSubTab('legalCenter')}
+      />
     </div>
   );
 }

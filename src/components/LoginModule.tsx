@@ -9,6 +9,8 @@ import { RegisteredUser } from '../types';
 import { db, handleFirestoreError, OperationType, auth } from '../lib/firebase';
 import { collection, doc, setDoc, getDoc, deleteDoc, getDocs, updateDoc, arrayUnion, query, where } from 'firebase/firestore';
 import SwanayaShowcase from './SwanayaShowcase';
+import LegalModal from './LegalModal';
+import AdLandingPage from './AdLandingPage';
 
 interface LoginProps {
   onLoginSuccess: (username: string) => void;
@@ -52,6 +54,11 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
   const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(null);
   const [isResolvingAvatar, setIsResolvingAvatar] = useState(false);
 
+  // Legal Modal & Ad Showcase Landing States
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalTab, setLegalTab] = useState<'privacy' | 'terms' | 'additional'>('privacy');
+  const [showAdLanding, setShowAdLanding] = useState(false);
+
   // Maintenance & Duration Lock Configuration State
   const [maintConfig, setMaintConfig] = useState(() => {
     const saved = localStorage.getItem('swanaya_maintenance_config');
@@ -63,6 +70,11 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       lockedPortals: 'both' as 'both' | 'registration' | 'login',
       maintenanceReason: 'Scheduled System Maintenance & Security Audit in Progress. Portals are temporarily restricted.',
       durationLockUntil: '2026-08-14T00:00:00',
+      allowPublicRegistration: true,
+      allowDemoTrial: true,
+      allowStandardLogin: true,
+      trialDurationHours: 168,
+      requireAdminApproval: false,
       updatedAt: new Date().toISOString(),
       updatedBy: 'aadithyan'
     };
@@ -175,7 +187,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           designation: 'Demo Creator',
           permissionLevel: 'editor',
           isDemo: true,
-          demoExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+          demoExpiresAt: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString()
         },
         {
           username: 'demo_client',
@@ -187,7 +199,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
           designation: 'Demo Client',
           permissionLevel: 'viewer',
           isDemo: true,
-          demoExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+          demoExpiresAt: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString()
         }
       ];
 
@@ -357,11 +369,18 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     );
 
     if (matched) {
+      // Check Admin Policy for Standard Logins
+      if (maintConfig.allowStandardLogin === false && matched.permissionLevel !== 'administrator') {
+        setErrorMessage('🔒 Standard Login access is currently restricted by Admin Console Policy.');
+        addLog(`Auth Error: Login attempt by "${cleanUser}" blocked by Admin Console Policy`, 'warning');
+        return;
+      }
+
       // If it is a demo account, check if it's expired
       if (matched.isDemo && matched.demoExpiresAt) {
         const expiryTime = new Date(matched.demoExpiresAt).getTime();
         if (Date.now() > expiryTime) {
-          setErrorMessage('This demo account has expired (72-hour trial limit reached). Please register a new account.');
+          setErrorMessage('This demo account has expired (168-hour / 1-week trial limit reached). Please register a new account.');
           addLog(`Auth Error: Expired demo login attempt for "${cleanUser}"`, 'warning');
           return;
         }
@@ -417,6 +436,19 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
+    // Admin Policy Checks
+    if (regIsDemo && maintConfig.allowDemoTrial === false) {
+      setErrorMessage('🔒 Trial Studio Registration is currently suspended by Admin Console Policy.');
+      addLog('Auth Error: Trial registration attempt blocked by Admin Policy', 'warning');
+      return;
+    }
+
+    if (!regIsDemo && maintConfig.allowPublicRegistration === false) {
+      setErrorMessage('🔒 Standard Registration is currently restricted by Admin Console Policy.');
+      addLog('Auth Error: Standard registration attempt blocked by Admin Policy', 'warning');
+      return;
+    }
+
     // Check 14/08/2026 Workspace Creation Lock (Only trial session allowed before 14/08/2026)
     const isUnlocked = new Date() >= new Date('2026-08-14T00:00:00');
     if (!regIsDemo && !isUnlocked) {
@@ -425,6 +457,9 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       return;
     }
 
+    const trialHours = maintConfig.trialDurationHours || 168;
+    const demoExpiry = regIsDemo ? new Date(Date.now() + trialHours * 60 * 60 * 1000).toISOString() : undefined;
+
     const newUser: RegisteredUser = {
       username: cleanUser,
       password: regPassword,
@@ -432,7 +467,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
       designation: regRole,
       permissionLevel: regPermission,
       isDemo: regIsDemo,
-      demoExpiresAt: regIsDemo ? new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() : undefined
+      demoExpiresAt: demoExpiry
     };
 
     const updated = [...registeredUsers, newUser];
@@ -440,7 +475,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
     localStorage.setItem('swanaya_registered_users', JSON.stringify(updated));
     localStorage.setItem('swanaya_has_logged_in', 'true');
 
-    addLog(`Auth: New partner registry initialized for "${cleanUser}" ${regIsDemo ? '(DEMO TRIAL)' : ''}`, 'success');
+    addLog(`Auth: New partner registry initialized for "${cleanUser}" ${regIsDemo ? `(${trialHours}-HOUR DEMO TRIAL)` : ''}`, 'success');
 
     // Sync to Firestore
     try {
@@ -455,7 +490,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
         email: `${cleanUser.toLowerCase()}@swanayapartner.com`,
         bio: `Registered member of the Swanaya Partner Portal holding the role of ${regRole} with permission level ${regPermission}.`,
         isDemo: regIsDemo,
-        demoExpiresAt: regIsDemo ? new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString() : ''
+        demoExpiresAt: demoExpiry || ''
       });
       addLog(`Auth: Successfully linked partner profile "${cleanUser}" to Firestore registry`, 'success');
     } catch (e) {
@@ -674,6 +709,52 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             setDirectUsername('aadithyan');
             setPortalTab('admin');
           }}
+        />
+      </div>
+    );
+  }
+
+  if (showAdLanding) {
+    return (
+      <div className="w-full min-h-screen bg-slate-950 text-slate-100">
+        <div className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setShowAdLanding(false)}
+            className="flex items-center gap-2 text-xs font-mono font-bold text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Portal Login
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAdLanding(false);
+                setViewState('register_demo');
+              }}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold uppercase px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-md"
+            >
+              Start 168-Hr Trial
+            </button>
+          </div>
+        </div>
+
+        <AdLandingPage
+          onOpenAuth={(mode) => {
+            setShowAdLanding(false);
+            if (mode) setViewState(mode);
+          }}
+          onOpenLegal={(tab) => {
+            setLegalTab(tab || 'privacy');
+            setShowLegalModal(true);
+          }}
+          addLog={addLog}
+        />
+
+        <LegalModal
+          isOpen={showLegalModal}
+          onClose={() => setShowLegalModal(false)}
+          defaultTab={legalTab}
         />
       </div>
     );
@@ -1001,7 +1082,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
             </div>
           ) : viewState === 'register_demo' ? (
             /* ==========================================
-               REGISTER VIEW: 72-HOUR DEMO REGISTRATION
+               REGISTER VIEW: 168-HOUR / 1-WEEK DEMO REGISTRATION
                ========================================== */
             <div>
               {/* Header */}
@@ -1010,7 +1091,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                   <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" /> Create Demo Node
                 </h2>
                 <p className="text-slate-400 text-[10px] font-mono uppercase tracking-wider">
-                  Generate trial credentials valid for exactly 72 hours
+                  Generate trial credentials valid for 168 hours (1 full week)
                 </p>
               </div>
    
@@ -1118,7 +1199,7 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
                 <div className="bg-amber-950/20 border border-amber-900/30 p-2.5 rounded-lg text-left">
                   <p className="text-[9px] text-amber-300 leading-relaxed font-sans">
                     <strong className="text-amber-400 uppercase tracking-wider block mb-0.5">⚠️ Limited Trial Bounds Enforced</strong>
-                    This demo trial automatically expires after exactly 72 hours. Services within the portal (e.g. Campaign Builder, Writer and Settings) will have temporary sandbox limits active. You must log in with the exact upper/lowercase username and password as you registered.
+                    This demo trial automatically expires after 168 hours (1 full week). Services within the portal (e.g. Campaign Builder, Writer and Settings) will have temporary sandbox limits active. You must log in with the exact upper/lowercase username and password as you registered.
                   </p>
                 </div>
 
@@ -1570,7 +1651,70 @@ export default function LoginModule({ onLoginSuccess, addLog }: LoginProps) {
 
         </div>
 
+        {/* ⚖️ SWANIQUE AI LEGAL & ADVERTISEMENT LINKS FOOTER */}
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center space-y-3 font-mono text-[10px]">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-slate-400">
+            <button
+              type="button"
+              onClick={() => {
+                setLegalTab('privacy');
+                setShowLegalModal(true);
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer underline flex items-center gap-1 font-bold"
+            >
+              <ShieldCheck className="w-3 h-3 text-indigo-400" /> Privacy Policy
+            </button>
+
+            <span>•</span>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLegalTab('terms');
+                setShowLegalModal(true);
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer underline flex items-center gap-1 font-bold"
+            >
+              <ShieldAlert className="w-3 h-3 text-indigo-400" /> Terms & Conditions
+            </button>
+
+            <span>•</span>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLegalTab('additional');
+                setShowLegalModal(true);
+              }}
+              className="hover:text-indigo-400 transition-colors cursor-pointer underline flex items-center gap-1 font-bold"
+            >
+              <Clock className="w-3 h-3 text-indigo-400" /> Compliance Framework
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-slate-850 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAdLanding(true)}
+              className="bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-700/50 hover:border-indigo-500 text-[9.5px] font-mono font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+              <span>📢 Open Ad Campaign Showcase</span>
+            </button>
+
+            <span className="text-[9px] text-slate-500">
+              Swanique AI © 2026
+            </span>
+          </div>
+        </div>
+
       </div>
+
+      <LegalModal
+        isOpen={showLegalModal}
+        onClose={() => setShowLegalModal(false)}
+        defaultTab={legalTab}
+      />
 
     </div>
   );

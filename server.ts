@@ -34,6 +34,25 @@ function getAiClient(): GoogleGenAI {
 }
 
 app.use(express.json());
+app.use(express.static(path.join(process.cwd(), "public")));
+
+// Google Site Verification Route
+app.get("/googlef7eba3382952800a.html", (req, res) => {
+  res.type("text/html").send("google-site-verification: googlef7eba3382952800a.html");
+});
+
+app.get("/googlef7eba3382952800a%20(2).html", (req, res) => {
+  res.type("text/html").send("google-site-verification: googlef7eba3382952800a.html");
+});
+
+// Serve robots.txt and sitemap.xml
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").sendFile(path.join(process.cwd(), "public", "robots.txt"));
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  res.type("application/xml").sendFile(path.join(process.cwd(), "public", "sitemap.xml"));
+});
 
 // API: Smart Autofill with SEO Integration using gemini-3.5-flash
 app.post("/api/autofill", async (req, res) => {
