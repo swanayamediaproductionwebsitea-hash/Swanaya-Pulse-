@@ -1757,7 +1757,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                alert('For support or inquiries, please contact legal@swanique.ai');
+                alert('For support or inquiries, please contact swanayamediaproduction@gmail.com');
               }}
               className="hover:text-indigo-400 transition-colors cursor-pointer text-indigo-400 font-bold"
             >

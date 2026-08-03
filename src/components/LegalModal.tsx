@@ -247,7 +247,7 @@ export default function LegalModal({ isOpen, onClose, defaultTab = 'privacy' }: 
                   </h2>
                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-1 text-indigo-300">
                     <p><strong>Swanique AI Legal Desk</strong></p>
-                    <p>Email: <a href="mailto:privacy@swanique.ai" className="underline text-indigo-400">privacy@swanique.ai</a></p>
+                    <p>Email: <a href="mailto:swanayamediaproduction@gmail.com" className="underline text-indigo-400">swanayamediaproduction@gmail.com</a></p>
                     <p>Website: <a href="https://www.swanique.ai" target="_blank" rel="noreferrer" className="underline text-indigo-400">https://www.swanique.ai</a></p>
                   </div>
                 </section>
@@ -354,7 +354,7 @@ export default function LegalModal({ isOpen, onClose, defaultTab = 'privacy' }: 
                   </h2>
                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono space-y-1 text-indigo-300">
                     <p><strong>Swanique AI Legal Desk</strong></p>
-                    <p>Email: <a href="mailto:legal@swanique.ai" className="underline text-indigo-400">legal@swanique.ai</a></p>
+                    <p>Email: <a href="mailto:swanayamediaproduction@gmail.com" className="underline text-indigo-400">swanayamediaproduction@gmail.com</a></p>
                     <p>Website: <a href="https://www.swanique.ai" target="_blank" rel="noreferrer" className="underline text-indigo-400">https://www.swanique.ai</a></p>
                   </div>
                 </section>
