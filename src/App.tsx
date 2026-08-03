@@ -3,7 +3,7 @@ import {
   LogOut, Monitor, UserCheck, ShieldCheck, Cpu, HardDrive, HelpCircle, 
   Clock, Zap, CheckCircle, Wifi, Database, Info, Sparkles, Film, Calendar, MessageSquare,
   Home as HomeIcon, User, Search, X, Users, FileText, Bell, AlertTriangle, Share2, Send, Lock, Network,
-  Sun, Moon, Globe
+  Sun, Moon, Globe, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ContentPlan, ContentDocument, ActivityLog } from './types';
@@ -42,6 +42,7 @@ export default function App() {
   const [userProfileTitle, setUserProfileTitle] = useState<string>('Content Creator');
   const [currentUserPermission, setCurrentUserPermission] = useState<'viewer' | 'editor' | 'administrator'>('editor');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
     return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
   });
@@ -898,8 +899,57 @@ export default function App() {
               </motion.div>
             )}
 
-            {/* Main Tab Navigation Menu */}
-            <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/80 p-2 rounded-2xl flex flex-wrap justify-center sm:justify-start gap-2 shadow-lg z-10">
+            {/* Mobile Navigation Bar (Consolidated Hamburger Trigger) */}
+            <div className="md:hidden bg-slate-900/60 backdrop-blur-md border border-slate-800/80 p-2.5 rounded-2xl flex items-center justify-between shadow-lg z-10 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Active Module:</span>
+                <span className="px-3 py-1 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center gap-2">
+                  {activeMainTab === 'home' && <HomeIcon className="w-3.5 h-3.5 text-indigo-400" />}
+                  {activeMainTab === 'planner' && <Film className="w-3.5 h-3.5 text-indigo-400" />}
+                  {activeMainTab === 'writer' && <FileText className="w-3.5 h-3.5 text-indigo-400" />}
+                  {activeMainTab === 'admin' && <ShieldCheck className="w-3.5 h-3.5 text-yellow-500" />}
+                  {activeMainTab === 'assistant' && <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />}
+                  {activeMainTab === 'collaborate' && <Network className="w-3.5 h-3.5 text-emerald-400" />}
+                  {activeMainTab === 'notifications' && <Bell className="w-3.5 h-3.5 text-amber-400" />}
+                  {activeMainTab === 'tasks' && <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />}
+                  {activeMainTab === 'seo' && <Globe className="w-3.5 h-3.5 text-emerald-400" />}
+                  {activeMainTab === 'legal' && <FileText className="w-3.5 h-3.5 text-indigo-400" />}
+                  {activeMainTab === 'research' && <Cpu className="w-3.5 h-3.5 text-emerald-400" />}
+                  {activeMainTab === 'profile' && <User className="w-3.5 h-3.5 text-indigo-400" />}
+                  {activeMainTab === 'client' && <Users className="w-3.5 h-3.5 text-indigo-400" />}
+                  <span>
+                    {activeMainTab === 'home' ? 'Home' :
+                     activeMainTab === 'planner' ? 'Content Planner' :
+                     activeMainTab === 'writer' ? 'Content Writer' :
+                     activeMainTab === 'admin' ? 'Admin Console' :
+                     activeMainTab === 'assistant' ? 'AI Assist' :
+                     activeMainTab === 'collaborate' ? 'Collaborate' :
+                     activeMainTab === 'notifications' ? 'Notifications' :
+                     activeMainTab === 'tasks' ? 'Task Manager Hub' :
+                     activeMainTab === 'seo' ? 'SEO Audit' :
+                     activeMainTab === 'legal' ? 'Legal Center' :
+                     activeMainTab === 'research' ? 'Research & Innovation' :
+                     activeMainTab === 'profile' ? 'Profile Settings' : 'Client Hub'}
+                  </span>
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="w-4 h-4" />
+                <span>Menu</span>
+                {unreadNotifications.some(n => n.unread) && (
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+                )}
+              </button>
+            </div>
+
+            {/* Main Tab Navigation Menu (Desktop view) */}
+            <div className="hidden md:flex bg-slate-900/40 backdrop-blur-md border border-slate-800/80 p-2 rounded-2xl flex-wrap justify-start gap-2 shadow-lg z-10">
               <motion.button
                 whileHover={{ scale: 1.05, translateY: -1 }}
                 whileTap={{ scale: 0.95 }}
@@ -1047,7 +1097,6 @@ export default function App() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveMainTab('notifications');
-                  // Mark all as read
                   setUnreadNotifications(prev => prev.map(n => ({ ...n, unread: false })));
                   localStorage.setItem('swanaya_notifications', JSON.stringify(unreadNotifications.map(n => ({ ...n, unread: false }))));
                   addLog('System Navigation: Switched workspace to [Notification Center]', 'info');
@@ -1174,6 +1223,281 @@ export default function App() {
                 )}
               </motion.button>
             </div>
+
+            {/* Slide-out Mobile Navigation Drawer Overlay & Panel */}
+            <AnimatePresence>
+              {isMobileMenuOpen && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 cursor-pointer"
+                  />
+                  <motion.div
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                    className="fixed top-0 right-0 max-w-xs w-full h-full bg-slate-900 border-l border-slate-800 p-5 shadow-2xl z-50 flex flex-col justify-between overflow-y-auto"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
+                          <span className="font-mono font-bold text-white text-xs tracking-wider uppercase">Workspace Modules</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('home');
+                            addLog('System Navigation: Switched workspace to [Home Control]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'home'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <HomeIcon className="w-4 h-4 text-indigo-400" />
+                            <span>Home</span>
+                          </div>
+                          {activeMainTab === 'home' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('planner');
+                            addLog('System Navigation: Switched workspace to [Content Planner]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'planner'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Film className="w-4 h-4 text-indigo-400" />
+                            <span>Content Planner</span>
+                          </div>
+                          {activeMainTab === 'planner' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('writer');
+                            addLog('System Navigation: Switched workspace to [Content Writer]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'writer'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <FileText className="w-4 h-4 text-indigo-400" />
+                            <span>Content Writer</span>
+                          </div>
+                          {activeMainTab === 'writer' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        {(currentUser?.toLowerCase() === 'aadithyan' || currentUserPermission === 'administrator') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMainTab('admin');
+                              addLog('System Navigation: Switched workspace to [Admin Console]', 'info');
+                              setIsMobileMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                              activeMainTab === 'admin'
+                                ? 'bg-indigo-600 text-white shadow-md'
+                                : 'text-slate-300 hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <ShieldCheck className="w-4 h-4 text-yellow-500" />
+                              <span>Admin Console</span>
+                            </div>
+                            {activeMainTab === 'admin' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('assistant');
+                            addLog('System Navigation: Switched workspace to [Swanaya Assist]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'assistant'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <MessageSquare className="w-4 h-4 text-indigo-400" />
+                            <span>AI Assist</span>
+                          </div>
+                          {activeMainTab === 'assistant' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('collaborate');
+                            addLog('System Navigation: Switched workspace to [Collaborative Feed]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'collaborate'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Network className="w-4 h-4 text-emerald-400" />
+                            <span>Collaborate</span>
+                          </div>
+                          {activeMainTab === 'collaborate' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('notifications');
+                            setUnreadNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+                            localStorage.setItem('swanaya_notifications', JSON.stringify(unreadNotifications.map(n => ({ ...n, unread: false }))));
+                            addLog('System Navigation: Switched workspace to [Notification Center]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'notifications'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Bell className="w-4 h-4 text-amber-400" />
+                            <span>Notifications</span>
+                          </div>
+                          {unreadNotifications.some(n => n.unread) ? (
+                            <span className="bg-rose-500 text-white text-[9px] px-2 py-0.5 rounded-full font-mono font-bold leading-none">
+                              {unreadNotifications.filter(n => n.unread).length}
+                            </span>
+                          ) : activeMainTab === 'notifications' ? (
+                            <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>
+                          ) : null}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('tasks');
+                            addLog('System Navigation: Switched workspace to [Task Manager Hub]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'tasks'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <CheckCircle className="w-4 h-4 text-emerald-400" />
+                            <span>Task Manager Hub</span>
+                          </div>
+                          {activeMainTab === 'tasks' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('seo');
+                            addLog('System Navigation: Switched workspace to [SEO Audit Dashboard]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'seo'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Globe className="w-4 h-4 text-emerald-400" />
+                            <span>SEO Audit</span>
+                          </div>
+                          {activeMainTab === 'seo' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('legal');
+                            addLog('System Navigation: Switched workspace to [Legal Center]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'legal'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <FileText className="w-4 h-4 text-indigo-400" />
+                            <span>Legal Center</span>
+                          </div>
+                          {activeMainTab === 'legal' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveMainTab('research');
+                            addLog('System Navigation: Switched workspace to [Research & Innovation]', 'info');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                            activeMainTab === 'research'
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Cpu className="w-4 h-4 text-emerald-400" />
+                            <span>Research & Innovation</span>
+                          </div>
+                          {activeMainTab === 'research' && <span className="text-[10px] uppercase font-mono bg-indigo-400/20 px-2 py-0.5 rounded text-indigo-200">Active</span>}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-800 text-[11px] font-mono text-slate-400 flex items-center justify-between">
+                      <span>Operator: <strong className="text-white">@{currentUser}</strong></span>
+                      <span className="text-indigo-400 font-bold uppercase tracking-wider text-[10px]">SWANIQUE AI</span>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
 
             {/* Main Interactive Tab Views with motion animations */}
             <main className="flex-grow flex flex-col justify-stretch min-h-[450px]">

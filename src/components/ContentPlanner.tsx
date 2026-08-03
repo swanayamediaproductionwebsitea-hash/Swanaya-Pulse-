@@ -33,6 +33,12 @@ const MONTHS = [
 const PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'LinkedIn', 'Facebook'];
 const TYPES = ['Video', 'Image', 'Article', 'Campaign', 'Story'] as const;
 
+// Allotted year range from 2026 to 2070 plus 20700
+const ALLOTTED_YEARS = [
+  ...Array.from({ length: 45 }, (_, i) => 2026 + i),
+  20700
+];
+
 const getMonthDetails = (monthName: string, selectedYear: number = 2026) => {
   const monthIndex = MONTHS.indexOf(monthName);
   if (monthIndex === -1) return { totalDays: 30, startDayOfWeek: 0 };
@@ -139,7 +145,7 @@ export default function ContentPlanner({
   const [daySortMode, setDaySortMode] = useState<'DAY_1_TO_31' | 'DATE_SEQ'>('DAY_1_TO_31');
   const [formDirectMediaUrl, setFormDirectMediaUrl] = useState('');
   
-  // Dynamic Year Changer state (supports range 2023-2026)
+  // Dynamic Year Changer state (supports allotted range 2026-2070 / 20700)
   const [selectedYear, setSelectedYear] = useState<number>(2026);
 
   // Dynamic Instagram Accounts Registry State
@@ -2226,10 +2232,9 @@ export default function ContentPlanner({
                   }}
                   className="bg-slate-900 border border-slate-800 text-indigo-400 text-xs font-bold rounded px-2 py-1 outline-none focus:border-indigo-500 cursor-pointer font-mono"
                 >
-                  <option value={2026}>2026 AD</option>
-                  <option value={2025}>2025 AD</option>
-                  <option value={2024}>2024 AD</option>
-                  <option value={2023}>2023 AD</option>
+                  {ALLOTTED_YEARS.map((yr) => (
+                    <option key={yr} value={yr}>{yr} AD</option>
+                  ))}
                 </select>
                 <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider bg-slate-900 border border-slate-800 px-2 py-1 rounded">Active Session</span>
               </div>
@@ -4209,10 +4214,9 @@ export default function ContentPlanner({
                       onChange={(e) => setNewInstaYear(Number(e.target.value))}
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none cursor-pointer font-mono"
                     >
-                      <option value={2026}>2026</option>
-                      <option value={2025}>2025</option>
-                      <option value={2024}>2024</option>
-                      <option value={2023}>2023</option>
+                      {ALLOTTED_YEARS.map((yr) => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="flex items-end justify-end">
@@ -4325,10 +4329,9 @@ export default function ContentPlanner({
                       onChange={(e) => setEditedInstaYear(Number(e.target.value))}
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none cursor-pointer font-mono"
                     >
-                      <option value={2026}>2026</option>
-                      <option value={2025}>2025</option>
-                      <option value={2024}>2024</option>
-                      <option value={2023}>2023</option>
+                      {ALLOTTED_YEARS.map((yr) => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="sm:col-span-2">
