@@ -23,6 +23,7 @@ import SeoAuditDashboard from './components/SeoAuditDashboard';
 import LegalModal from './components/LegalModal';
 import ResearchNoticeBanner from './components/ResearchNoticeBanner';
 import FirstLoginConsentModal from './components/FirstLoginConsentModal';
+import ShareAppModal from './components/ShareAppModal';
 import LegalCenter from './components/LegalCenter';
 import ResearchAccessPage from './components/ResearchAccessPage';
 import RdAccessBadge from './components/RdAccessBadge';
@@ -43,6 +44,7 @@ export default function App() {
   const [currentUserPermission, setCurrentUserPermission] = useState<'viewer' | 'editor' | 'administrator'>('editor');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [uiMode, setUiMode] = useState<'human' | 'ai'>(() => {
     return (localStorage.getItem('swanaya_ui_mode') as 'human' | 'ai') || 'ai';
   });
@@ -754,6 +756,22 @@ export default function App() {
                     <span>Light</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Share App Link Control */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsShareModalOpen(true);
+                    addLog('App Sharing: Opened Share App Link Generator Modal', 'info');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Share Applet & Deep Links"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="hidden sm:inline">Share App</span>
+                </button>
               </div>
 
               {/* Global Search Bar */}
@@ -2090,6 +2108,14 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Share App Link Modal */}
+      <ShareAppModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        currentTab={activeMainTab}
+        addLog={addLog}
+      />
 
     </div>
   );

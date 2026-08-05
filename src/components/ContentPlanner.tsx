@@ -2372,9 +2372,9 @@ export default function ContentPlanner({
                           <motion.div 
                             key={plan.id}
                             layout
-                            initial={{ opacity: 0, y: 15, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, x: -15 }}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.22, delay: Math.min(index * 0.03, 0.15), ease: 'easeOut' }}
                             draggable={permissionLevel !== 'viewer'}
                             onDragStart={(e) => handleDragStartPlan(e, plan.id)}
@@ -3062,16 +3062,22 @@ export default function ContentPlanner({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {sorted.map(plan => {
-                      const qLabel = getQ(plan.month);
-                      const dayNum = plan.day || 1;
-                      const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+                    <AnimatePresence mode="popLayout">
+                      {sorted.map((plan, idx) => {
+                        const qLabel = getQ(plan.month);
+                        const dayNum = plan.day || 1;
+                        const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
 
-                      return (
-                        <div
-                          key={plan.id}
-                          className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 p-4 rounded-xl space-y-3 transition-all shadow-md group relative flex flex-col justify-between"
-                        >
+                        return (
+                          <motion.div
+                            key={plan.id}
+                            layout
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.12) }}
+                            className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/50 p-4 rounded-xl space-y-3 transition-all shadow-md group relative flex flex-col justify-between"
+                          >
                           <div className="space-y-2">
                             {/* Quarter, Day 1-31 Badge & Date Header */}
                             <div className="flex items-center justify-between gap-2">
@@ -3142,9 +3148,10 @@ export default function ContentPlanner({
                               </span>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
+                    </AnimatePresence>
                   </div>
                 </div>
               );
